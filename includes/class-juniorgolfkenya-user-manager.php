@@ -23,9 +23,10 @@ class JuniorGolfKenya_User_Manager {
      * @since    1.0.0
      * @param    array    $user_data      User data
      * @param    array    $member_data    Member-specific data
+     * @param    array    $parent_data    Optional parent/guardian data for members under 18
      * @return   array                    Result with user_id and member_id or error
      */
-    public static function create_member_user($user_data, $member_data = array()) {
+    public static function create_member_user($user_data, $member_data = array(), $parent_data = array()) {
         // Validate required fields
         if (empty($user_data['user_email']) || empty($user_data['user_login'])) {
             return array('success' => false, 'message' => 'Email and username are required');
@@ -57,7 +58,7 @@ class JuniorGolfKenya_User_Manager {
 
         // Assign member role
         $user = new WP_User($user_id);
-        $user->set_role('jgf_member');
+        $user->set_role('jgk_member'); // Fixed: Changed from jgf_member to jgk_member
 
         // Create member record
         $member_data['user_id'] = $user_id;
@@ -69,6 +70,45 @@ class JuniorGolfKenya_User_Manager {
             return array('success' => false, 'message' => 'Failed to create member record');
         }
 
+        // Handle parent/guardian data if member is under 18
+        $parents_manager = new JuniorGolfKenya_Parents();
+        $parent_errors = array();
+        
+        if ($parents_manager->requires_parent_info($member_id)) {
+            // At least one parent/guardian is required for minors
+            if (empty($parent_data)) {
+                // Rollback member and user creation
+                JuniorGolfKenya_Database::delete_member($member_id);
+                wp_delete_user($user_id);
+                return array('success' => false, 'message' => 'Parent/guardian information is required for members under 18');
+            }
+            
+            // Add parent/guardian records
+            foreach ($parent_data as $parent) {
+                $result = $parents_manager->add_parent($member_id, $parent);
+                if ($result === false) {
+                    $parent_errors[] = 'Failed to add parent: ' . ($parent['first_name'] ?? 'Unknown') . ' ' . ($parent['last_name'] ?? 'Unknown');
+                }
+            }
+            
+            // Check if at least one parent was added successfully
+            $member_parents = $parents_manager->get_member_parents($member_id);
+            if (empty($member_parents)) {
+                // Rollback member and user creation
+                JuniorGolfKenya_Database::delete_member($member_id);
+                wp_delete_user($user_id);
+                return array(
+                    'success' => false, 
+                    'message' => 'Failed to add parent/guardian information: ' . implode(', ', $parent_errors)
+                );
+            }
+        } else if (!empty($parent_data)) {
+            // Add parent data even if not required (member is 18+)
+            foreach ($parent_data as $parent) {
+                $parents_manager->add_parent($member_id, $parent);
+            }
+        }
+
         // Log the creation
         JuniorGolfKenya_Database::log_audit(array(
             'action' => 'member_created',
@@ -77,12 +117,19 @@ class JuniorGolfKenya_User_Manager {
             'new_values' => json_encode(array('user_id' => $user_id, 'member_id' => $member_id))
         ));
 
-        return array(
+        $response = array(
             'success' => true,
             'user_id' => $user_id,
             'member_id' => $member_id,
             'message' => 'Member created successfully'
         );
+        
+        // Add warnings about parent data if any
+        if (!empty($parent_errors)) {
+            $response['warnings'] = $parent_errors;
+        }
+
+        return $response;
     }
 
     /**
@@ -132,13 +179,13 @@ class JuniorGolfKenya_User_Manager {
     public static function assign_coach($member_id, $coach_id) {
         // Verify coach has proper role
         $coach_user = get_user_by('ID', $coach_id);
-        if (!$coach_user || !in_array('jgf_coach', $coach_user->roles)) {
+        if (!$coach_user || !in_array('jgk_coach', $coach_user->roles)) { // Fixed: Changed from jgf_coach to jgk_coach
             return false;
         }
 
         // Update member record with assigned coach
         $result = JuniorGolfKenya_Database::update_member($member_id, array(
-            'assigned_coach_id' => $coach_id
+            'coach_id' => $coach_id
         ));
 
         if ($result) {
@@ -168,7 +215,7 @@ class JuniorGolfKenya_User_Manager {
     public static function process_role_request($request_id, $approve, $reason = '') {
         global $wpdb;
 
-        $table = $wpdb->prefix . 'jgf_role_requests';
+        $table = $wpdb->prefix . 'jgk_role_requests'; // Fixed: Changed from jgf to jgk
         $request = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $request_id));
 
         if (!$request) {
@@ -186,7 +233,7 @@ class JuniorGolfKenya_User_Manager {
             $user->add_role($request->requested_role);
 
             // If becoming a coach, create coach profile
-            if ($request->requested_role === 'jgf_coach') {
+            if ($request->requested_role === 'jgk_coach') { // Fixed: Changed from jgf_coach to jgk_coach
                 self::create_coach_profile($request->requester_user_id);
             }
 
@@ -222,7 +269,7 @@ class JuniorGolfKenya_User_Manager {
     public static function create_coach_profile($user_id) {
         global $wpdb;
 
-        $table = $wpdb->prefix . 'jgf_coach_profiles';
+        $table = $wpdb->prefix . 'jgk_coach_profiles'; // Fixed: Changed from jgf to jgk
         
         // Check if profile already exists
         $exists = $wpdb->get_var($wpdb->prepare("SELECT id FROM $table WHERE user_id = %d", $user_id));
@@ -258,7 +305,7 @@ class JuniorGolfKenya_User_Manager {
     public static function get_available_coaches() {
         global $wpdb;
 
-        $table = $wpdb->prefix . 'jgf_coach_profiles';
+        $table = $wpdb->prefix . 'jgk_coach_profiles';
         $sql = "SELECT cp.*, u.display_name, u.user_email 
                 FROM $table cp 
                 LEFT JOIN {$wpdb->users} u ON cp.user_id = u.ID 
@@ -313,8 +360,8 @@ Junior Golf Kenya Team',
         }
 
         $role_labels = array(
-            'jgf_coach' => 'Coach',
-            'jgf_staff' => 'Staff'
+            'jgk_coach' => 'Coach', // Fixed: Changed from jgf_coach to jgk_coach
+            'jgk_staff' => 'Staff'  // Fixed: Changed from jgf_staff to jgk_staff
         );
 
         $role_label = $role_labels[$role] ?? $role;
@@ -353,8 +400,8 @@ Junior Golf Kenya Team',
         }
 
         $role_labels = array(
-            'jgf_coach' => 'Coach',
-            'jgf_staff' => 'Staff'
+            'jgk_coach' => 'Coach', // Fixed: Changed from jgf_coach to jgk_coach
+            'jgk_staff' => 'Staff'  // Fixed: Changed from jgf_staff to jgk_staff
         );
 
         $role_label = $role_labels[$role] ?? $role;

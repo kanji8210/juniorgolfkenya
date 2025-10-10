@@ -80,13 +80,17 @@ class JuniorGolfKenya_Deactivator {
                 $table_audit_log,
                 array(
                     'user_id' => get_current_user_id(),
+                    'member_id' => null,
                     'action' => 'plugin_deactivated',
                     'object_type' => 'plugin',
+                    'object_id' => 0,
+                    'old_values' => null,
+                    'new_values' => null,
                     'ip_address' => self::get_user_ip(),
                     'user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '',
                     'created_at' => current_time('mysql')
                 ),
-                array('%d', '%s', '%s', '%s', '%s', '%s')
+                array('%d', '%d', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s')
             );
         }
     }

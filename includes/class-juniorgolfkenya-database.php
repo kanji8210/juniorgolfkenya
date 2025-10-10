@@ -73,16 +73,21 @@ class JuniorGolfKenya_Database {
         $table = $wpdb->prefix . 'jgk_members';
         $users_table = $wpdb->users;
         $coaches_table = $wpdb->users;
+        $coach_members_table = $wpdb->prefix . 'jgk_coach_members';
         
         $offset = ($page - 1) * $per_page;
         
         $query = "
             SELECT m.*, u.user_email, u.display_name, u.user_login,
                    TIMESTAMPDIFF(YEAR, m.date_of_birth, CURDATE()) as age,
-                   c.display_name as coach_name
+                   CONCAT(m.first_name, ' ', m.last_name) as full_name,
+                   c.display_name as primary_coach_name,
+                   GROUP_CONCAT(DISTINCT c2.display_name ORDER BY c2.display_name SEPARATOR ', ') as all_coaches
             FROM $table m 
             LEFT JOIN $users_table u ON m.user_id = u.ID 
             LEFT JOIN $coaches_table c ON m.coach_id = c.ID
+            LEFT JOIN $coach_members_table cm ON m.id = cm.member_id AND cm.status = 'active'
+            LEFT JOIN $coaches_table c2 ON cm.coach_id = c2.ID
         ";
         
         $where_conditions = array();
@@ -97,7 +102,7 @@ class JuniorGolfKenya_Database {
             $query .= " WHERE " . implode(" AND ", $where_conditions);
         }
         
-        $query .= " ORDER BY m.created_at DESC LIMIT %d OFFSET %d";
+        $query .= " GROUP BY m.id ORDER BY m.created_at DESC LIMIT %d OFFSET %d";
         $params[] = $per_page;
         $params[] = $offset;
         
@@ -274,19 +279,20 @@ class JuniorGolfKenya_Database {
                 $audit_table,
                 array(
                     'user_id' => get_current_user_id(),
+                    'member_id' => $member_id,
                     'action' => 'member_status_changed',
                     'object_type' => 'member',
                     'object_id' => $member_id,
-                    'details' => wp_json_encode(array(
-                        'old_status' => $old_status,
-                        'new_status' => $status,
+                    'old_values' => wp_json_encode(array('status' => $old_status)),
+                    'new_values' => wp_json_encode(array(
+                        'status' => $status,
                         'reason' => $reason
                     )),
                     'ip_address' => self::get_user_ip(),
                     'user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '',
                     'created_at' => current_time('mysql')
                 ),
-                array('%d', '%s', '%s', '%d', '%s', '%s', '%s', '%s')
+                array('%d', '%d', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s')
             );
         }
         
@@ -361,8 +367,9 @@ class JuniorGolfKenya_Database {
         
         $users_table = $wpdb->users;
         $usermeta_table = $wpdb->usermeta;
-        $members_table = $wpdb->prefix . 'jgk_members';
+        $coach_members_table = $wpdb->prefix . 'jgk_coach_members';
         $ratings_table = $wpdb->prefix . 'jgk_coach_ratings';
+        $training_table = $wpdb->prefix . 'jgk_training_schedules';
         
         $query = "
             SELECT u.ID, u.display_name, u.user_email,
@@ -370,18 +377,18 @@ class JuniorGolfKenya_Database {
                    um2.meta_value as specialties,
                    um3.meta_value as bio,
                    um4.meta_value as status,
-                   COUNT(DISTINCT m.id) as member_count,
+                   COUNT(DISTINCT cm.member_id) as member_count,
                    AVG(r.rating) as avg_rating,
                    COUNT(DISTINCT ts.id) as training_sessions
             FROM $users_table u
-            INNER JOIN $usermeta_table um ON u.ID = um.user_id AND um.meta_key = 'wp_capabilities' AND um.meta_value LIKE '%jgf_coach%'
+            INNER JOIN $usermeta_table um ON u.ID = um.user_id AND um.meta_key = 'wp_capabilities' AND um.meta_value LIKE '%jgk_coach%'
             LEFT JOIN $usermeta_table um1 ON u.ID = um1.user_id AND um1.meta_key = 'jgk_experience_years'
             LEFT JOIN $usermeta_table um2 ON u.ID = um2.user_id AND um2.meta_key = 'jgk_specialties'
             LEFT JOIN $usermeta_table um3 ON u.ID = um3.user_id AND um3.meta_key = 'jgk_bio'
             LEFT JOIN $usermeta_table um4 ON u.ID = um4.user_id AND um4.meta_key = 'jgk_coach_status'
-            LEFT JOIN $members_table m ON u.ID = m.coach_id AND m.status = 'active'
-            LEFT JOIN $ratings_table r ON u.ID = r.coach_id
-            LEFT JOIN {$wpdb->prefix}jgk_training_schedule ts ON u.ID = ts.coach_id
+            LEFT JOIN $coach_members_table cm ON u.ID = cm.coach_id AND cm.status = 'active'
+            LEFT JOIN $ratings_table r ON u.ID = r.coach_user_id
+            LEFT JOIN $training_table ts ON u.ID = ts.coach_user_id
             GROUP BY u.ID
             ORDER BY u.display_name
         ";
@@ -452,12 +459,10 @@ class JuniorGolfKenya_Database {
      * @since    1.0.0
      * @param    int       $member_id       Member ID
      * @param    float     $amount          Payment amount
-     * @param    string    $payment_type    Payment type
      * @param    string    $payment_method  Payment method
-     * @param    string    $notes           Payment notes
      * @return   int|false
      */
-    public static function record_payment($member_id, $amount, $payment_type, $payment_method, $notes = '') {
+    public static function record_payment($member_id, $amount, $payment_method = '') {
         global $wpdb;
         
         $table = $wpdb->prefix . 'jgk_payments';
@@ -465,10 +470,9 @@ class JuniorGolfKenya_Database {
         $data = array(
             'member_id' => $member_id,
             'amount' => $amount,
-            'payment_type' => $payment_type,
             'payment_method' => $payment_method,
             'status' => 'completed',
-            'notes' => $notes,
+            'payment_date' => current_time('mysql'),
             'created_at' => current_time('mysql'),
             'updated_at' => current_time('mysql')
         );
@@ -515,7 +519,7 @@ class JuniorGolfKenya_Database {
         $query = "
             SELECT r.*, u.display_name, u.user_email
             FROM $requests_table r
-            LEFT JOIN $users_table u ON r.user_id = u.ID
+            LEFT JOIN $users_table u ON r.requester_user_id = u.ID
             WHERE r.status = %s
             ORDER BY r.created_at DESC
         ";
@@ -549,7 +553,7 @@ class JuniorGolfKenya_Database {
             SELECT COUNT(DISTINCT u.ID) 
             FROM $users_table u
             INNER JOIN $usermeta_table um ON u.ID = um.user_id 
-            WHERE um.meta_key = 'wp_capabilities' AND um.meta_value LIKE '%jgf_coach%'
+            WHERE um.meta_key = 'wp_capabilities' AND um.meta_value LIKE '%jgk_coach%'
         ");
         $stats['active_coaches'] = $stats['total_coaches']; // Simplified
         
@@ -567,13 +571,19 @@ class JuniorGolfKenya_Database {
             AND YEAR(created_at) = YEAR(CURDATE())
         ");
         
-        // Tournament statistics
-        $stats['total_tournaments'] = $wpdb->get_var("SELECT COUNT(*) FROM $competitions_table");
-        $stats['upcoming_tournaments'] = $wpdb->get_var("
-            SELECT COUNT(*) 
-            FROM $competitions_table 
-            WHERE start_date > CURDATE()
-        ");
+        // Tournament statistics (check if table exists)
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$competitions_table'");
+        if ($table_exists) {
+            $stats['total_tournaments'] = $wpdb->get_var("SELECT COUNT(*) FROM $competitions_table");
+            $stats['upcoming_tournaments'] = $wpdb->get_var("
+                SELECT COUNT(*) 
+                FROM $competitions_table 
+                WHERE start_date > CURDATE()
+            ");
+        } else {
+            $stats['total_tournaments'] = 0;
+            $stats['upcoming_tournaments'] = 0;
+        }
         
         return $stats;
     }
@@ -592,5 +602,44 @@ class JuniorGolfKenya_Database {
         } else {
             return $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
         }
+    }
+    /**
+     * Log audit entry
+     *
+     * @since    1.0.0
+     * @param    array    $data    Audit data (action, object_type, object_id, old_values, new_values)
+     * @return   bool
+     */
+    public static function log_audit($data) {
+        global $wpdb;
+        
+        $audit_table = $wpdb->prefix . 'jgk_audit_log';
+        
+        // Check if audit table exists
+        if ($wpdb->get_var("SHOW TABLES LIKE '$audit_table'") != $audit_table) {
+            return false;
+        }
+        
+        // Prepare audit data
+        $audit_data = array(
+            'user_id' => get_current_user_id(),
+            'member_id' => isset($data['member_id']) ? $data['member_id'] : null,
+            'action' => isset($data['action']) ? $data['action'] : '',
+            'object_type' => isset($data['object_type']) ? $data['object_type'] : '',
+            'object_id' => isset($data['object_id']) ? $data['object_id'] : 0,
+            'old_values' => isset($data['old_values']) ? $data['old_values'] : null,
+            'new_values' => isset($data['new_values']) ? $data['new_values'] : null,
+            'ip_address' => self::get_user_ip(),
+            'user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '',
+            'created_at' => current_time('mysql')
+        );
+        
+        $result = $wpdb->insert(
+            $audit_table,
+            $audit_data,
+            array('%d', '%d', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s')
+        );
+        
+        return $result !== false;
     }
 }

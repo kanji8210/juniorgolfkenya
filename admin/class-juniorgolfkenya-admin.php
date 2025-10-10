@@ -206,4 +206,46 @@ class JuniorGolfKenya_Admin {
     public function display_settings_page() {
         include_once JUNIORGOLFKENYA_PLUGIN_PATH . 'admin/partials/juniorgolfkenya-admin-settings.php';
     }
+
+    /**
+     * Display activation notice after plugin activation
+     *
+     * @since    1.0.0
+     */
+    public function display_activation_notice() {
+        $activation_data = get_transient('jgk_activation_notice');
+        
+        if (!$activation_data) {
+            return;
+        }
+        
+        // Delete the transient so it only shows once
+        delete_transient('jgk_activation_notice');
+        
+        $verification = $activation_data['verification'];
+        
+        if ($verification['success']) {
+            $total_tables = count($verification['existing']);
+            echo '<div class="notice notice-success is-dismissible">';
+            echo '<p><strong>Junior Golf Kenya Plugin Activated Successfully!</strong></p>';
+            echo '<p>✅ All ' . esc_html($total_tables) . ' database tables were created successfully.</p>';
+            echo '<p>Tables created: <code>' . esc_html(implode(', ', $verification['existing'])) . '</code></p>';
+            echo '</div>';
+        } else {
+            echo '<div class="notice notice-error is-dismissible">';
+            echo '<p><strong>Junior Golf Kenya Plugin Activation Warning!</strong></p>';
+            echo '<p>⚠️ Some database tables could not be created.</p>';
+            
+            if (!empty($verification['existing'])) {
+                echo '<p>✅ Successfully created: <code>' . esc_html(implode(', ', $verification['existing'])) . '</code></p>';
+            }
+            
+            if (!empty($verification['missing'])) {
+                echo '<p>❌ Failed to create: <code>' . esc_html(implode(', ', $verification['missing'])) . '</code></p>';
+                echo '<p>Please check your database permissions or contact support.</p>';
+            }
+            
+            echo '</div>';
+        }
+    }
 }

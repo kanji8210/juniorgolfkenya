@@ -1,0 +1,5 @@
+# Deny direct access to test files
+<Files "*">
+    Order Allow,Deny
+    Deny from all
+</Files>

@@ -18,17 +18,32 @@
 class JuniorGolfKenya_Activator {
 
     /**
-     * Short Description.
-     *
-     * Long Description.
+     * Activate the plugin and create necessary database structures
      *
      * @since    1.0.0
      */
     public static function activate() {
-        self::create_tables();
+        // Create tables and track results
+        $tables_created = self::create_tables();
+        
+        // Create roles and capabilities
         self::create_roles_and_capabilities();
+        
+        // Create pages
         self::create_pages();
+        
+        // Set default options
         self::set_default_options();
+        
+        // Verify table creation and store status
+        $verification = self::verify_tables();
+        
+        // Store activation status for admin notice
+        set_transient('jgk_activation_notice', array(
+            'tables_created' => $tables_created,
+            'verification' => $verification,
+            'timestamp' => current_time('mysql')
+        ), 60);
         
         // Flush rewrite rules
         flush_rewrite_rules();
@@ -49,26 +64,38 @@ class JuniorGolfKenya_Activator {
         $sql_members = "CREATE TABLE $table_members (
             id mediumint(9) NOT NULL AUTO_INCREMENT,
             user_id bigint(20) UNSIGNED NOT NULL,
-            membership_number varchar(50) NOT NULL UNIQUE,
+            membership_number varchar(50) NOT NULL,
             membership_type varchar(50) NOT NULL,
             status varchar(32) DEFAULT 'pending_approval',
+            coach_id bigint(20) UNSIGNED,
             date_joined datetime DEFAULT CURRENT_TIMESTAMP,
             date_expires datetime,
+            expiry_date date,
+            join_date date,
             date_of_birth date,
             gender varchar(20),
+            first_name varchar(100),
+            last_name varchar(100),
+            phone varchar(20),
+            email varchar(100),
+            address text,
             biography text,
             parents_guardians text,
             profile_image_url varchar(500),
+            profile_image_id bigint(20) UNSIGNED,
             consent_photography varchar(16) DEFAULT 'no',
             emergency_contact_name varchar(100),
             emergency_contact_phone varchar(20),
             club_affiliation varchar(100),
-            parental_consent boolean DEFAULT false,
+            handicap varchar(10),
+            medical_conditions text,
+            parental_consent tinyint(1) DEFAULT 0,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
+            PRIMARY KEY  (id),
+            UNIQUE KEY membership_number (membership_number),
             KEY user_id (user_id),
-            KEY membership_number (membership_number),
+            KEY coach_id (coach_id),
             KEY status (status)
         ) $charset_collate;";
 
@@ -81,10 +108,10 @@ class JuniorGolfKenya_Activator {
             status varchar(20) DEFAULT 'active',
             start_date datetime NOT NULL,
             end_date datetime,
-            auto_renew boolean DEFAULT true,
+            auto_renew tinyint(1) DEFAULT 1,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
+            PRIMARY KEY  (id),
             KEY member_id (member_id),
             KEY plan_id (plan_id),
             KEY status (status)
@@ -103,7 +130,7 @@ class JuniorGolfKenya_Activator {
             status varchar(20) DEFAULT 'active',
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
+            PRIMARY KEY  (id),
             KEY status (status)
         ) $charset_collate;";
 
@@ -122,7 +149,7 @@ class JuniorGolfKenya_Activator {
             payment_date datetime,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
+            PRIMARY KEY  (id),
             KEY member_id (member_id),
             KEY membership_id (membership_id),
             KEY status (status),
@@ -143,7 +170,7 @@ class JuniorGolfKenya_Activator {
             status varchar(20) DEFAULT 'registered',
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
+            PRIMARY KEY  (id),
             KEY member_id (member_id),
             KEY competition_date (competition_date),
             KEY status (status)
@@ -163,7 +190,7 @@ class JuniorGolfKenya_Activator {
             status varchar(20) DEFAULT 'active',
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
+            PRIMARY KEY  (id),
             KEY member_id (member_id),
             KEY expiry_date (expiry_date),
             KEY status (status)
@@ -183,7 +210,7 @@ class JuniorGolfKenya_Activator {
             ip_address varchar(45),
             user_agent text,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
+            PRIMARY KEY  (id),
             KEY user_id (user_id),
             KEY member_id (member_id),
             KEY action (action),
@@ -194,20 +221,24 @@ class JuniorGolfKenya_Activator {
         
         // Capture output to prevent "headers already sent" errors
         ob_start();
-        dbDelta($sql_members);
-        dbDelta($sql_memberships);
-        dbDelta($sql_plans);
-        dbDelta($sql_payments);
-        dbDelta($sql_competition_entries);
-        dbDelta($sql_certifications);
-        dbDelta($sql_audit_log);
+        $results = array();
+        $results['members'] = dbDelta($sql_members);
+        $results['memberships'] = dbDelta($sql_memberships);
+        $results['plans'] = dbDelta($sql_plans);
+        $results['payments'] = dbDelta($sql_payments);
+        $results['competition_entries'] = dbDelta($sql_competition_entries);
+        $results['certifications'] = dbDelta($sql_certifications);
+        $results['audit_log'] = dbDelta($sql_audit_log);
         ob_end_clean();
 
         // Create additional tables for roles functionality
-        self::create_additional_tables();
+        $additional_results = self::create_additional_tables();
 
         // Insert default plan
         self::insert_default_data();
+        
+        // Return combined results
+        return array_merge($results, $additional_results);
     }
 
     /**
@@ -229,7 +260,7 @@ class JuniorGolfKenya_Activator {
             rating smallint(6) NOT NULL,
             notes text,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
+            PRIMARY KEY  (id),
             KEY coach_user_id (coach_user_id),
             KEY member_id (member_id),
             KEY rating (rating)
@@ -247,7 +278,7 @@ class JuniorGolfKenya_Activator {
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             handled_by bigint(20) UNSIGNED,
             handled_at datetime,
-            PRIMARY KEY (id),
+            PRIMARY KEY  (id),
             KEY recommender_user_id (recommender_user_id),
             KEY member_id (member_id),
             KEY type (type),
@@ -267,7 +298,7 @@ class JuniorGolfKenya_Activator {
             capacity int DEFAULT 20,
             location varchar(255),
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
+            PRIMARY KEY  (id),
             KEY coach_user_id (coach_user_id),
             KEY start_datetime (start_datetime),
             KEY club_id (club_id)
@@ -284,7 +315,7 @@ class JuniorGolfKenya_Activator {
             reviewed_by bigint(20) UNSIGNED,
             reviewed_at datetime,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
+            PRIMARY KEY  (id),
             KEY requester_user_id (requester_user_id),
             KEY requested_role (requested_role),
             KEY status (status)
@@ -294,7 +325,7 @@ class JuniorGolfKenya_Activator {
         $table_coach_profiles = $wpdb->prefix . 'jgf_coach_profiles';
         $sql_coach_profiles = "CREATE TABLE $table_coach_profiles (
             id mediumint(9) NOT NULL AUTO_INCREMENT,
-            user_id bigint(20) UNSIGNED NOT NULL UNIQUE,
+            user_id bigint(20) UNSIGNED NOT NULL,
             qualifications text,
             specialties text,
             bio text,
@@ -302,21 +333,51 @@ class JuniorGolfKenya_Activator {
             verification_status varchar(32) DEFAULT 'pending',
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
-            KEY user_id (user_id),
+            PRIMARY KEY  (id),
+            UNIQUE KEY user_id (user_id),
             KEY verification_status (verification_status)
+        ) $charset_collate;";
+
+        // Parents/Guardians table
+        $table_parents_guardians = $wpdb->prefix . 'jgk_parents_guardians';
+        $sql_parents_guardians = "CREATE TABLE $table_parents_guardians (
+            id mediumint(9) NOT NULL AUTO_INCREMENT,
+            member_id mediumint(9) NOT NULL,
+            relationship varchar(50) NOT NULL,
+            first_name varchar(100) NOT NULL,
+            last_name varchar(100) NOT NULL,
+            email varchar(100),
+            phone varchar(20),
+            mobile varchar(20),
+            address text,
+            occupation varchar(100),
+            employer varchar(150),
+            id_number varchar(50),
+            is_primary_contact tinyint(1) DEFAULT 0,
+            can_pickup tinyint(1) DEFAULT 1,
+            emergency_contact tinyint(1) DEFAULT 0,
+            notes text,
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            KEY member_id (member_id),
+            KEY is_primary_contact (is_primary_contact)
         ) $charset_collate;";
 
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         
         // Capture output to prevent "headers already sent" errors
         ob_start();
-        dbDelta($sql_coach_ratings);
-        dbDelta($sql_recommendations);
-        dbDelta($sql_training_schedules);
-        dbDelta($sql_role_requests);
-        dbDelta($sql_coach_profiles);
+        $results = array();
+        $results['coach_ratings'] = dbDelta($sql_coach_ratings);
+        $results['recommendations'] = dbDelta($sql_recommendations);
+        $results['training_schedules'] = dbDelta($sql_training_schedules);
+        $results['role_requests'] = dbDelta($sql_role_requests);
+        $results['coach_profiles'] = dbDelta($sql_coach_profiles);
+        $results['parents_guardians'] = dbDelta($sql_parents_guardians);
         ob_end_clean();
+        
+        return $results;
     }
 
     /**
@@ -366,6 +427,7 @@ class JuniorGolfKenya_Activator {
             $custom_caps = array(
                 'view_member_dashboard',
                 'edit_members',
+                'manage_coaches',
                 'manage_payments',
                 'view_reports',
                 'manage_competitions',
@@ -473,5 +535,54 @@ class JuniorGolfKenya_Activator {
                 add_option($option_name, $option_value);
             }
         }
+    }
+
+    /**
+     * Verify that all required tables were created
+     *
+     * @since    1.0.0
+     * @return   array    Status of each table
+     */
+    private static function verify_tables() {
+        global $wpdb;
+        
+        $required_tables = array(
+            'jgk_members',
+            'jgk_memberships',
+            'jgk_plans',
+            'jgk_payments',
+            'jgk_competition_entries',
+            'jgk_certifications',
+            'jgk_audit_log',
+            'jgf_coach_ratings',
+            'jgf_recommendations',
+            'jgf_training_schedules',
+            'jgf_role_requests',
+            'jgf_coach_profiles',
+            'jgk_parents_guardians'
+        );
+        
+        $verification = array(
+            'success' => true,
+            'missing' => array(),
+            'existing' => array()
+        );
+        
+        foreach ($required_tables as $table) {
+            $table_name = $wpdb->prefix . $table;
+            $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'") == $table_name;
+            
+            if ($table_exists) {
+                $verification['existing'][] = $table;
+            } else {
+                $verification['missing'][] = $table;
+                $verification['success'] = false;
+            }
+        }
+        
+        // Log the results
+        error_log('JuniorGolfKenya Activation - Tables Verification: ' . wp_json_encode($verification));
+        
+        return $verification;
     }
 }

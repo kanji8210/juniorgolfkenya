@@ -30,12 +30,73 @@ $coach_id = isset($_GET['coach_id']) ? intval($_GET['coach_id']) : 0;
 
 // Get report data
 $overview_stats = JuniorGolfKenya_Database::get_overview_statistics();
-$membership_stats = JuniorGolfKenya_Database::get_membership_statistics($date_from, $date_to);
-$payment_stats = JuniorGolfKenya_Database::get_payment_statistics($date_from, $date_to);
+$membership_stats_base = JuniorGolfKenya_Database::get_membership_stats();
+
+// Extend membership stats with additional data needed by the report
+global $wpdb;
+$members_table = $wpdb->prefix . 'jgk_members';
+
+// Get new members in date range
+$new_members = $wpdb->get_var($wpdb->prepare(
+    "SELECT COUNT(*) FROM $members_table WHERE DATE(created_at) BETWEEN %s AND %s",
+    $date_from,
+    $date_to
+));
+
+// Build complete membership stats
+$membership_stats = array_merge($membership_stats_base, array(
+    'new_members' => $new_members ?? 0,
+    'renewals' => 0, // TODO: implement renewals tracking
+    'cancellations' => 0, // TODO: implement cancellations tracking
+    'net_growth' => $new_members ?? 0,
+    'by_type' => array()
+));
+
+// Get stats by membership type
+$types = $wpdb->get_results("
+    SELECT membership_type, COUNT(*) as count 
+    FROM $members_table 
+    GROUP BY membership_type
+");
+foreach ($types as $type) {
+    $membership_stats['by_type'][$type->membership_type] = array(
+        'count' => $type->count,
+        'active' => $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM $members_table WHERE membership_type = %s AND status = 'active'",
+            $type->membership_type
+        ))
+    );
+}
+
 $coaches = JuniorGolfKenya_Database::get_coaches();
 
+// Get payment stats manually (method doesn't exist)
+$payments_table = $wpdb->prefix . 'jgk_payments';
+$payment_stats = array(
+    'total_revenue' => $wpdb->get_var($wpdb->prepare(
+        "SELECT COALESCE(SUM(amount), 0) FROM $payments_table WHERE status = 'completed' AND DATE(created_at) BETWEEN %s AND %s",
+        $date_from,
+        $date_to
+    )),
+    'total_payments' => $wpdb->get_var($wpdb->prepare(
+        "SELECT COUNT(*) FROM $payments_table WHERE DATE(created_at) BETWEEN %s AND %s",
+        $date_from,
+        $date_to
+    ))
+);
+
 if ($coach_id) {
-    $coach_performance = JuniorGolfKenya_Database::get_coach_performance($coach_id, $date_from, $date_to);
+    // Get coach performance manually (method doesn't exist)
+    $coach_performance = array(
+        'total_members' => $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM $members_table WHERE coach_id = %d",
+            $coach_id
+        )),
+        'active_members' => $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM $members_table WHERE coach_id = %d AND status = 'active'",
+            $coach_id
+        ))
+    );
 }
 ?>
 

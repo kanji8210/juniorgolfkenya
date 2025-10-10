@@ -17,6 +17,7 @@ if (!defined('ABSPATH')) {
 // Load required classes
 require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-database.php';
 require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-user-manager.php';
+require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-media.php';
 
 // Check user permissions
 if (!current_user_can('edit_members')) {
@@ -85,9 +86,117 @@ if (isset($_POST['action'])) {
                 'expiry_date' => date('Y-m-d', strtotime('+1 year'))
             );
 
-            $result = JuniorGolfKenya_User_Manager::create_member_user($user_data, $member_data);
+            // Collect parent/guardian data if provided
+            $parent_data = array();
+            if (isset($_POST['parent_first_name']) && is_array($_POST['parent_first_name'])) {
+                $parent_count = count($_POST['parent_first_name']);
+                for ($i = 0; $i < $parent_count; $i++) {
+                    // Skip empty entries
+                    if (empty($_POST['parent_first_name'][$i]) && empty($_POST['parent_last_name'][$i])) {
+                        continue;
+                    }
+                    
+                    $parent_data[] = array(
+                        'first_name' => sanitize_text_field($_POST['parent_first_name'][$i]),
+                        'last_name' => sanitize_text_field($_POST['parent_last_name'][$i]),
+                        'relationship' => sanitize_text_field($_POST['parent_relationship'][$i] ?? 'parent'),
+                        'phone' => sanitize_text_field($_POST['parent_phone'][$i] ?? ''),
+                        'email' => sanitize_email($_POST['parent_email'][$i] ?? ''),
+                        'occupation' => sanitize_text_field($_POST['parent_occupation'][$i] ?? ''),
+                        'is_primary_contact' => isset($_POST['parent_is_primary'][$i]) ? 1 : 0,
+                        'emergency_contact' => isset($_POST['parent_is_emergency'][$i]) ? 1 : 0,
+                        'can_pickup' => isset($_POST['parent_can_pickup'][$i]) ? 1 : 0
+                    );
+                }
+            }
+
+            $result = JuniorGolfKenya_User_Manager::create_member_user($user_data, $member_data, $parent_data);
             $message = $result['message'];
             $message_type = $result['success'] ? 'success' : 'error';
+            
+            // Add warnings if any
+            if (isset($result['warnings'])) {
+                $message .= ' ' . implode(' ', $result['warnings']);
+            }
+            
+            // Handle profile image upload if member was created successfully
+            if ($result['success'] && isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] === UPLOAD_ERR_OK) {
+                $upload_result = JuniorGolfKenya_Media::upload_profile_image($result['member_id'], $_FILES['profile_image']);
+                if ($upload_result['success']) {
+                    $message .= ' Profile photo uploaded successfully.';
+                } else {
+                    $message .= ' Warning: ' . $upload_result['message'];
+                    $message_type = 'warning';
+                }
+            }
+            break;
+
+        case 'edit_member':
+            if (isset($_POST['member_id'])) {
+                $member_id = intval($_POST['member_id']);
+                
+                // Update basic member data
+                $member_data = array(
+                    'first_name' => sanitize_text_field($_POST['first_name']),
+                    'last_name' => sanitize_text_field($_POST['last_name']),
+                    'membership_type' => sanitize_text_field($_POST['membership_type']),
+                    'status' => sanitize_text_field($_POST['status']),
+                    'date_of_birth' => sanitize_text_field($_POST['date_of_birth']),
+                    'gender' => sanitize_text_field($_POST['gender']),
+                    'phone' => sanitize_text_field($_POST['phone']),
+                    'handicap' => !empty($_POST['handicap']) ? floatval($_POST['handicap']) : null,
+                    'club_affiliation' => sanitize_text_field($_POST['club_affiliation']),
+                    'coach_id' => !empty($_POST['coach_id']) ? intval($_POST['coach_id']) : null,
+                    'emergency_contact_name' => sanitize_text_field($_POST['emergency_contact_name']),
+                    'emergency_contact_phone' => sanitize_text_field($_POST['emergency_contact_phone']),
+                    'medical_conditions' => sanitize_textarea_field($_POST['medical_conditions']),
+                    'address' => sanitize_textarea_field($_POST['address']),
+                    'biography' => sanitize_textarea_field($_POST['biography']),
+                    'consent_photography' => isset($_POST['consent_photography']) ? 'yes' : 'no',
+                    'parental_consent' => isset($_POST['parental_consent']) ? 1 : 0
+                );
+                
+                $result = JuniorGolfKenya_Database::update_member($member_id, $member_data);
+                
+                if ($result) {
+                    // Update WordPress user data
+                    $member = JuniorGolfKenya_Database::get_member($member_id);
+                    if ($member && $member->user_id) {
+                        wp_update_user(array(
+                            'ID' => $member->user_id,
+                            'user_email' => sanitize_email($_POST['email']),
+                            'display_name' => sanitize_text_field($_POST['display_name'])
+                        ));
+                    }
+                    
+                    // Handle profile image upload
+                    if (isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] === UPLOAD_ERR_OK) {
+                        $upload_result = JuniorGolfKenya_Media::upload_profile_image($member_id, $_FILES['profile_image']);
+                        if (!$upload_result['success']) {
+                            $message = 'Member updated but profile image failed: ' . $upload_result['message'];
+                            $message_type = 'warning';
+                        }
+                    }
+                    
+                    // Handle profile image deletion
+                    if (isset($_POST['delete_profile_image']) && $_POST['delete_profile_image'] === '1') {
+                        JuniorGolfKenya_Media::delete_profile_image($member_id);
+                    }
+                    
+                    if (empty($message)) {
+                        $message = 'Member updated successfully!';
+                        $message_type = 'success';
+                    }
+                } else {
+                    $message = 'Failed to update member.';
+                    $message_type = 'error';
+                }
+                
+                // Set action to edit to reload the edit form with message
+                $_GET['action'] = 'edit';
+                $_GET['member_id'] = $member_id;
+                // Don't redirect - let the page render with the success message
+            }
             break;
 
         case 'update_member_status':
@@ -107,6 +216,34 @@ if (isset($_POST['action'])) {
             }
             break;
     }
+}
+
+// Check if we're in edit mode
+$action = isset($_GET['action']) ? sanitize_text_field($_GET['action']) : '';
+$member_id_to_edit = isset($_GET['member_id']) ? intval($_GET['member_id']) : 0;
+
+if ($action === 'edit' && $member_id_to_edit > 0) {
+    // Load edit form
+    $edit_member = JuniorGolfKenya_Database::get_member($member_id_to_edit);
+    if (!$edit_member) {
+        wp_die(__('Member not found.'));
+    }
+    
+    // Load parents if member is under 18
+    require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-parents.php';
+    $parents_manager = new JuniorGolfKenya_Parents();
+    $member_parents = $parents_manager->get_member_parents($member_id_to_edit);
+    
+    // Load available coaches for assignment
+    $coaches = get_users(array(
+        'role' => 'jgk_coach',
+        'orderby' => 'display_name',
+        'order' => 'ASC'
+    ));
+    
+    // Include edit form
+    include_once JUNIORGOLFKENYA_PLUGIN_PATH . 'admin/partials/juniorgolfkenya-admin-member-edit.php';
+    return;
 }
 
 // Get members data
@@ -166,11 +303,21 @@ $coaches = JuniorGolfKenya_User_Manager::get_available_coaches();
     <!-- Add Member Form (Hidden by default) -->
     <div id="add-member-form" class="jgk-form-section" style="display: none;">
         <h2>Add New Member</h2>
-        <form method="post">
+        <form method="post" enctype="multipart/form-data">
             <?php wp_nonce_field('jgk_members_action'); ?>
             <input type="hidden" name="action" value="create_member">
             
             <h3>Personal Information</h3>
+            
+            <div class="jgk-form-row">
+                <div class="jgk-form-field">
+                    <label for="profile_image">Profile Photo</label>
+                    <input type="file" id="profile_image" name="profile_image" accept="image/*">
+                    <small>Max 5MB. JPG, PNG, GIF or WebP format.</small>
+                    <div id="profile_image_preview" style="margin-top: 10px;"></div>
+                </div>
+            </div>
+            
             <div class="jgk-form-row">
                 <div class="jgk-form-field">
                     <label for="first_name">First Name *</label>
@@ -279,12 +426,213 @@ $coaches = JuniorGolfKenya_User_Manager::get_available_coaches();
                 </div>
             </div>
             
+            <h3>Parent/Guardian Information <span style="font-weight: normal; font-size: 14px;">(Required for members under 18)</span></h3>
+            <div id="parents-container">
+                <div class="parent-entry" data-parent-index="0">
+                    <h4>Parent/Guardian 1</h4>
+                    <div class="jgk-form-row">
+                        <div class="jgk-form-field">
+                            <label>First Name</label>
+                            <input type="text" name="parent_first_name[]" placeholder="Parent's first name">
+                        </div>
+                        <div class="jgk-form-field">
+                            <label>Last Name</label>
+                            <input type="text" name="parent_last_name[]" placeholder="Parent's last name">
+                        </div>
+                    </div>
+                    <div class="jgk-form-row">
+                        <div class="jgk-form-field">
+                            <label>Relationship</label>
+                            <select name="parent_relationship[]">
+                                <option value="parent">Parent</option>
+                                <option value="father">Father</option>
+                                <option value="mother">Mother</option>
+                                <option value="guardian">Legal Guardian</option>
+                                <option value="grandparent">Grandparent</option>
+                                <option value="aunt_uncle">Aunt/Uncle</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="jgk-form-field">
+                            <label>Phone Number</label>
+                            <input type="tel" name="parent_phone[]" placeholder="+254...">
+                        </div>
+                    </div>
+                    <div class="jgk-form-row">
+                        <div class="jgk-form-field">
+                            <label>Email</label>
+                            <input type="email" name="parent_email[]" placeholder="parent@example.com">
+                        </div>
+                        <div class="jgk-form-field">
+                            <label>Occupation</label>
+                            <input type="text" name="parent_occupation[]" placeholder="Occupation">
+                        </div>
+                    </div>
+                    <div class="jgk-form-row">
+                        <div class="jgk-form-field" style="flex-direction: row; gap: 15px;">
+                            <label style="display: inline-flex; align-items: center; gap: 5px;">
+                                <input type="checkbox" name="parent_is_primary[]" value="1">
+                                Primary Contact
+                            </label>
+                            <label style="display: inline-flex; align-items: center; gap: 5px;">
+                                <input type="checkbox" name="parent_is_emergency[]" value="1">
+                                Emergency Contact
+                            </label>
+                            <label style="display: inline-flex; align-items: center; gap: 5px;">
+                                <input type="checkbox" name="parent_can_pickup[]" value="1">
+                                Can Pick Up
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <p>
+                <button type="button" class="button" onclick="addParentEntry()">+ Add Another Parent/Guardian</button>
+            </p>
+            
             <p class="submit">
                 <input type="submit" class="button-primary" value="Create Member">
                 <button type="button" class="button" onclick="toggleAddMemberForm()">Cancel</button>
             </p>
         </form>
     </div>
+
+    <script>
+    let parentIndex = 1;
+    
+    // Profile image preview
+    document.getElementById('profile_image')?.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        const preview = document.getElementById('profile_image_preview');
+        
+        if (file) {
+            // Validate file size (5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                alert('File too large. Maximum size is 5MB.');
+                this.value = '';
+                preview.innerHTML = '';
+                return;
+            }
+            
+            // Validate file type
+            const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+            if (!validTypes.includes(file.type)) {
+                alert('Invalid file type. Please use JPG, PNG, GIF or WebP.');
+                this.value = '';
+                preview.innerHTML = '';
+                return;
+            }
+            
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.innerHTML = '<img src="' + e.target.result + '" style="max-width: 200px; max-height: 200px; border-radius: 50%; border: 3px solid #0073aa;">';
+            };
+            reader.readAsDataURL(file);
+        } else {
+            preview.innerHTML = '';
+        }
+    });
+    
+    function addParentEntry() {
+        const container = document.getElementById('parents-container');
+        const newEntry = document.createElement('div');
+        newEntry.className = 'parent-entry';
+        newEntry.setAttribute('data-parent-index', parentIndex);
+        newEntry.innerHTML = `
+            <h4>Parent/Guardian ${parentIndex + 1} <button type="button" class="button button-small" onclick="removeParentEntry(this)" style="margin-left: 10px;">Remove</button></h4>
+            <div class="jgk-form-row">
+                <div class="jgk-form-field">
+                    <label>First Name</label>
+                    <input type="text" name="parent_first_name[]" placeholder="Parent's first name">
+                </div>
+                <div class="jgk-form-field">
+                    <label>Last Name</label>
+                    <input type="text" name="parent_last_name[]" placeholder="Parent's last name">
+                </div>
+            </div>
+            <div class="jgk-form-row">
+                <div class="jgk-form-field">
+                    <label>Relationship</label>
+                    <select name="parent_relationship[]">
+                        <option value="parent">Parent</option>
+                        <option value="father">Father</option>
+                        <option value="mother">Mother</option>
+                        <option value="guardian">Legal Guardian</option>
+                        <option value="grandparent">Grandparent</option>
+                        <option value="aunt_uncle">Aunt/Uncle</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="jgk-form-field">
+                    <label>Phone Number</label>
+                    <input type="tel" name="parent_phone[]" placeholder="+254...">
+                </div>
+            </div>
+            <div class="jgk-form-row">
+                <div class="jgk-form-field">
+                    <label>Email</label>
+                    <input type="email" name="parent_email[]" placeholder="parent@example.com">
+                </div>
+                <div class="jgk-form-field">
+                    <label>Occupation</label>
+                    <input type="text" name="parent_occupation[]" placeholder="Occupation">
+                </div>
+            </div>
+            <div class="jgk-form-row">
+                <div class="jgk-form-field" style="flex-direction: row; gap: 15px;">
+                    <label style="display: inline-flex; align-items: center; gap: 5px;">
+                        <input type="checkbox" name="parent_is_primary[]" value="1">
+                        Primary Contact
+                    </label>
+                    <label style="display: inline-flex; align-items: center; gap: 5px;">
+                        <input type="checkbox" name="parent_is_emergency[]" value="1">
+                        Emergency Contact
+                    </label>
+                    <label style="display: inline-flex; align-items: center; gap: 5px;">
+                        <input type="checkbox" name="parent_can_pickup[]" value="1">
+                        Can Pick Up
+                    </label>
+                </div>
+            </div>
+        `;
+        container.appendChild(newEntry);
+        parentIndex++;
+    }
+    
+    function removeParentEntry(button) {
+        const entry = button.closest('.parent-entry');
+        if (entry) {
+            entry.remove();
+        }
+    }
+    
+    // Show/hide parent section based on date of birth
+    document.getElementById('date_of_birth')?.addEventListener('change', function() {
+        const dob = new Date(this.value);
+        const today = new Date();
+        const age = Math.floor((today - dob) / (365.25 * 24 * 60 * 60 * 1000));
+        
+        const parentsSection = document.querySelector('h3:has(+ #parents-container)');
+        if (parentsSection) {
+            if (age < 18) {
+                parentsSection.style.display = 'block';
+                document.getElementById('parents-container').style.display = 'block';
+                document.querySelector('button[onclick="addParentEntry()"]').parentElement.style.display = 'block';
+                // Make first parent required
+                document.querySelectorAll('.parent-entry:first-child input[name="parent_first_name[]"], .parent-entry:first-child input[name="parent_last_name[]"]').forEach(input => {
+                    input.required = true;
+                });
+            } else {
+                // Keep visible but not required
+                document.querySelectorAll('.parent-entry input').forEach(input => {
+                    input.required = false;
+                });
+            }
+        }
+    });
+    </script>
 
     <!-- Filters and Search -->
     <div class="tablenav top">
@@ -319,6 +667,7 @@ $coaches = JuniorGolfKenya_User_Manager::get_available_coaches();
         <table class="wp-list-table widefat fixed striped jgk-table">
             <thead>
                 <tr>
+                    <th>Photo</th>
                     <th>Member #</th>
                     <th>Name</th>
                     <th>Email</th>
@@ -332,11 +681,14 @@ $coaches = JuniorGolfKenya_User_Manager::get_available_coaches();
             <tbody>
                 <?php if (empty($members)): ?>
                 <tr>
-                    <td colspan="8">No members found.</td>
+                    <td colspan="9">No members found.</td>
                 </tr>
                 <?php else: ?>
                 <?php foreach ($members as $member): ?>
                 <tr>
+                    <td>
+                        <?php echo JuniorGolfKenya_Media::get_profile_image_html($member->id, 'thumbnail', array('style' => 'width: 40px; height: 40px; border-radius: 50%; object-fit: cover;')); ?>
+                    </td>
                     <td><strong><?php echo esc_html($member->membership_number ?: 'JGK-' . str_pad($member->id, 4, '0', STR_PAD_LEFT)); ?></strong></td>
                     <td>
                         <strong><?php echo esc_html($member->display_name ?: ($member->first_name . ' ' . $member->last_name)); ?></strong>
@@ -360,8 +712,9 @@ $coaches = JuniorGolfKenya_User_Manager::get_available_coaches();
                         <?php endif; ?>
                     </td>
                     <td>
-                        <?php if ($member->coach_name): ?>
-                        <?php echo esc_html($member->coach_name); ?>
+                        <?php if ($member->all_coaches): ?>
+                        <?php echo esc_html($member->all_coaches); ?>
+                        <br><small style="color: #666;"><?php echo substr_count($member->all_coaches, ',') + 1; ?> coach(es)</small>
                         <?php else: ?>
                         <em>No coach assigned</em>
                         <?php endif; ?>
@@ -389,14 +742,14 @@ $coaches = JuniorGolfKenya_User_Manager::get_available_coaches();
                             <!-- Assign Coach Button -->
                             <button class="button button-small jgk-button-coach" 
                                     onclick="openCoachModal(<?php echo $member->id; ?>, '<?php echo esc_js($member->display_name); ?>')">
-                                <?php echo $member->coach_name ? 'Change Coach' : 'Assign Coach'; ?>
+                                <?php echo $member->all_coaches ? 'Manage Coaches' : 'Assign Coach'; ?>
                             </button>
                             
-                            <!-- View Details -->
-                            <button class="button button-small jgk-button-view" 
-                                    onclick="viewMemberDetails(<?php echo $member->id; ?>)">
-                                View Details
-                            </button>
+                            <!-- Edit Member -->
+                            <a href="<?php echo admin_url('admin.php?page=juniorgolfkenya-members&action=edit&member_id=' . $member->id); ?>" 
+                               class="button button-small jgk-button-edit">
+                                Edit Member
+                            </a>
                         </div>
                     </td>
                 </tr>
