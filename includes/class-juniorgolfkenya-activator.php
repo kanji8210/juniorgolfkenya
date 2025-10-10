@@ -192,6 +192,8 @@ class JuniorGolfKenya_Activator {
 
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         
+        // Capture output to prevent "headers already sent" errors
+        ob_start();
         dbDelta($sql_members);
         dbDelta($sql_memberships);
         dbDelta($sql_plans);
@@ -199,6 +201,7 @@ class JuniorGolfKenya_Activator {
         dbDelta($sql_competition_entries);
         dbDelta($sql_certifications);
         dbDelta($sql_audit_log);
+        ob_end_clean();
 
         // Create additional tables for roles functionality
         self::create_additional_tables();
@@ -306,11 +309,14 @@ class JuniorGolfKenya_Activator {
 
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         
+        // Capture output to prevent "headers already sent" errors
+        ob_start();
         dbDelta($sql_coach_ratings);
         dbDelta($sql_recommendations);
         dbDelta($sql_training_schedules);
         dbDelta($sql_role_requests);
         dbDelta($sql_coach_profiles);
+        ob_end_clean();
     }
 
     /**

@@ -4,7 +4,205 @@
  * Database operations manager
  *
  * @link       https://github.com/kanji8210/juniorgolfkenya
- * @since      1.0.0    /**
+ * @since      1.0.0
+ *
+ * @package    JuniorGolfKenya
+ * @subpackage JuniorGolfKenya/includes
+ */
+
+/**
+ * Database operations manager class.
+ *
+ * This class handles all database operations for the plugin.
+ */
+class JuniorGolfKenya_Database {
+
+    /**
+     * Get member by ID
+     *
+     * @since    1.0.0
+     * @param    int    $member_id    Member ID
+     * @return   object|null
+     */
+    public static function get_member($member_id) {
+        global $wpdb;
+        
+        $table = $wpdb->prefix . 'jgk_members';
+        $users_table = $wpdb->users;
+        
+        $query = "
+            SELECT m.*, u.user_email, u.display_name, u.user_login,
+                   TIMESTAMPDIFF(YEAR, m.date_of_birth, CURDATE()) as age,
+                   CONCAT(u.display_name, ' (', m.membership_number, ')') as member_name,
+                   c.display_name as coach_name
+            FROM $table m 
+            LEFT JOIN $users_table u ON m.user_id = u.ID 
+            LEFT JOIN $users_table c ON m.coach_id = c.ID
+            WHERE m.id = %d
+        ";
+        
+        return $wpdb->get_row($wpdb->prepare($query, $member_id));
+    }
+
+    /**
+     * Get member by user ID
+     *
+     * @since    1.0.0
+     * @param    int    $user_id    WordPress User ID
+     * @return   object|null
+     */
+    public static function get_member_by_user_id($user_id) {
+        global $wpdb;
+        
+        $table = $wpdb->prefix . 'jgk_members';
+        return $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE user_id = %d", $user_id));
+    }
+
+    /**
+     * Get all members with pagination and filters
+     *
+     * @since    1.0.0
+     * @param    int       $page         Current page
+     * @param    int       $per_page     Items per page
+     * @param    string    $status       Status filter
+     * @return   array
+     */
+    public static function get_members($page = 1, $per_page = 20, $status = '') {
+        global $wpdb;
+        
+        $table = $wpdb->prefix . 'jgk_members';
+        $users_table = $wpdb->users;
+        $coaches_table = $wpdb->users;
+        
+        $offset = ($page - 1) * $per_page;
+        
+        $query = "
+            SELECT m.*, u.user_email, u.display_name, u.user_login,
+                   TIMESTAMPDIFF(YEAR, m.date_of_birth, CURDATE()) as age,
+                   c.display_name as coach_name
+            FROM $table m 
+            LEFT JOIN $users_table u ON m.user_id = u.ID 
+            LEFT JOIN $coaches_table c ON m.coach_id = c.ID
+        ";
+        
+        $where_conditions = array();
+        $params = array();
+        
+        if ($status) {
+            $where_conditions[] = "m.status = %s";
+            $params[] = $status;
+        }
+        
+        if (!empty($where_conditions)) {
+            $query .= " WHERE " . implode(" AND ", $where_conditions);
+        }
+        
+        $query .= " ORDER BY m.created_at DESC LIMIT %d OFFSET %d";
+        $params[] = $per_page;
+        $params[] = $offset;
+        
+        return $wpdb->get_results($wpdb->prepare($query, $params));
+    }
+
+    /**
+     * Get members count
+     *
+     * @since    1.0.0
+     * @param    string    $status    Status filter
+     * @return   int
+     */
+    public static function get_members_count($status = '') {
+        global $wpdb;
+        
+        $table = $wpdb->prefix . 'jgk_members';
+        $query = "SELECT COUNT(*) FROM $table";
+        
+        if ($status) {
+            $query .= " WHERE status = %s";
+            return $wpdb->get_var($wpdb->prepare($query, $status));
+        }
+        
+        return $wpdb->get_var($query);
+    }
+
+    /**
+     * Search members
+     *
+     * @since    1.0.0
+     * @param    string    $search_term    Search term
+     * @param    int       $page           Current page
+     * @param    int       $per_page       Items per page
+     * @return   array
+     */
+    public static function search_members($search_term, $page = 1, $per_page = 20) {
+        global $wpdb;
+        
+        $table = $wpdb->prefix . 'jgk_members';
+        $users_table = $wpdb->users;
+        $coaches_table = $wpdb->users;
+        
+        $offset = ($page - 1) * $per_page;
+        
+        $query = "
+            SELECT m.*, u.user_email, u.display_name, u.user_login,
+                   TIMESTAMPDIFF(YEAR, m.date_of_birth, CURDATE()) as age,
+                   c.display_name as coach_name
+            FROM $table m 
+            LEFT JOIN $users_table u ON m.user_id = u.ID 
+            LEFT JOIN $coaches_table c ON m.coach_id = c.ID
+            WHERE (
+                u.display_name LIKE %s OR 
+                u.user_email LIKE %s OR 
+                m.membership_number LIKE %s OR
+                m.phone LIKE %s OR
+                CONCAT(m.first_name, ' ', m.last_name) LIKE %s
+            )
+            ORDER BY m.created_at DESC 
+            LIMIT %d OFFSET %d
+        ";
+        
+        $like_term = '%' . $wpdb->esc_like($search_term) . '%';
+        
+        return $wpdb->get_results($wpdb->prepare(
+            $query, 
+            $like_term, $like_term, $like_term, $like_term, $like_term,
+            $per_page, $offset
+        ));
+    }
+
+    /**
+     * Create new member
+     *
+     * @since    1.0.0
+     * @param    array    $data    Member data
+     * @return   int|false
+     */
+    public static function create_member($data) {
+        global $wpdb;
+        
+        $table = $wpdb->prefix . 'jgk_members';
+        
+        $defaults = array(
+            'membership_number' => self::generate_membership_number(),
+            'status' => 'pending',
+            'join_date' => current_time('Y-m-d'),
+            'expiry_date' => date('Y-m-d', strtotime('+1 year')),
+            'created_at' => current_time('mysql'),
+            'updated_at' => current_time('mysql')
+        );
+        
+        $data = wp_parse_args($data, $defaults);
+        
+        $result = $wpdb->insert($table, $data);
+        
+        if ($result === false) {
+            return false;
+        }
+        
+        return $wpdb->insert_id;
+    }
+
+    /**
      * Update member
      *
      * @since    1.0.0
@@ -18,7 +216,7 @@
         $table = $wpdb->prefix . 'jgk_members';
         $data['updated_at'] = current_time('mysql');
         
-        return $wpdb->update($table, $data, array('id' => $member_id));
+        return $wpdb->update($table, $data, array('id' => $member_id)) !== false;
     }
 
     /**
@@ -93,216 +291,6 @@
         }
         
         return $result !== false;
-    }    JuniorGolfKenya
- * @subpackage JuniorGolfKenya/includes
- */
-
-/**
- * Database operations manager class.
- *
- * This class handles all database operations for the plugin.
- */
-class JuniorGolfKenya_Database {
-
-    /**
-     * Get member by ID
-     *
-     * @since    1.0.0
-     * @param    int    $member_id    Member ID
-     * @return   object|null
-     */
-    public static function get_member($member_id) {
-        global $wpdb;
-        
-        $table = $wpdb->prefix . 'jgk_members';
-        return $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $member_id));
-    }
-
-    /**
-     * Get member by user ID
-     *
-     * @since    1.0.0
-     * @param    int    $user_id    WordPress User ID
-     * @return   object|null
-     */
-    public static function get_member_by_user_id($user_id) {
-        global $wpdb;
-        
-        $table = $wpdb->prefix . 'jgk_members';
-        return $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE user_id = %d", $user_id));
-    }
-
-    /**
-     * Get all members with pagination
-     *
-     * @since    1.0.0
-     * @param    int    $page        Page number
-     * @param    int    $per_page    Items per page
-     * @param    string $status      Member status filter
-     * @return   array
-     */
-    public static function get_members($page = 1, $per_page = 20, $status = '') {
-        global $wpdb;
-        
-        $table = $wpdb->prefix . 'jgk_members';
-        $offset = ($page - 1) * $per_page;
-        
-        $where = '';
-        $params = array();
-        
-        if (!empty($status)) {
-            $where = ' WHERE status = %s';
-            $params[] = $status;
-        }
-        
-        $params[] = $per_page;
-        $params[] = $offset;
-        
-        $sql = "SELECT m.*, u.user_email, u.display_name 
-                FROM $table m 
-                LEFT JOIN {$wpdb->users} u ON m.user_id = u.ID 
-                $where 
-                ORDER BY m.created_at DESC 
-                LIMIT %d OFFSET %d";
-        
-        return $wpdb->get_results($wpdb->prepare($sql, $params));
-    }
-
-    /**
-     * Get member count
-     *
-     * @since    1.0.0
-     * @param    string $status    Status filter
-     * @return   int
-     */
-    public static function get_members_count($status = '') {
-        global $wpdb;
-        
-        $table = $wpdb->prefix . 'jgk_members';
-        
-        if (!empty($status)) {
-            return $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM $table WHERE status = %s", $status));
-        }
-        
-        return $wpdb->get_var("SELECT COUNT(*) FROM $table");
-    }
-
-    /**
-     * Create new member
-     *
-     * @since    1.0.0
-     * @param    array    $data    Member data
-     * @return   int|false         Member ID on success, false on failure
-     */
-    public static function create_member($data) {
-        global $wpdb;
-        
-        $table = $wpdb->prefix . 'jgk_members';
-        
-        $defaults = array(
-            'membership_number' => self::generate_membership_number(),
-            'membership_type' => 'standard',
-            'status' => 'pending',
-            'created_at' => current_time('mysql')
-        );
-        
-        $data = wp_parse_args($data, $defaults);
-        
-        // Basic sanitization and validation
-        $allowed_statuses = array('pending', 'active', 'expired', 'suspended');
-
-        if (isset($data['status']) && !in_array($data['status'], $allowed_statuses, true)) {
-            // Normalize unknown status to pending and log
-            $invalid_status = $data['status'];
-            $data['status'] = 'pending';
-            error_log("[JuniorGolfKenya] create_member: invalid status provided (normalized to 'pending'): {$invalid_status}");
-        }
-
-        // Sanitize common fields if present
-        if (isset($data['membership_number'])) {
-            $data['membership_number'] = sanitize_text_field($data['membership_number']);
-        }
-        if (isset($data['membership_type'])) {
-            $data['membership_type'] = sanitize_text_field($data['membership_type']);
-        }
-        if (isset($data['full_name'])) {
-            $data['full_name'] = sanitize_text_field($data['full_name']);
-        }
-        if (isset($data['user_id'])) {
-            $data['user_id'] = intval($data['user_id']);
-        }
-        if (isset($data['email'])) {
-            $data['email'] = sanitize_email($data['email']);
-        }
-        if (isset($data['phone'])) {
-            $data['phone'] = sanitize_text_field($data['phone']);
-        }
-        if (isset($data['address'])) {
-            $data['address'] = sanitize_textarea_field($data['address']);
-        }
-
-        // Ensure created_at is in proper format
-        if (empty($data['created_at'])) {
-            $data['created_at'] = current_time('mysql');
-        }
-
-        // Attempt insert and capture debug info on failure
-        $result = $wpdb->insert($table, $data);
-
-        if ($result) {
-            return $wpdb->insert_id;
-        }
-
-        // On failure, capture SQL error and last query for debugging
-        $last_error = isset($wpdb->last_error) ? $wpdb->last_error : 'unknown_error';
-        $last_query = isset($wpdb->last_query) ? $wpdb->last_query : '';
-
-        $debug_message = sprintf(
-            "[JuniorGolfKenya][ERROR] create_member failed: %s | query: %s | data: %s",
-            $last_error,
-            $last_query,
-            wp_json_encode($data)
-        );
-
-        // PHP error log (visible in server logs)
-        error_log($debug_message);
-
-        // Try to insert a debug row into audit table if it exists
-        $audit_table = $wpdb->prefix . 'jgk_audit_log';
-        if ($wpdb->get_var("SHOW TABLES LIKE '$audit_table'") == $audit_table) {
-            $wpdb->insert(
-                $audit_table,
-                array(
-                    'user_id' => get_current_user_id(),
-                    'action' => 'create_member_failed',
-                    'object_type' => 'member',
-                    'details' => $debug_message,
-                    'ip_address' => self::get_user_ip(),
-                    'user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '',
-                    'created_at' => current_time('mysql')
-                ),
-                array('%d', '%s', '%s', '%s', '%s', '%s', '%s')
-            );
-        }
-
-        return false;
-    }
-
-    /**
-     * Update member
-     *
-     * @since    1.0.0
-     * @param    int      $member_id    Member ID
-     * @param    array    $data         Updated data
-     * @return   bool
-     */
-    public static function update_member($member_id, $data) {
-        global $wpdb;
-        
-        $table = $wpdb->prefix . 'jgk_members';
-        $data['updated_at'] = current_time('mysql');
-        
-        return $wpdb->update($table, $data, array('id' => $member_id));
     }
 
     /**
@@ -316,7 +304,7 @@ class JuniorGolfKenya_Database {
         global $wpdb;
         
         $table = $wpdb->prefix . 'jgk_members';
-        return $wpdb->delete($table, array('id' => $member_id));
+        return $wpdb->delete($table, array('id' => $member_id)) !== false;
     }
 
     /**
@@ -341,71 +329,6 @@ class JuniorGolfKenya_Database {
     }
 
     /**
-     * Get coach ratings for a member
-     *
-     * @since    1.0.0
-     * @param    int    $member_id    Member ID
-     * @return   array
-     */
-    public static function get_member_ratings($member_id) {
-        global $wpdb;
-        
-        $table = $wpdb->prefix . 'jgf_coach_ratings';
-        $sql = "SELECT cr.*, u.display_name as coach_name 
-                FROM $table cr 
-                LEFT JOIN {$wpdb->users} u ON cr.coach_user_id = u.ID 
-                WHERE cr.member_id = %d 
-                ORDER BY cr.created_at DESC";
-        
-        return $wpdb->get_results($wpdb->prepare($sql, $member_id));
-    }
-
-    /**
-     * Get role requests
-     *
-     * @since    1.0.0
-     * @param    string $status    Status filter
-     * @return   array
-     */
-    public static function get_role_requests($status = 'pending') {
-        global $wpdb;
-        
-        $table = $wpdb->prefix . 'jgf_role_requests';
-        $sql = "SELECT rr.*, u.display_name, u.user_email 
-                FROM $table rr 
-                LEFT JOIN {$wpdb->users} u ON rr.requester_user_id = u.ID 
-                WHERE rr.status = %s 
-                ORDER BY rr.created_at ASC";
-        
-        return $wpdb->get_results($wpdb->prepare($sql, $status));
-    }
-
-    /**
-     * Update role request status
-     *
-     * @since    1.0.0
-     * @param    int       $request_id    Request ID
-     * @param    string    $status        New status
-     * @param    int       $reviewer_id   Reviewer user ID
-     * @return   bool
-     */
-    public static function update_role_request($request_id, $status, $reviewer_id = null) {
-        global $wpdb;
-        
-        $table = $wpdb->prefix . 'jgf_role_requests';
-        $data = array(
-            'status' => $status,
-            'reviewed_at' => current_time('mysql')
-        );
-        
-        if ($reviewer_id) {
-            $data['reviewed_by'] = $reviewer_id;
-        }
-        
-        return $wpdb->update($table, $data, array('id' => $request_id));
-    }
-
-    /**
      * Get membership statistics
      *
      * @since    1.0.0
@@ -416,65 +339,243 @@ class JuniorGolfKenya_Database {
         
         $table = $wpdb->prefix . 'jgk_members';
         
-        $stats = array();
-        $stats['total'] = $wpdb->get_var("SELECT COUNT(*) FROM $table");
-        $stats['active'] = $wpdb->get_var("SELECT COUNT(*) FROM $table WHERE status = 'active'");
-        $stats['pending'] = $wpdb->get_var("SELECT COUNT(*) FROM $table WHERE status = 'pending'");
-        $stats['expired'] = $wpdb->get_var("SELECT COUNT(*) FROM $table WHERE status = 'expired'");
+        $stats = array(
+            'total' => $wpdb->get_var("SELECT COUNT(*) FROM $table"),
+            'active' => $wpdb->get_var("SELECT COUNT(*) FROM $table WHERE status = 'active'"),
+            'pending' => $wpdb->get_var("SELECT COUNT(*) FROM $table WHERE status = 'pending'"),
+            'expired' => $wpdb->get_var("SELECT COUNT(*) FROM $table WHERE status = 'expired'"),
+            'suspended' => $wpdb->get_var("SELECT COUNT(*) FROM $table WHERE status = 'suspended'")
+        );
         
         return $stats;
     }
 
     /**
-     * Search members
+     * Get coaches with member count
      *
      * @since    1.0.0
-     * @param    string $search_term    Search term
-     * @param    int    $page          Page number
-     * @param    int    $per_page      Items per page
      * @return   array
      */
-    public static function search_members($search_term, $page = 1, $per_page = 20) {
+    public static function get_coaches() {
         global $wpdb;
         
-        $table = $wpdb->prefix . 'jgk_members';
-        $offset = ($page - 1) * $per_page;
+        $users_table = $wpdb->users;
+        $usermeta_table = $wpdb->usermeta;
+        $members_table = $wpdb->prefix . 'jgk_members';
+        $ratings_table = $wpdb->prefix . 'jgk_coach_ratings';
         
-        $sql = "SELECT m.*, u.user_email, u.display_name 
-                FROM $table m 
-                LEFT JOIN {$wpdb->users} u ON m.user_id = u.ID 
-                WHERE m.membership_number LIKE %s 
-                OR u.display_name LIKE %s 
-                OR u.user_email LIKE %s 
-                ORDER BY m.created_at DESC 
-                LIMIT %d OFFSET %d";
+        $query = "
+            SELECT u.ID, u.display_name, u.user_email,
+                   um1.meta_value as experience_years,
+                   um2.meta_value as specialties,
+                   um3.meta_value as bio,
+                   um4.meta_value as status,
+                   COUNT(DISTINCT m.id) as member_count,
+                   AVG(r.rating) as avg_rating,
+                   COUNT(DISTINCT ts.id) as training_sessions
+            FROM $users_table u
+            INNER JOIN $usermeta_table um ON u.ID = um.user_id AND um.meta_key = 'wp_capabilities' AND um.meta_value LIKE '%jgf_coach%'
+            LEFT JOIN $usermeta_table um1 ON u.ID = um1.user_id AND um1.meta_key = 'jgk_experience_years'
+            LEFT JOIN $usermeta_table um2 ON u.ID = um2.user_id AND um2.meta_key = 'jgk_specialties'
+            LEFT JOIN $usermeta_table um3 ON u.ID = um3.user_id AND um3.meta_key = 'jgk_bio'
+            LEFT JOIN $usermeta_table um4 ON u.ID = um4.user_id AND um4.meta_key = 'jgk_coach_status'
+            LEFT JOIN $members_table m ON u.ID = m.coach_id AND m.status = 'active'
+            LEFT JOIN $ratings_table r ON u.ID = r.coach_id
+            LEFT JOIN {$wpdb->prefix}jgk_training_schedule ts ON u.ID = ts.coach_id
+            GROUP BY u.ID
+            ORDER BY u.display_name
+        ";
         
-        $search_like = '%' . $wpdb->esc_like($search_term) . '%';
-        
-        return $wpdb->get_results($wpdb->prepare($sql, $search_like, $search_like, $search_like, $per_page, $offset));
+        return $wpdb->get_results($query);
     }
 
     /**
-     * Log audit trail
+     * Get payments with filters
      *
      * @since    1.0.0
-     * @param    array    $data    Audit data
-     * @return   bool
+     * @param    string    $status_filter    Status filter
+     * @param    string    $type_filter      Type filter
+     * @param    string    $date_from        Start date
+     * @param    string    $date_to          End date
+     * @return   array
      */
-    public static function log_audit($data) {
+    public static function get_payments($status_filter = 'all', $type_filter = 'all', $date_from = '', $date_to = '') {
         global $wpdb;
         
-        $table = $wpdb->prefix . 'jgk_audit_log';
+        $payments_table = $wpdb->prefix . 'jgk_payments';
+        $members_table = $wpdb->prefix . 'jgk_members';
+        $users_table = $wpdb->users;
         
-        $defaults = array(
-            'user_id' => get_current_user_id(),
+        $query = "
+            SELECT p.*, 
+                   CONCAT(u.display_name, ' (', m.membership_number, ')') as member_name
+            FROM $payments_table p
+            LEFT JOIN $members_table m ON p.member_id = m.id
+            LEFT JOIN $users_table u ON m.user_id = u.ID
+            WHERE 1=1
+        ";
+        
+        $params = array();
+        
+        if ($status_filter !== 'all') {
+            $query .= " AND p.status = %s";
+            $params[] = $status_filter;
+        }
+        
+        if ($type_filter !== 'all') {
+            $query .= " AND p.payment_type = %s";
+            $params[] = $type_filter;
+        }
+        
+        if ($date_from) {
+            $query .= " AND DATE(p.created_at) >= %s";
+            $params[] = $date_from;
+        }
+        
+        if ($date_to) {
+            $query .= " AND DATE(p.created_at) <= %s";
+            $params[] = $date_to;
+        }
+        
+        $query .= " ORDER BY p.created_at DESC";
+        
+        if (!empty($params)) {
+            return $wpdb->get_results($wpdb->prepare($query, $params));
+        }
+        
+        return $wpdb->get_results($query);
+    }
+
+    /**
+     * Record new payment
+     *
+     * @since    1.0.0
+     * @param    int       $member_id       Member ID
+     * @param    float     $amount          Payment amount
+     * @param    string    $payment_type    Payment type
+     * @param    string    $payment_method  Payment method
+     * @param    string    $notes           Payment notes
+     * @return   int|false
+     */
+    public static function record_payment($member_id, $amount, $payment_type, $payment_method, $notes = '') {
+        global $wpdb;
+        
+        $table = $wpdb->prefix . 'jgk_payments';
+        
+        $data = array(
+            'member_id' => $member_id,
+            'amount' => $amount,
+            'payment_type' => $payment_type,
+            'payment_method' => $payment_method,
+            'status' => 'completed',
+            'notes' => $notes,
             'created_at' => current_time('mysql'),
-            'ip_address' => self::get_user_ip()
+            'updated_at' => current_time('mysql')
         );
         
-        $data = wp_parse_args($data, $defaults);
+        $result = $wpdb->insert($table, $data);
         
-        return $wpdb->insert($table, $data);
+        if ($result === false) {
+            return false;
+        }
+        
+        return $wpdb->insert_id;
+    }
+
+    /**
+     * Update payment
+     *
+     * @since    1.0.0
+     * @param    int      $payment_id    Payment ID
+     * @param    array    $data          Data to update
+     * @return   bool
+     */
+    public static function update_payment($payment_id, $data) {
+        global $wpdb;
+        
+        $table = $wpdb->prefix . 'jgk_payments';
+        $data['updated_at'] = current_time('mysql');
+        
+        return $wpdb->update($table, $data, array('id' => $payment_id)) !== false;
+    }
+
+    /**
+     * Get role requests with filters
+     *
+     * @since    1.0.0
+     * @param    string    $status    Status filter
+     * @return   array
+     */
+    public static function get_role_requests($status = 'pending') {
+        global $wpdb;
+        
+        $requests_table = $wpdb->prefix . 'jgk_role_requests';
+        $users_table = $wpdb->users;
+        
+        $query = "
+            SELECT r.*, u.display_name, u.user_email
+            FROM $requests_table r
+            LEFT JOIN $users_table u ON r.user_id = u.ID
+            WHERE r.status = %s
+            ORDER BY r.created_at DESC
+        ";
+        
+        return $wpdb->get_results($wpdb->prepare($query, $status));
+    }
+
+    /**
+     * Get overview statistics
+     *
+     * @since    1.0.0
+     * @return   array
+     */
+    public static function get_overview_statistics() {
+        global $wpdb;
+        
+        $members_table = $wpdb->prefix . 'jgk_members';
+        $payments_table = $wpdb->prefix . 'jgk_payments';
+        $competitions_table = $wpdb->prefix . 'jgk_competitions';
+        $users_table = $wpdb->users;
+        $usermeta_table = $wpdb->usermeta;
+        
+        $stats = array();
+        
+        // Member statistics
+        $stats['total_members'] = $wpdb->get_var("SELECT COUNT(*) FROM $members_table");
+        $stats['active_members'] = $wpdb->get_var("SELECT COUNT(*) FROM $members_table WHERE status = 'active'");
+        
+        // Coach statistics
+        $stats['total_coaches'] = $wpdb->get_var("
+            SELECT COUNT(DISTINCT u.ID) 
+            FROM $users_table u
+            INNER JOIN $usermeta_table um ON u.ID = um.user_id 
+            WHERE um.meta_key = 'wp_capabilities' AND um.meta_value LIKE '%jgf_coach%'
+        ");
+        $stats['active_coaches'] = $stats['total_coaches']; // Simplified
+        
+        // Revenue statistics
+        $stats['total_revenue'] = $wpdb->get_var("
+            SELECT COALESCE(SUM(amount), 0) 
+            FROM $payments_table 
+            WHERE status = 'completed'
+        ");
+        $stats['monthly_revenue'] = $wpdb->get_var("
+            SELECT COALESCE(SUM(amount), 0) 
+            FROM $payments_table 
+            WHERE status = 'completed' 
+            AND MONTH(created_at) = MONTH(CURDATE()) 
+            AND YEAR(created_at) = YEAR(CURDATE())
+        ");
+        
+        // Tournament statistics
+        $stats['total_tournaments'] = $wpdb->get_var("SELECT COUNT(*) FROM $competitions_table");
+        $stats['upcoming_tournaments'] = $wpdb->get_var("
+            SELECT COUNT(*) 
+            FROM $competitions_table 
+            WHERE start_date > CURDATE()
+        ");
+        
+        return $stats;
     }
 
     /**
@@ -489,7 +590,7 @@ class JuniorGolfKenya_Database {
         } elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
             return $_SERVER['HTTP_X_FORWARDED_FOR'];
         } else {
-            return $_SERVER['REMOTE_ADDR'] ?? '';
+            return $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
         }
     }
 }
