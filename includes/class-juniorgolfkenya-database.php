@@ -208,12 +208,83 @@ class JuniorGolfKenya_Database {
         
         $data = wp_parse_args($data, $defaults);
         
+        // Basic sanitization and validation
+        $allowed_statuses = array('pending', 'active', 'expired', 'suspended');
+
+        if (isset($data['status']) && !in_array($data['status'], $allowed_statuses, true)) {
+            // Normalize unknown status to pending and log
+            $invalid_status = $data['status'];
+            $data['status'] = 'pending';
+            error_log("[JuniorGolfKenya] create_member: invalid status provided (normalized to 'pending'): {$invalid_status}");
+        }
+
+        // Sanitize common fields if present
+        if (isset($data['membership_number'])) {
+            $data['membership_number'] = sanitize_text_field($data['membership_number']);
+        }
+        if (isset($data['membership_type'])) {
+            $data['membership_type'] = sanitize_text_field($data['membership_type']);
+        }
+        if (isset($data['full_name'])) {
+            $data['full_name'] = sanitize_text_field($data['full_name']);
+        }
+        if (isset($data['user_id'])) {
+            $data['user_id'] = intval($data['user_id']);
+        }
+        if (isset($data['email'])) {
+            $data['email'] = sanitize_email($data['email']);
+        }
+        if (isset($data['phone'])) {
+            $data['phone'] = sanitize_text_field($data['phone']);
+        }
+        if (isset($data['address'])) {
+            $data['address'] = sanitize_textarea_field($data['address']);
+        }
+
+        // Ensure created_at is in proper format
+        if (empty($data['created_at'])) {
+            $data['created_at'] = current_time('mysql');
+        }
+
+        // Attempt insert and capture debug info on failure
         $result = $wpdb->insert($table, $data);
-        
+
         if ($result) {
             return $wpdb->insert_id;
         }
-        
+
+        // On failure, capture SQL error and last query for debugging
+        $last_error = isset($wpdb->last_error) ? $wpdb->last_error : 'unknown_error';
+        $last_query = isset($wpdb->last_query) ? $wpdb->last_query : '';
+
+        $debug_message = sprintf(
+            "[JuniorGolfKenya][ERROR] create_member failed: %s | query: %s | data: %s",
+            $last_error,
+            $last_query,
+            wp_json_encode($data)
+        );
+
+        // PHP error log (visible in server logs)
+        error_log($debug_message);
+
+        // Try to insert a debug row into audit table if it exists
+        $audit_table = $wpdb->prefix . 'jgk_audit_log';
+        if ($wpdb->get_var("SHOW TABLES LIKE '$audit_table'") == $audit_table) {
+            $wpdb->insert(
+                $audit_table,
+                array(
+                    'user_id' => get_current_user_id(),
+                    'action' => 'create_member_failed',
+                    'object_type' => 'member',
+                    'details' => $debug_message,
+                    'ip_address' => self::get_user_ip(),
+                    'user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '',
+                    'created_at' => current_time('mysql')
+                ),
+                array('%d', '%s', '%s', '%s', '%s', '%s', '%s')
+            );
+        }
+
         return false;
     }
 
