@@ -86,6 +86,16 @@ class JuniorGolfKenya {
         require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-i18n.php';
 
         /**
+         * Database operations manager
+         */
+        require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-database.php';
+
+        /**
+         * User management operations
+         */
+        require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-user-manager.php';
+
+        /**
          * The class responsible for defining all actions that occur in the admin area.
          */
         require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'admin/class-juniorgolfkenya-admin.php';

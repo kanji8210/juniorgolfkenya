@@ -26,6 +26,7 @@ class JuniorGolfKenya_Activator {
      */
     public static function activate() {
         self::create_tables();
+        self::create_roles_and_capabilities();
         self::create_pages();
         self::set_default_options();
         
@@ -194,8 +195,180 @@ class JuniorGolfKenya_Activator {
         dbDelta($sql_certifications);
         dbDelta($sql_audit_log);
 
+        // Create additional tables for roles functionality
+        self::create_additional_tables();
+
         // Insert default plan
         self::insert_default_data();
+    }
+
+    /**
+     * Create additional tables for roles and coaching functionality
+     *
+     * @since    1.0.0
+     */
+    private static function create_additional_tables() {
+        global $wpdb;
+        
+        $charset_collate = $wpdb->get_charset_collate();
+
+        // Coach ratings table
+        $table_coach_ratings = $wpdb->prefix . 'jgf_coach_ratings';
+        $sql_coach_ratings = "CREATE TABLE $table_coach_ratings (
+            id mediumint(9) NOT NULL AUTO_INCREMENT,
+            coach_user_id bigint(20) UNSIGNED NOT NULL,
+            member_id mediumint(9) NOT NULL,
+            rating smallint(6) NOT NULL,
+            notes text,
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY coach_user_id (coach_user_id),
+            KEY member_id (member_id),
+            KEY rating (rating)
+        ) $charset_collate;";
+
+        // Recommendations table
+        $table_recommendations = $wpdb->prefix . 'jgf_recommendations';
+        $sql_recommendations = "CREATE TABLE $table_recommendations (
+            id mediumint(9) NOT NULL AUTO_INCREMENT,
+            recommender_user_id bigint(20) UNSIGNED NOT NULL,
+            member_id mediumint(9) NOT NULL,
+            type enum('competition','training','role','other') NOT NULL,
+            payload json,
+            status varchar(32) DEFAULT 'pending',
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            handled_by bigint(20) UNSIGNED,
+            handled_at datetime,
+            PRIMARY KEY (id),
+            KEY recommender_user_id (recommender_user_id),
+            KEY member_id (member_id),
+            KEY type (type),
+            KEY status (status)
+        ) $charset_collate;";
+
+        // Training schedules table
+        $table_training_schedules = $wpdb->prefix . 'jgf_training_schedules';
+        $sql_training_schedules = "CREATE TABLE $table_training_schedules (
+            id mediumint(9) NOT NULL AUTO_INCREMENT,
+            coach_user_id bigint(20) UNSIGNED NOT NULL,
+            club_id mediumint(9),
+            title varchar(200) NOT NULL,
+            description text,
+            start_datetime datetime NOT NULL,
+            end_datetime datetime NOT NULL,
+            capacity int DEFAULT 20,
+            location varchar(255),
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY coach_user_id (coach_user_id),
+            KEY start_datetime (start_datetime),
+            KEY club_id (club_id)
+        ) $charset_collate;";
+
+        // Role requests table
+        $table_role_requests = $wpdb->prefix . 'jgf_role_requests';
+        $sql_role_requests = "CREATE TABLE $table_role_requests (
+            id mediumint(9) NOT NULL AUTO_INCREMENT,
+            requester_user_id bigint(20) UNSIGNED NOT NULL,
+            requested_role varchar(64) NOT NULL,
+            reason text,
+            status varchar(32) DEFAULT 'pending',
+            reviewed_by bigint(20) UNSIGNED,
+            reviewed_at datetime,
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY requester_user_id (requester_user_id),
+            KEY requested_role (requested_role),
+            KEY status (status)
+        ) $charset_collate;";
+
+        // Coach profiles table
+        $table_coach_profiles = $wpdb->prefix . 'jgf_coach_profiles';
+        $sql_coach_profiles = "CREATE TABLE $table_coach_profiles (
+            id mediumint(9) NOT NULL AUTO_INCREMENT,
+            user_id bigint(20) UNSIGNED NOT NULL UNIQUE,
+            qualifications text,
+            specialties text,
+            bio text,
+            license_docs_ref varchar(500),
+            verification_status varchar(32) DEFAULT 'pending',
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY user_id (user_id),
+            KEY verification_status (verification_status)
+        ) $charset_collate;";
+
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+        
+        dbDelta($sql_coach_ratings);
+        dbDelta($sql_recommendations);
+        dbDelta($sql_training_schedules);
+        dbDelta($sql_role_requests);
+        dbDelta($sql_coach_profiles);
+    }
+
+    /**
+     * Create custom roles and capabilities during plugin activation
+     *
+     * @since    1.0.0
+     */
+    private static function create_roles_and_capabilities() {
+        // JGF Member Role
+        if (!get_role('jgf_member')) {
+            add_role('jgf_member', 'JGF Member', array(
+                'read' => true,
+                'view_member_dashboard' => true,
+                'manage_own_profile' => true,
+            ));
+        }
+
+        // JGF Coach Role
+        if (!get_role('jgf_coach')) {
+            add_role('jgf_coach', 'JGF Coach', array(
+                'read' => true,
+                'view_member_dashboard' => true,
+                'coach_rate_player' => true,
+                'coach_recommend_competition' => true,
+                'coach_recommend_training' => true,
+                'manage_own_profile' => true,
+            ));
+        }
+
+        // JGF Staff Role
+        if (!get_role('jgf_staff')) {
+            add_role('jgf_staff', 'JGF Staff', array(
+                'read' => true,
+                'view_member_dashboard' => true,
+                'edit_members' => true,
+                'manage_payments' => true,
+                'manage_competitions' => true,
+                'view_reports' => true,
+                'approve_role_requests' => true,
+                'manage_certifications' => true,
+            ));
+        }
+
+        // Add capabilities to existing Administrator role
+        $admin_role = get_role('administrator');
+        if ($admin_role) {
+            $custom_caps = array(
+                'view_member_dashboard',
+                'edit_members',
+                'manage_payments',
+                'view_reports',
+                'manage_competitions',
+                'coach_rate_player',
+                'coach_recommend_competition',
+                'coach_recommend_training',
+                'approve_role_requests',
+                'manage_certifications'
+            );
+            
+            foreach ($custom_caps as $cap) {
+                $admin_role->add_cap($cap);
+            }
+        }
     }
 
     /**

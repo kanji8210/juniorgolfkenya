@@ -72,30 +72,55 @@ class JuniorGolfKenya_Admin {
      * @since    1.0.0
      */
     public function add_admin_menu() {
+        // Main menu with golf icon
+        $golf_icon = 'data:image/svg+xml;base64,' . base64_encode('
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="#a7aaad">
+                <path d="M12.24 2.06c-.03-.01-.06-.02-.09-.03-.11-.03-.22-.03-.33 0l-.09.03c-.18.06-.34.17-.46.31L9.4 4.54c-.12.14-.2.31-.23.49-.02.08-.03.17-.03.26v14.45c0 .41.34.75.75.75s.75-.34.75-.75V10.7l1.86-2.17c.14-.16.22-.36.22-.58V5.37c0-.19-.07-.36-.19-.49-.12-.13-.28-.2-.45-.22zM13.5 5.37v2.58l-1.5 1.75-1.5-1.75V5.37h3zM6.5 18c0-2.21 1.79-4 4-4s4 1.79 4 4-1.79 4-4 4-4-1.79-4-4zm1.5 0c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5-1.12-2.5-2.5-2.5S8 16.62 8 18z"/>
+            </svg>
+        ');
+
         add_menu_page(
             'Junior Golf Kenya',
-            'Golf Members',
-            'manage_options',
+            'JuniorGolfKenya',
+            'view_member_dashboard',
             'juniorgolfkenya',
             array($this, 'display_admin_page'),
-            'dashicons-groups',
+            $golf_icon,
             30
         );
 
         add_submenu_page(
             'juniorgolfkenya',
-            'Members',
-            'Members',
-            'manage_options',
+            'JGK Members',
+            'JGK Members',
+            'edit_members',
             'juniorgolfkenya-members',
             array($this, 'display_members_page')
         );
 
         add_submenu_page(
             'juniorgolfkenya',
+            'Coaches',
+            'Coaches',
+            'approve_role_requests',
+            'juniorgolfkenya-coaches',
+            array($this, 'display_coaches_page')
+        );
+
+        add_submenu_page(
+            'juniorgolfkenya',
+            'Role Requests',
+            'Role Requests',
+            'approve_role_requests',
+            'juniorgolfkenya-role-requests',
+            array($this, 'display_role_requests_page')
+        );
+
+        add_submenu_page(
+            'juniorgolfkenya',
             'Payments',
             'Payments',
-            'manage_options',
+            'manage_payments',
             'juniorgolfkenya-payments',
             array($this, 'display_payments_page')
         );
@@ -104,7 +129,7 @@ class JuniorGolfKenya_Admin {
             'juniorgolfkenya',
             'Reports',
             'Reports',
-            'manage_options',
+            'view_reports',
             'juniorgolfkenya-reports',
             array($this, 'display_reports_page')
         );
@@ -135,6 +160,24 @@ class JuniorGolfKenya_Admin {
      */
     public function display_members_page() {
         include_once JUNIORGOLFKENYA_PLUGIN_PATH . 'admin/partials/juniorgolfkenya-admin-members.php';
+    }
+
+    /**
+     * Display the coaches page.
+     *
+     * @since    1.0.0
+     */
+    public function display_coaches_page() {
+        include_once JUNIORGOLFKENYA_PLUGIN_PATH . 'admin/partials/juniorgolfkenya-admin-coaches.php';
+    }
+
+    /**
+     * Display the role requests page.
+     *
+     * @since    1.0.0
+     */
+    public function display_role_requests_page() {
+        include_once JUNIORGOLFKENYA_PLUGIN_PATH . 'admin/partials/juniorgolfkenya-admin-role-requests.php';
     }
 
     /**
