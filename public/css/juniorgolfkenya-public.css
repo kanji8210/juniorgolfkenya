@@ -1,0 +1,261 @@
+/**
+ * Public styles for Junior Golf Kenya plugin
+ */
+
+.jgk-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.jgk-member-portal {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 30px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.jgk-member-header {
+    text-align: center;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #eee;
+}
+
+.jgk-member-header h2 {
+    color: #2c3e50;
+    margin-bottom: 10px;
+}
+
+.jgk-membership-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 25px;
+    border-radius: 10px;
+    margin-bottom: 30px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.jgk-membership-number {
+    font-size: 1.2em;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.jgk-membership-status {
+    display: inline-block;
+    padding: 5px 15px;
+    border-radius: 20px;
+    font-size: 0.9em;
+    font-weight: bold;
+}
+
+.jgk-status-active {
+    background: #27ae60;
+}
+
+.jgk-status-expired {
+    background: #e74c3c;
+}
+
+.jgk-status-pending {
+    background: #f39c12;
+}
+
+.jgk-info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.jgk-info-card {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 5px;
+    border-left: 4px solid #667eea;
+}
+
+.jgk-info-card h4 {
+    margin: 0 0 10px 0;
+    color: #2c3e50;
+}
+
+.jgk-info-card p {
+    margin: 0;
+    color: #666;
+}
+
+.jgk-form {
+    background: #fff;
+    padding: 30px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.jgk-form-group {
+    margin-bottom: 20px;
+}
+
+.jgk-form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.jgk-form-group input,
+.jgk-form-group select,
+.jgk-form-group textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 16px;
+    transition: border-color 0.3s ease;
+}
+
+.jgk-form-group input:focus,
+.jgk-form-group select:focus,
+.jgk-form-group textarea:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.jgk-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.jgk-btn {
+    background: #667eea;
+    color: white;
+    padding: 12px 30px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    transition: background-color 0.3s ease;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+}
+
+.jgk-btn:hover {
+    background: #5a6fd8;
+    color: white;
+}
+
+.jgk-btn-secondary {
+    background: #95a5a6;
+}
+
+.jgk-btn-secondary:hover {
+    background: #7f8c8d;
+}
+
+.jgk-btn-danger {
+    background: #e74c3c;
+}
+
+.jgk-btn-danger:hover {
+    background: #c0392b;
+}
+
+.jgk-verification-widget {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    padding: 25px;
+    text-align: center;
+}
+
+.jgk-verification-form {
+    margin-bottom: 20px;
+}
+
+.jgk-verification-result {
+    padding: 20px;
+    border-radius: 5px;
+    margin-top: 20px;
+}
+
+.jgk-verification-success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.jgk-verification-error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.jgk-alert {
+    padding: 15px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+.jgk-alert-success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.jgk-alert-error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.jgk-alert-warning {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.jgk-loading {
+    text-align: center;
+    padding: 20px;
+}
+
+.jgk-spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #667eea;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    animation: jgk-spin 1s linear infinite;
+    margin: 0 auto 10px;
+}
+
+@keyframes jgk-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .jgk-form-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .jgk-info-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .jgk-membership-card {
+        padding: 20px;
+    }
+    
+    .jgk-container {
+        padding: 10px;
+    }
+}

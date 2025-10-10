@@ -1,0 +1,171 @@
+/**
+ * Admin styles for Junior Golf Kenya plugin
+ */
+
+.jgk-admin-container {
+    max-width: 1200px;
+    margin: 20px 0;
+}
+
+.jgk-admin-header {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 3px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.jgk-admin-header h1 {
+    margin: 0 0 10px 0;
+    color: #23282d;
+}
+
+.jgk-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.jgk-stat-card {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 3px;
+    padding: 20px;
+    text-align: center;
+}
+
+.jgk-stat-number {
+    font-size: 2.5em;
+    font-weight: bold;
+    color: #0073aa;
+    margin-bottom: 5px;
+}
+
+.jgk-stat-label {
+    color: #666;
+    font-size: 14px;
+}
+
+.jgk-table-container {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 3px;
+}
+
+.jgk-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.jgk-table th,
+.jgk-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #f0f0f1;
+}
+
+.jgk-table th {
+    background: #f6f7f7;
+    font-weight: 600;
+}
+
+.jgk-status-active {
+    color: #46b450;
+    font-weight: bold;
+}
+
+.jgk-status-expired {
+    color: #dc3232;
+    font-weight: bold;
+}
+
+.jgk-status-pending {
+    color: #ffb900;
+    font-weight: bold;
+}
+
+.jgk-button {
+    background: #0073aa;
+    color: #fff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 3px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.jgk-button:hover {
+    background: #005a87;
+    color: #fff;
+}
+
+.jgk-button-small {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+.jgk-form-section {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 3px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.jgk-form-section h2 {
+    margin-top: 0;
+    color: #23282d;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+.jgk-form-field {
+    margin-bottom: 15px;
+}
+
+.jgk-form-field label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+}
+
+.jgk-form-field input,
+.jgk-form-field select,
+.jgk-form-field textarea {
+    width: 100%;
+    max-width: 400px;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+}
+
+.jgk-form-field textarea {
+    height: 100px;
+    resize: vertical;
+}
+
+.jgk-alert {
+    padding: 12px;
+    border-radius: 3px;
+    margin-bottom: 20px;
+}
+
+.jgk-alert-success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.jgk-alert-error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.jgk-alert-warning {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}

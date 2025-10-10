@@ -1,0 +1,52 @@
+# Junior Golf Kenya - Membership Management Plugin
+
+## Description
+A membership management plugin for the Junior Golf Foundation website that provides paid member registration, profile and certification management, competition integration, membership verification, payments and subscription management, and admin reporting. It extends the existing Members Portal to replace or enhance signup, login, verification, and member-dashboard flows.
+
+## Primary Purpose
+Enable secure, paid membership enrollment and lifecycle management for junior golfers.
+
+## Core Goals
+- Increase paid membership conversions
+- Automate renewals and invoicing
+- Surface competitions and certifications on member profiles
+- Provide a public verification widget for membership status
+- Give admins clear controls and detailed reports
+
+## Core User-Facing Features
+- **Become a member:** Multi-step paid registration with optional fields (DOB, club, emergency contact, parental consent)
+- **Member dashboard:** View membership status, expiry, renewal and cancel controls, payment history, downloadable membership card
+- **Profile:** Editable personal details, profile photo, competition entries and results, uploaded certifications with expiry dates
+- **Competitions:** Show eligible tournaments, register players, surface results on profiles
+- **Membership verification:** Public search on Portal to verify name or membership ID and show limited public fields
+
+## Payments and Membership Lifecycle
+- **Payment types:** One-time and recurring annual subscriptions via Stripe (recommended) and PayPal; offline/manual payments with admin approval
+- **Lifecycle flows:** Immediate activation on successful payment; configurable grace periods, retry logic for failed payments, and configurable cancellation behavior (end of period or immediate)
+- **Notifications:** Welcome, receipts, renewal reminders (30/14/3 days), expiry and suspension notices
+
+## Admin Capabilities and Reports
+- **Member management:** Filterable member list, manual status adjustments, issue refunds, record offline payments
+- **Plans and coupons:** Manage plans, prorations, percentage/fixed coupons, usage limits
+- **Reports and exports:** Revenue by period, active members by category, expiring soon; CSV export
+- **Compliance:** Consent capture, data export/delete tools, configurable retention settings
+
+## Architecture and Integrations
+- **WordPress approach:** Plugin linking WP users to membership records; shortcodes/blocks for Portal pages and a REST API for AJAX actions
+- **Data model (core entities):** Member; Membership; Plan; Payment; CompetitionEntry; Certification; AuditLog
+- **Performance:** Custom DB tables recommended for large lists; cached public verification endpoint; use Stripe Elements for PCI-safe tokenized payments
+
+## Development Roadmap
+1. **Phase 1:** Core registration, Stripe payments, dashboard, verification widget, transactional emails
+2. **Phase 2:** Competitions and certifications integration, admin upload tools
+3. **Phase 3:** Coupons, prorations, advanced reports, CSV import/export, 2FA
+4. **Phase 4:** UX polish, automated tests, documentation
+
+## Version
+1.0.0
+
+## Author
+Dennis Kosgei for PSM consult
+
+## Created
+October 2025

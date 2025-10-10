@@ -1,0 +1,159 @@
+### Role design and capabilities
+
+- **Roles to create**
+  - **jgf_member** — standard paid member.  
+  - **jgf_coach** — coaches who can rate players, recommend competitions and training, suggest roles.  
+  - **jgf_staff** — operational staff (tournament managers, finance) with mid-level admin rights.  
+  - **jgf_admin** — full site administrators for JGF (manage members, full reports).  
+
+- **Suggested capabilities (practical, least-privilege)**
+  - view_member_dashboard (members, coaches, staff)  
+  - manage_own_profile (members)  
+  - edit_members (staff, admin)  
+  - manage_payments (staff, admin)  
+  - view_reports (staff, admin)  
+  - manage_competitions (staff, admin)  
+  - coach_rate_player (jgf_coach)  
+  - coach_recommend_competition (jgf_coach)  
+  - coach_recommend_training (jgf_coach)  
+  - approve_role_requests (jgf_staff, jgf_admin)  
+  - manage_certifications (staff, admin)  
+
+---
+
+### DB additions (tables to add on initialization)
+
+Add these tables in your initializer (use same conventions as existing tables):
+
+- **jgf_coach_ratings**
+  - Columns: id; coach_user_id; member_id; rating SMALLINT; notes TEXT; created_at.  
+  - Indexes: coach_user_id; member_id.
+
+- **jgf_recommendations**
+  - Columns: id; recommender_user_id; member_id; type ENUM('competition','training','role','other'); payload JSON; status VARCHAR(32) DEFAULT 'pending'; created_at; handled_by; handled_at.  
+  - Indexes: recommender_user_id; member_id; type.
+
+- **jgf_training_schedules**
+  - Columns: id; coach_user_id; club_id/null; title; description; start_datetime; end_datetime; capacity INT; location VARCHAR(255); created_at.  
+  - Indexes: coach_user_id; start_datetime.
+
+- **jgf_role_requests**
+  - Columns: id; requester_user_id; requested_role VARCHAR(64); reason TEXT; status VARCHAR(32) DEFAULT 'pending'; reviewed_by; reviewed_at; created_at.  
+  - Indexes: requester_user_id; requested_role; status.
+
+- **(Optional) jgf_coach_profiles** if coach-specific metadata is heavy
+  - Columns: id; user_id; qualifications TEXT; specialties TEXT; bio TEXT; license_docs_ref; created_at.
+
+Implement these via dbDelta alongside your existing tables so they exist on activation.
+
+---
+
+### How roles map to features (practical rules)
+
+- **Member**
+  - Register/pay, view dashboard, enroll in competitions, see coach recommendations.  
+- **Coach**
+  - Access a coach dashboard; create/modify training schedules; submit ratings and recommendations for players; view players in assigned clubs or those who opt-in; receive notifications of role-request approvals.  
+- **Staff**
+  - Manage members, verify payments, approve recommendations and role-requests, run reports, manage competitions.  
+- **Admin**
+  - Full access to all data, export reports, configure plans and payment gateways.
+
+Use capability checks in templates and REST endpoints (current_user_can).
+
+---
+
+### REST endpoints and UX surface (recommended)
+
+- Endpoints (examples)
+  - POST /wp-json/jgf/v1/coach/{coach_id}/rate — body: { member_id, rating, notes } — requires coach_rate_player.  
+  - POST /wp-json/jgf/v1/recommendation — body: { member_id, type, payload } — requires coach_recommend_* caps for coaches.  
+  - GET /wp-json/jgf/v1/training?coach_id= — public or role-gated listing.  
+  - POST /wp-json/jgf/v1/role-request — members request new roles; staff/admin approve.  
+  - GET /wp-json/jgf/v1/reports/summary — requires view_reports.
+
+- UX components
+  - Coach dashboard: list players, submit ratings, create training sessions, view pending role-requests.  
+  - Member profile: show coach ratings, recommendations, and upcoming training they’re enrolled in.  
+  - Staff admin panel: approve/deny recommendations, manage training schedules, full exports.
+
+Secure endpoints with capability checks and nonce verification for frontend forms.
+
+---
+
+### Activation code snippet (create roles and capabilities)
+
+```php
+function jgf_create_roles_and_caps() {
+    // Member
+    if ( ! get_role( 'jgf_member' ) ) {
+        add_role( 'jgf_member', 'JGF Member', array(
+            'read' => true,
+            'view_member_dashboard' => true,
+            'manage_own_profile' => true,
+        ) );
+    }
+
+    // Coach
+    if ( ! get_role( 'jgf_coach' ) ) {
+        add_role( 'jgf_coach', 'JGF Coach', array(
+            'read' => true,
+            'view_member_dashboard' => true,
+            'coach_rate_player' => true,
+            'coach_recommend_competition' => true,
+            'coach_recommend_training' => true,
+            'manage_own_profile' => true,
+        ) );
+    }
+
+    // Staff
+    if ( ! get_role( 'jgf_staff' ) ) {
+        add_role( 'jgf_staff', 'JGF Staff', array(
+            'read' => true,
+            'edit_members' => true,
+            'manage_payments' => true,
+            'manage_competitions' => true,
+            'view_reports' => true,
+            'approve_role_requests' => true,
+        ) );
+    }
+
+    // Admin (use existing admin but ensure custom caps exist)
+    $admin_role = get_role( 'administrator' );
+    if ( $admin_role ) {
+        $admin_role->add_cap( 'view_reports' );
+        $admin_role->add_cap( 'approve_role_requests' );
+        $admin_role->add_cap( 'coach_rate_player' );
+        $admin_role->add_cap( 'coach_recommend_competition' );
+        $admin_role->add_cap( 'coach_recommend_training' );
+    }
+}
+register_activation_hook( __FILE__, 'jgf_create_roles_and_caps' );
+```
+
+Assign roles at registration (example):
+
+```php
+$user = get_user_by( 'email', $email );
+if ( ! $user ) {
+    $user_id = wp_create_user( $username, $password, $email );
+} else {
+    $user_id = $user->ID;
+}
+$new_user = new WP_User( $user_id );
+$new_user->set_role( 'jgf_member' ); // or 'jgf_coach' if onboarding a coach via staff approval
+```
+
+---
+
+### Operational notes and next steps
+
+- Enforce coach vetting: create a coach onboarding flow where staff approve coach accounts before assigning jgf_coach role. Use jgf_role_requests table for approval workflows.  
+- Privacy: allow members to opt-in to being rated or visible to coaches; respect opt-out in public listings.  
+- Notifications: notify coaches when players request training or role upgrades; notify staff on recommendation submissions.  
+- Reporting: build aggregated queries (AVG ratings, training attendance, recommendations processed) into the Reports endpoint accessible to view_reports capability.  
+- Testing: create test users for each role and verify REST endpoints, capability gating, and export accuracy.
+
+If you want, I can:
+- Add the SQL for the new tables into your existing initializer class.  
+- Produce REST route boilerplate for coach actions with capability checks.
