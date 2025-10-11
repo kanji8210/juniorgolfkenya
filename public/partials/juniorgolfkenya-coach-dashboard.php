@@ -55,7 +55,7 @@ $performance = JuniorGolfKenya_Coach_Dashboard::get_performance_metrics($coach_i
             </div>
         </div>
         <div class="jgk-dashboard-actions">
-            <a href="<?php echo wp_logout_url(home_url()); ?>" class="jgk-btn jgk-btn-secondary">
+            <a href="<?php echo wp_logout_url(get_permalink()); ?>" class="jgk-logout-btn">
                 <span class="dashicons dashicons-exit"></span> Logout
             </a>
         </div>
@@ -312,6 +312,42 @@ $performance = JuniorGolfKenya_Coach_Dashboard::get_performance_metrics($coach_i
     gap: 5px;
     font-size: 14px;
     opacity: 0.95;
+}
+
+/* Logout Button */
+.jgk-logout-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+    text-decoration: none;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 15px;
+    transition: all 0.3s ease;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(10px);
+}
+
+.jgk-logout-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-2px);
+    color: #fff;
+    text-decoration: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.jgk-logout-btn:active {
+    transform: translateY(0);
+}
+
+.jgk-logout-btn .dashicons {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
 }
 
 /* Stats Grid */

@@ -25,12 +25,17 @@ $user_id = $current_user->ID;
 
 // Get member data
 require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-database.php';
+require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-member-data.php';
+
 $member = JuniorGolfKenya_Database::get_member_by_user_id($user_id);
 
 if (!$member) {
     echo '<p>Member profile not found. Please contact the administrator.</p>';
     return;
 }
+
+// Get membership status with expiration check
+$membership_status = JuniorGolfKenya_Member_Data::get_membership_status($member);
 
 // Handle form submission
 $message = '';
@@ -119,7 +124,69 @@ if (!empty($member->coach_id)) {
     </div>
     <?php endif; ?>
 
-    <h2>Welcome, <?php echo esc_html($member->first_name . ' ' . $member->last_name); ?>!</h2>
+    <!-- Membership Status Alert -->
+    <?php if ($membership_status['is_expired'] || $membership_status['is_expiring_soon']): ?>
+    <div class="jgk-membership-alert" style="background-color: <?php echo esc_attr($membership_status['bg_color']); ?>; color: <?php echo esc_attr($membership_status['color']); ?>;">
+        <div class="jgk-alert-icon">
+            <span class="dashicons dashicons-<?php echo esc_attr($membership_status['icon']); ?>"></span>
+        </div>
+        <div class="jgk-alert-content">
+            <h3><?php echo esc_html($membership_status['message']); ?></h3>
+            <?php if ($membership_status['is_expired']): ?>
+                <p>Your membership expired <?php echo abs($membership_status['days_remaining']); ?> days ago. Please renew to continue accessing member benefits.</p>
+            <?php else: ?>
+                <p>Your membership expires on <strong><?php echo esc_html($membership_status['expiry_date']); ?></strong>. Renew now to avoid interruption.</p>
+            <?php endif; ?>
+            <a href="#" class="jgk-renew-btn">Renew Membership</a>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <div class="jgk-portal-header">
+        <h2>Welcome, <?php echo esc_html($member->first_name . ' ' . $member->last_name); ?>!</h2>
+        <a href="<?php echo wp_logout_url(get_permalink()); ?>" class="jgk-logout-btn">
+            <span class="dashicons dashicons-exit"></span> Logout
+        </a>
+    </div>
+
+    <!-- Quick Access Cards -->
+    <div class="jgk-quick-access">
+        <?php 
+        $dashboard_page_id = get_option('jgk_page_member_dashboard');
+        $dashboard_url = $dashboard_page_id ? get_permalink($dashboard_page_id) : home_url('/member-dashboard');
+        ?>
+        <a href="<?php echo esc_url($dashboard_url); ?>" class="jgk-access-card jgk-card-primary">
+            <div class="jgk-card-icon">
+                <span class="dashicons dashicons-dashboard"></span>
+            </div>
+            <h3>My Dashboard</h3>
+            <p>View your complete profile, performance, and statistics</p>
+        </a>
+
+        <a href="<?php echo esc_url($dashboard_url . '#competitions'); ?>" class="jgk-access-card jgk-card-success">
+            <div class="jgk-card-icon">
+                <span class="dashicons dashicons-awards"></span>
+            </div>
+            <h3>Competitions</h3>
+            <p>Browse upcoming events and view past results</p>
+        </a>
+
+        <a href="<?php echo esc_url($dashboard_url . '#trophies'); ?>" class="jgk-access-card jgk-card-warning">
+            <div class="jgk-card-icon">
+                <span class="dashicons dashicons-star-filled"></span>
+            </div>
+            <h3>My Trophies</h3>
+            <p>View your achievements and awards</p>
+        </a>
+
+        <a href="<?php echo esc_url($dashboard_url . '#edit-profile'); ?>" class="jgk-access-card jgk-card-info">
+            <div class="jgk-card-icon">
+                <span class="dashicons dashicons-admin-users"></span>
+            </div>
+            <h3>Edit Profile</h3>
+            <p>Update your contact information and preferences</p>
+        </a>
+    </div>
     
     <!-- Member Info Card -->
     <div class="jgk-card">
@@ -236,6 +303,206 @@ if (!empty($member->coach_id)) {
     max-width: 1200px;
     margin: 0 auto;
     padding: 20px;
+}
+
+.jgk-portal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.jgk-portal-header h2 {
+    margin: 0;
+    color: #2c3e50;
+    font-size: 28px;
+}
+
+.jgk-logout-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.jgk-logout-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    color: #fff;
+    text-decoration: none;
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+}
+
+.jgk-logout-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.jgk-logout-btn .dashicons {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+}
+
+/* Membership Alert */
+.jgk-membership-alert {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 20px 25px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+    border-left: 5px solid currentColor;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.jgk-alert-icon {
+    font-size: 48px;
+    line-height: 1;
+}
+
+.jgk-alert-icon .dashicons {
+    width: 48px;
+    height: 48px;
+    font-size: 48px;
+}
+
+.jgk-alert-content {
+    flex: 1;
+}
+
+.jgk-alert-content h3 {
+    margin: 0 0 8px 0;
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.jgk-alert-content p {
+    margin: 0 0 12px 0;
+    font-size: 15px;
+    line-height: 1.5;
+}
+
+.jgk-renew-btn {
+    display: inline-block;
+    padding: 10px 20px;
+    background: currentColor;
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 14px;
+    transition: opacity 0.3s ease;
+}
+
+.jgk-renew-btn:hover {
+    opacity: 0.8;
+    color: white;
+    text-decoration: none;
+}
+
+/* Quick Access Cards */
+.jgk-quick-access {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.jgk-access-card {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    text-align: center;
+    text-decoration: none;
+    color: #2c3e50;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.jgk-access-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    text-decoration: none;
+    color: #2c3e50;
+}
+
+.jgk-card-primary:hover {
+    border-color: #667eea;
+}
+
+.jgk-card-success:hover {
+    border-color: #28a745;
+}
+
+.jgk-card-warning:hover {
+    border-color: #ffc107;
+}
+
+.jgk-card-info:hover {
+    border-color: #17a2b8;
+}
+
+.jgk-card-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 36px;
+}
+
+.jgk-card-primary .jgk-card-icon {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.jgk-card-success .jgk-card-icon {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+}
+
+.jgk-card-warning .jgk-card-icon {
+    background: linear-gradient(135deg, #ffc107 0%, #ff6f00 100%);
+    color: white;
+}
+
+.jgk-card-info .jgk-card-icon {
+    background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+    color: white;
+}
+
+.jgk-card-icon .dashicons {
+    width: 36px;
+    height: 36px;
+    font-size: 36px;
+}
+
+.jgk-access-card h3 {
+    margin: 0 0 10px 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: #2c3e50;
+}
+
+.jgk-access-card p {
+    margin: 0;
+    font-size: 14px;
+    color: #7f8c8d;
+    line-height: 1.5;
 }
 
 .jgk-message {
@@ -405,6 +672,30 @@ if (!empty($member->coach_id)) {
 }
 
 @media (max-width: 768px) {
+    .jgk-portal-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+    
+    .jgk-portal-header h2 {
+        font-size: 22px;
+    }
+    
+    .jgk-logout-btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .jgk-membership-alert {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .jgk-quick-access {
+        grid-template-columns: 1fr;
+    }
+    
     .jgk-info-grid,
     .jgk-form-row {
         grid-template-columns: 1fr;

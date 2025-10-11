@@ -150,7 +150,7 @@ function jgk_ajax_get_member_details() {
     $users_table = $wpdb->users;
     $coach_members_table = $wpdb->prefix . 'jgk_coach_members';
     $coaches_table = $wpdb->users;
-    $parents_table = $wpdb->prefix . 'jgk_parents';
+    $parents_table = $wpdb->prefix . 'jgk_parents_guardians';
     
     // Get member basic info
     $member = $wpdb->get_row($wpdb->prepare("
@@ -328,4 +328,199 @@ function jgk_ajax_search_members() {
     }
     
     wp_send_json_success(array('members' => $members));
+}
+
+/**
+ * Register AJAX handler for coach role request submission
+ */
+add_action('wp_ajax_jgk_submit_coach_request', 'jgk_ajax_submit_coach_request');
+
+function jgk_ajax_submit_coach_request() {
+    // Verify nonce
+    if (!isset($_POST['jgk_coach_request_nonce']) || !wp_verify_nonce($_POST['jgk_coach_request_nonce'], 'jgk_coach_request_action')) {
+        wp_send_json_error('Security check failed');
+    }
+    
+    // Check if user is logged in
+    if (!is_user_logged_in()) {
+        wp_send_json_error('You must be logged in to submit a request');
+    }
+    
+    $user_id = get_current_user_id();
+    $current_user = wp_get_current_user();
+    
+    // Check if user is already a coach
+    if (in_array('jgk_coach', $current_user->roles)) {
+        wp_send_json_error('You already have coach access');
+    }
+    
+    global $wpdb;
+    $role_requests_table = $wpdb->prefix . 'jgf_role_requests';
+    
+    // Check if user already has a pending request
+    $existing_request = $wpdb->get_row($wpdb->prepare(
+        "SELECT * FROM {$role_requests_table} WHERE user_id = %d AND status = 'pending' ORDER BY created_at DESC LIMIT 1",
+        $user_id
+    ));
+    
+    if ($existing_request) {
+        wp_send_json_error('You already have a pending coach role request');
+    }
+    
+    // Validate required fields
+    $required_fields = array('first_name', 'last_name', 'phone', 'years_experience', 'certifications', 'experience');
+    foreach ($required_fields as $field) {
+        if (empty($_POST[$field])) {
+            wp_send_json_error('Please fill in all required fields');
+        }
+    }
+    
+    // Prepare data
+    $data = array(
+        'user_id' => $user_id,
+        'requested_role' => 'jgk_coach',
+        'first_name' => sanitize_text_field($_POST['first_name']),
+        'last_name' => sanitize_text_field($_POST['last_name']),
+        'email' => sanitize_email($_POST['email']),
+        'phone' => sanitize_text_field($_POST['phone']),
+        'years_experience' => sanitize_text_field($_POST['years_experience']),
+        'specialization' => sanitize_text_field($_POST['specialization']),
+        'certifications' => sanitize_textarea_field($_POST['certifications']),
+        'experience' => sanitize_textarea_field($_POST['experience']),
+        'reference_name' => sanitize_text_field($_POST['reference_name'] ?? ''),
+        'reference_contact' => sanitize_text_field($_POST['reference_contact'] ?? ''),
+        'status' => 'pending',
+        'created_at' => current_time('mysql')
+    );
+    
+    // Insert into database
+    $inserted = $wpdb->insert($role_requests_table, $data);
+    
+    if ($inserted) {
+        // Send notification email to admin
+        $admin_email = get_option('admin_email');
+        $subject = 'New Coach Role Request - Junior Golf Kenya';
+        $message = sprintf(
+            "A new coach role request has been submitted:\n\n" .
+            "Name: %s %s\n" .
+            "Email: %s\n" .
+            "Phone: %s\n" .
+            "Experience: %s years\n\n" .
+            "View and approve in the admin dashboard: %s",
+            $data['first_name'],
+            $data['last_name'],
+            $data['email'],
+            $data['phone'],
+            $data['years_experience'],
+            admin_url('admin.php?page=juniorgolfkenya-role-requests')
+        );
+        
+        wp_mail($admin_email, $subject, $message);
+        
+        wp_send_json_success('Your application has been submitted successfully! We will review it soon.');
+    } else {
+        wp_send_json_error('Failed to submit request. Please try again.');
+    }
+}
+
+/**
+ * Handle coach request form submission (non-AJAX fallback)
+ */
+add_action('init', 'jgk_handle_coach_request_form');
+
+function jgk_handle_coach_request_form() {
+    if (!isset($_POST['action']) || $_POST['action'] !== 'jgk_submit_coach_request') {
+        return;
+    }
+    
+    // Verify nonce
+    if (!isset($_POST['jgk_coach_request_nonce']) || !wp_verify_nonce($_POST['jgk_coach_request_nonce'], 'jgk_coach_request_action')) {
+        wp_die('Security check failed');
+    }
+    
+    // Check if user is logged in
+    if (!is_user_logged_in()) {
+        wp_die('You must be logged in to submit a request');
+    }
+    
+    $user_id = get_current_user_id();
+    $current_user = wp_get_current_user();
+    
+    // Check if user is already a coach
+    if (in_array('jgk_coach', $current_user->roles)) {
+        wp_redirect(add_query_arg('error', 'already_coach', wp_get_referer()));
+        exit;
+    }
+    
+    global $wpdb;
+    $role_requests_table = $wpdb->prefix . 'jgf_role_requests';
+    
+    // Check if user already has a pending request
+    $existing_request = $wpdb->get_row($wpdb->prepare(
+        "SELECT * FROM {$role_requests_table} WHERE user_id = %d AND status = 'pending' ORDER BY created_at DESC LIMIT 1",
+        $user_id
+    ));
+    
+    if ($existing_request) {
+        wp_redirect(add_query_arg('error', 'pending_request', wp_get_referer()));
+        exit;
+    }
+    
+    // Validate required fields
+    $required_fields = array('first_name', 'last_name', 'phone', 'years_experience', 'certifications', 'experience');
+    foreach ($required_fields as $field) {
+        if (empty($_POST[$field])) {
+            wp_redirect(add_query_arg('error', 'missing_fields', wp_get_referer()));
+            exit;
+        }
+    }
+    
+    // Prepare data
+    $data = array(
+        'user_id' => $user_id,
+        'requested_role' => 'jgk_coach',
+        'first_name' => sanitize_text_field($_POST['first_name']),
+        'last_name' => sanitize_text_field($_POST['last_name']),
+        'email' => sanitize_email($_POST['email']),
+        'phone' => sanitize_text_field($_POST['phone']),
+        'years_experience' => sanitize_text_field($_POST['years_experience']),
+        'specialization' => sanitize_text_field($_POST['specialization']),
+        'certifications' => sanitize_textarea_field($_POST['certifications']),
+        'experience' => sanitize_textarea_field($_POST['experience']),
+        'reference_name' => sanitize_text_field($_POST['reference_name'] ?? ''),
+        'reference_contact' => sanitize_text_field($_POST['reference_contact'] ?? ''),
+        'status' => 'pending',
+        'created_at' => current_time('mysql')
+    );
+    
+    // Insert into database
+    $inserted = $wpdb->insert($role_requests_table, $data);
+    
+    if ($inserted) {
+        // Send notification email to admin
+        $admin_email = get_option('admin_email');
+        $subject = 'New Coach Role Request - Junior Golf Kenya';
+        $message = sprintf(
+            "A new coach role request has been submitted:\n\n" .
+            "Name: %s %s\n" .
+            "Email: %s\n" .
+            "Phone: %s\n" .
+            "Experience: %s years\n\n" .
+            "View and approve in the admin dashboard: %s",
+            $data['first_name'],
+            $data['last_name'],
+            $data['email'],
+            $data['phone'],
+            $data['years_experience'],
+            admin_url('admin.php?page=juniorgolfkenya-role-requests')
+        );
+        
+        wp_mail($admin_email, $subject, $message);
+        
+        wp_redirect(add_query_arg('success', 'request_submitted', wp_get_referer()));
+        exit;
+    } else {
+        wp_redirect(add_query_arg('error', 'submission_failed', wp_get_referer()));
+        exit;
+    }
 }

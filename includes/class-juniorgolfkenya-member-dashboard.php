@@ -302,7 +302,7 @@ class JuniorGolfKenya_Member_Dashboard {
     public static function get_parents($member_id) {
         global $wpdb;
         
-        $parents_table = $wpdb->prefix . 'jgk_parents';
+        $parents_table = $wpdb->prefix . 'jgk_parents_guardians';
         
         // Check if table exists
         if ($wpdb->get_var("SHOW TABLES LIKE '{$parents_table}'") != $parents_table) {
