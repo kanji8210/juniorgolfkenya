@@ -359,7 +359,7 @@ function jgk_ajax_submit_coach_request() {
     
     // Check if user already has a pending request
     $existing_request = $wpdb->get_row($wpdb->prepare(
-        "SELECT * FROM {$role_requests_table} WHERE user_id = %d AND status = 'pending' ORDER BY created_at DESC LIMIT 1",
+        "SELECT * FROM {$role_requests_table} WHERE requester_user_id = %d AND status = 'pending' ORDER BY created_at DESC LIMIT 1",
         $user_id
     ));
     
@@ -377,7 +377,7 @@ function jgk_ajax_submit_coach_request() {
     
     // Prepare data
     $data = array(
-        'user_id' => $user_id,
+        'requester_user_id' => $user_id,
         'requested_role' => 'jgk_coach',
         'first_name' => sanitize_text_field($_POST['first_name']),
         'last_name' => sanitize_text_field($_POST['last_name']),
@@ -457,7 +457,7 @@ function jgk_handle_coach_request_form() {
     
     // Check if user already has a pending request
     $existing_request = $wpdb->get_row($wpdb->prepare(
-        "SELECT * FROM {$role_requests_table} WHERE user_id = %d AND status = 'pending' ORDER BY created_at DESC LIMIT 1",
+        "SELECT * FROM {$role_requests_table} WHERE requester_user_id = %d AND status = 'pending' ORDER BY created_at DESC LIMIT 1",
         $user_id
     ));
     
@@ -477,7 +477,7 @@ function jgk_handle_coach_request_form() {
     
     // Prepare data
     $data = array(
-        'user_id' => $user_id,
+        'requester_user_id' => $user_id,
         'requested_role' => 'jgk_coach',
         'first_name' => sanitize_text_field($_POST['first_name']),
         'last_name' => sanitize_text_field($_POST['last_name']),

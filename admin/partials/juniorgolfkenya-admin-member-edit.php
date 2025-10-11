@@ -174,6 +174,14 @@ if (!defined('ABSPATH')) {
                     </p>
                     <?php endif; ?>
                 </div>
+                <div class="jgk-form-field">
+                    <label for="is_public">Public Visibility</label>
+                    <select id="is_public" name="is_public">
+                        <option value="1" <?php selected($edit_member->is_public ?? 0, 1); ?>>✓ Visible Publicly</option>
+                        <option value="0" <?php selected($edit_member->is_public ?? 0, 0); ?>>✗ Hidden from Public</option>
+                    </select>
+                    <small>Control if this member appears in public member directories, galleries, and listings</small>
+                </div>
             </div>
             
             <h2>Emergency Contact</h2>

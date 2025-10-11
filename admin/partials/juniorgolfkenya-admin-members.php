@@ -153,7 +153,8 @@ if (isset($_POST['action'])) {
                     'address' => sanitize_textarea_field($_POST['address']),
                     'biography' => sanitize_textarea_field($_POST['biography']),
                     'consent_photography' => isset($_POST['consent_photography']) ? 'yes' : 'no',
-                    'parental_consent' => isset($_POST['parental_consent']) ? 1 : 0
+                    'parental_consent' => isset($_POST['parental_consent']) ? 1 : 0,
+                    'is_public' => isset($_POST['is_public']) ? intval($_POST['is_public']) : 0
                 );
                 
                 $result = JuniorGolfKenya_Database::update_member($member_id, $member_data);
@@ -673,6 +674,7 @@ $coaches = JuniorGolfKenya_User_Manager::get_available_coaches();
                     <th>Email</th>
                     <th>Type</th>
                     <th>Status</th>
+                    <th>Visibility</th>
                     <th>Coach</th>
                     <th>Joined</th>
                     <th>Actions</th>
@@ -681,7 +683,7 @@ $coaches = JuniorGolfKenya_User_Manager::get_available_coaches();
             <tbody>
                 <?php if (empty($members)): ?>
                 <tr>
-                    <td colspan="9">No members found.</td>
+                    <td colspan="10">No members found.</td>
                 </tr>
                 <?php else: ?>
                 <?php foreach ($members as $member): ?>
@@ -709,6 +711,17 @@ $coaches = JuniorGolfKenya_User_Manager::get_available_coaches();
                         </span>
                         <?php if ($member->status === 'expired' && $member->expiry_date): ?>
                         <br><small>Expired: <?php echo date('M j, Y', strtotime($member->expiry_date)); ?></small>
+                        <?php endif; ?>
+                    </td>
+                    <td style="text-align: center;">
+                        <?php if (isset($member->is_public) && $member->is_public == 1): ?>
+                        <span style="background: #46b450; color: white; padding: 3px 8px; border-radius: 3px; font-size: 11px; font-weight: bold;">
+                            👁️ PUBLIC
+                        </span>
+                        <?php else: ?>
+                        <span style="background: #999; color: white; padding: 3px 8px; border-radius: 3px; font-size: 11px; font-weight: bold;">
+                            🔒 HIDDEN
+                        </span>
                         <?php endif; ?>
                     </td>
                     <td>

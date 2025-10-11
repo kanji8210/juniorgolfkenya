@@ -210,7 +210,19 @@ if (isset($_POST['jgk_register_member'])) {
                     wp_set_current_user($user_id);
                     wp_set_auth_cookie($user_id);
                     
-                    $registration_success = true;
+                    // Redirect to Member Portal after successful registration
+                    $portal_page_id = get_option('jgk_page_member_portal');
+                    if ($portal_page_id) {
+                        $redirect_url = get_permalink($portal_page_id);
+                    } else {
+                        // Fallback to member dashboard if portal not found
+                        $dashboard_page_id = get_option('jgk_page_member_dashboard');
+                        $redirect_url = $dashboard_page_id ? get_permalink($dashboard_page_id) : home_url('/member-portal');
+                    }
+                    
+                    // Perform redirect
+                    wp_redirect($redirect_url);
+                    exit;
                 }
             }
         }

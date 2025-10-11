@@ -90,13 +90,15 @@ class JuniorGolfKenya_Activator {
             handicap varchar(10),
             medical_conditions text,
             parental_consent tinyint(1) DEFAULT 0,
+            is_public tinyint(1) DEFAULT 0,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
             UNIQUE KEY membership_number (membership_number),
             KEY user_id (user_id),
             KEY coach_id (coach_id),
-            KEY status (status)
+            KEY status (status),
+            KEY is_public (is_public)
         ) $charset_collate;";
 
         // Memberships table (for tracking membership history)
@@ -506,7 +508,7 @@ class JuniorGolfKenya_Activator {
             ),
             'coach-role-request' => array(
                 'title' => 'Apply as Coach',
-                'content' => self::get_coach_role_request_content(),
+                'content' => '[jgk_coach_request_form]',
                 'description' => 'Submit a request to become a coach.'
             ),
             
@@ -526,9 +528,46 @@ class JuniorGolfKenya_Activator {
         $created_pages = array();
         
         foreach ($pages as $slug => $page_data) {
-            $existing_page = get_page_by_path($slug);
+            $option_name = 'jgk_page_' . str_replace('-', '_', $slug);
+            
+            // First check if we already have the page ID stored in options
+            $stored_page_id = get_option($option_name);
+            $existing_page = null;
+            
+            if ($stored_page_id) {
+                // Verify the stored page still exists
+                $existing_page = get_post($stored_page_id);
+                if (!$existing_page || $existing_page->post_type !== 'page' || $existing_page->post_status === 'trash') {
+                    // Stored page no longer valid, delete the option
+                    delete_option($option_name);
+                    $existing_page = null;
+                }
+            }
+            
+            // If no valid stored page, search by slug
+            if (!$existing_page) {
+                $existing_page = get_page_by_path($slug);
+            }
+            
+            // If still not found, search by title as last resort
+            if (!$existing_page) {
+                $query = new WP_Query(array(
+                    'post_type' => 'page',
+                    'post_status' => 'publish',
+                    'title' => $page_data['title'],
+                    'posts_per_page' => 1,
+                    'no_found_rows' => true,
+                    'update_post_meta_cache' => false,
+                    'update_post_term_cache' => false
+                ));
+                
+                if ($query->have_posts()) {
+                    $existing_page = $query->posts[0];
+                }
+            }
             
             if (!$existing_page) {
+                // Page doesn't exist, create it
                 $page_id = wp_insert_post(array(
                     'post_title' => $page_data['title'],
                     'post_content' => $page_data['content'],
@@ -540,22 +579,28 @@ class JuniorGolfKenya_Activator {
                     'ping_status' => 'closed'
                 ));
                 
-                if ($page_id) {
+                if ($page_id && !is_wp_error($page_id)) {
                     $created_pages[$slug] = $page_id;
                     
                     // Store page ID in options for easy reference
-                    update_option('jgk_page_' . str_replace('-', '_', $slug), $page_id);
+                    update_option($option_name, $page_id);
+                    
+                    error_log("JuniorGolfKenya: Created page '{$page_data['title']}' with ID {$page_id}");
                 }
             } else {
-                // Update option with existing page ID
-                update_option('jgk_page_' . str_replace('-', '_', $slug), $existing_page->ID);
+                // Page exists, just update the option
+                update_option($option_name, $existing_page->ID);
+                
+                error_log("JuniorGolfKenya: Found existing page '{$page_data['title']}' with ID {$existing_page->ID}");
             }
         }
         
         // Store creation log
         if (!empty($created_pages)) {
-            update_option('jgk_created_pages', $created_pages);
-            error_log('JuniorGolfKenya: Created pages - ' . wp_json_encode($created_pages));
+            $previous_pages = get_option('jgk_created_pages', array());
+            $all_pages = array_merge($previous_pages, $created_pages);
+            update_option('jgk_created_pages', $all_pages);
+            error_log('JuniorGolfKenya: Page creation summary - ' . wp_json_encode($created_pages));
         }
         
         return $created_pages;
@@ -589,7 +634,7 @@ class JuniorGolfKenya_Activator {
             // Check if already submitted a request
             $role_requests_table = $wpdb->prefix . 'jgf_role_requests';
             $existing_request = $wpdb->get_row($wpdb->prepare(
-                "SELECT * FROM {$role_requests_table} WHERE user_id = %d ORDER BY created_at DESC LIMIT 1",
+                "SELECT * FROM {$role_requests_table} WHERE requester_user_id = %d ORDER BY created_at DESC LIMIT 1",
                 $user_id
             ));
             

@@ -16,7 +16,180 @@ if (!defined('ABSPATH')) {
 
 // Check if user is logged in
 if (!is_user_logged_in()) {
-    echo '<p>Please <a href="' . wp_login_url(get_permalink()) . '">login</a> to access the member portal.</p>';
+    $current_url = get_permalink();
+    $login_url = wp_login_url($current_url);
+    $register_url = home_url('/member-registration');
+    ?>
+    <div class="jgk-login-required">
+        <div class="jgk-login-box">
+            <div class="jgk-login-icon">
+                <span class="dashicons dashicons-lock"></span>
+            </div>
+            <h2>Login Required</h2>
+            <p>You must be logged in to access the Member Portal.</p>
+            <div class="jgk-login-actions">
+                <a href="<?php echo esc_url($login_url); ?>" class="jgk-btn jgk-btn-primary">
+                    <span class="dashicons dashicons-admin-users"></span>
+                    Login to Your Account
+                </a>
+                <p class="jgk-or-divider">or</p>
+                <a href="<?php echo esc_url($register_url); ?>" class="jgk-btn jgk-btn-secondary">
+                    <span class="dashicons dashicons-plus-alt"></span>
+                    Become a Member
+                </a>
+            </div>
+            <p class="jgk-help-text">
+                Need help? <a href="mailto:<?php echo esc_attr(get_option('admin_email')); ?>">Contact us</a>
+            </p>
+        </div>
+    </div>
+    
+    <style>
+        .jgk-login-required {
+            max-width: 500px;
+            margin: 80px auto;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+        }
+        .jgk-login-box {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            padding: 0;
+            text-align: center;
+            overflow: hidden;
+        }
+        .jgk-login-icon {
+            width: 100px;
+            height: 100px;
+            margin: -50px auto 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            color: white;
+            font-size: 50px;
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+        .jgk-login-icon .dashicons {
+            width: 50px;
+            height: 50px;
+            font-size: 50px;
+        }
+        .jgk-login-box h2 {
+            margin: 0 0 15px 0;
+            padding: 30px 40px 0;
+            color: #2c3e50;
+            font-size: 28px;
+            font-weight: 700;
+        }
+        .jgk-login-box > p {
+            margin: 0 0 30px 0;
+            padding: 0 40px;
+            color: #7f8c8d;
+            font-size: 16px;
+        }
+        .jgk-login-actions {
+            padding: 30px 40px;
+            background: #f8f9fa;
+        }
+        .jgk-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 14px 30px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            width: 100%;
+            max-width: 320px;
+            margin: 0 auto;
+        }
+        .jgk-btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+        .jgk-btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+            color: white;
+        }
+        .jgk-btn-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+            margin-top: 10px;
+        }
+        .jgk-btn-secondary:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
+        .jgk-btn .dashicons {
+            width: 20px;
+            height: 20px;
+            font-size: 20px;
+        }
+        .jgk-or-divider {
+            margin: 20px 0;
+            color: #95a5a6;
+            font-size: 14px;
+            position: relative;
+        }
+        .jgk-or-divider::before,
+        .jgk-or-divider::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: 40%;
+            height: 1px;
+            background: #ddd;
+        }
+        .jgk-or-divider::before {
+            left: 0;
+        }
+        .jgk-or-divider::after {
+            right: 0;
+        }
+        .jgk-help-text {
+            margin: 20px 0 0 0;
+            padding: 0 40px 30px;
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+        .jgk-help-text a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .jgk-help-text a:hover {
+            text-decoration: underline;
+        }
+        @media (max-width: 768px) {
+            .jgk-login-required {
+                margin: 40px 15px;
+            }
+            .jgk-login-box h2 {
+                padding: 20px 20px 0;
+                font-size: 24px;
+            }
+            .jgk-login-box > p {
+                padding: 0 20px;
+                font-size: 15px;
+            }
+            .jgk-login-actions,
+            .jgk-help-text {
+                padding-left: 20px;
+                padding-right: 20px;
+            }
+        }
+    </style>
+    <?php
     return;
 }
 
