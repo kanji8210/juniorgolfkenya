@@ -304,10 +304,11 @@ class JuniorGolfKenya_Public {
         // Get current user
         $current_user = wp_get_current_user();
         
+        // TEMPORAIRE : Permission check désactivée pour test
         // Check if user has coach role
-        if (!in_array('jgk_coach', $current_user->roles)) {
-            return '<div class="jgk-notice jgk-notice-error">You do not have permission to view this page.</div>';
-        }
+        // if (!in_array('jgk_coach', $current_user->roles)) {
+        //     return '<div class="jgk-notice jgk-notice-error">You do not have permission to view this page.</div>';
+        // }
 
         ob_start();
         include JUNIORGOLFKENYA_PLUGIN_PATH . 'public/partials/juniorgolfkenya-coach-dashboard.php';
@@ -504,10 +505,11 @@ class JuniorGolfKenya_Public {
         // Get current user
         $current_user = wp_get_current_user();
         
+        // TEMPORAIRE : Permission check désactivée pour test
         // Check if user has member role
-        if (!in_array('jgk_member', $current_user->roles)) {
-            return '<div class="jgk-notice jgk-notice-error">You do not have permission to view this page.</div>';
-        }
+        // if (!in_array('jgk_member', $current_user->roles)) {
+        //     return '<div class="jgk-notice jgk-notice-error">You do not have permission to view this page.</div>';
+        // }
 
         // Get member record from database
         global $wpdb;

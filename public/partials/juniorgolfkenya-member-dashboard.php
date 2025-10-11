@@ -14,6 +14,11 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+// Helper function to safely get object property
+function jgk_get_prop($obj, $prop, $default = 'N/A') {
+    return isset($obj->$prop) && !empty($obj->$prop) ? $obj->$prop : $default;
+}
+
 // Get current user
 $current_user = wp_get_current_user();
 
@@ -115,7 +120,7 @@ $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id,
                 <span class="dashicons dashicons-flag"></span>
             </div>
             <div class="jgk-stat-content">
-                <h3><?php echo esc_html($stats['member']->handicap_index ?: 'N/A'); ?></h3>
+                <h3><?php echo esc_html(jgk_get_prop($stats['member'], 'handicap_index')); ?></h3>
                 <p>Handicap Index</p>
             </div>
         </div>
@@ -155,19 +160,19 @@ $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id,
                     </div>
                     <div class="jgk-info-item">
                         <span class="jgk-info-label">Gender:</span>
-                        <span class="jgk-info-value"><?php echo esc_html(ucfirst($stats['member']->gender ?: 'N/A')); ?></span>
+                        <span class="jgk-info-value"><?php echo esc_html(ucfirst(jgk_get_prop($stats['member'], 'gender'))); ?></span>
                     </div>
                     <div class="jgk-info-item">
                         <span class="jgk-info-label">Phone:</span>
-                        <span class="jgk-info-value"><?php echo esc_html($stats['member']->phone ?: 'N/A'); ?></span>
+                        <span class="jgk-info-value"><?php echo esc_html(jgk_get_prop($stats['member'], 'phone')); ?></span>
                     </div>
                     <div class="jgk-info-item">
                         <span class="jgk-info-label">Club:</span>
-                        <span class="jgk-info-value"><?php echo esc_html($stats['member']->club_name ?: 'N/A'); ?></span>
+                        <span class="jgk-info-value"><?php echo esc_html(jgk_get_prop($stats['member'], 'club_name')); ?></span>
                     </div>
                     <div class="jgk-info-item">
                         <span class="jgk-info-label">Membership Number:</span>
-                        <span class="jgk-info-value"><?php echo esc_html($stats['member']->membership_number ?: 'N/A'); ?></span>
+                        <span class="jgk-info-value"><?php echo esc_html(jgk_get_prop($stats['member'], 'membership_number')); ?></span>
                     </div>
                 </div>
             </div>

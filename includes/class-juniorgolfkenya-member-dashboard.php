@@ -181,9 +181,9 @@ class JuniorGolfKenya_Member_Dashboard {
                 u.display_name as coach_name,
                 u.user_email as coach_email,
                 cm.is_primary,
-                cm.assigned_at,
-                cp.phone as coach_phone,
-                cp.specialization
+                cm.assigned_date as assigned_at,
+                NULL as coach_phone,
+                cp.specialties as specialization
             FROM {$coach_members_table} cm
             INNER JOIN {$wpdb->users} u ON cm.coach_id = u.ID
             LEFT JOIN {$coaches_table} cp ON u.ID = cp.user_id
@@ -212,14 +212,14 @@ class JuniorGolfKenya_Member_Dashboard {
         // Get coach assignments history
         $coach_assignments = $wpdb->get_results($wpdb->prepare("
             SELECT 
-                cm.assigned_at as date,
+                cm.assigned_date as date,
                 'coach_assigned' as type,
                 u.display_name as coach_name,
                 cm.is_primary
             FROM {$coach_members_table} cm
             INNER JOIN {$wpdb->users} u ON cm.coach_id = u.ID
             WHERE cm.member_id = %d
-            ORDER BY cm.assigned_at DESC
+            ORDER BY cm.assigned_date DESC
             LIMIT %d
         ", $member_id, $limit));
         

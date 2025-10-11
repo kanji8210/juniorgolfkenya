@@ -32,7 +32,7 @@ if (isset($_POST['jgk_register_member'])) {
         $phone = sanitize_text_field($_POST['phone'] ?? '');
         $date_of_birth = sanitize_text_field($_POST['date_of_birth'] ?? '');
         $gender = sanitize_text_field($_POST['gender'] ?? '');
-        $membership_type = sanitize_text_field($_POST['membership_type'] ?? '');
+        $membership_type = 'junior'; // Forcé : programme juniors uniquement (2-17 ans)
         $club_affiliation = sanitize_text_field($_POST['club_affiliation'] ?? '');
         $address = sanitize_textarea_field($_POST['address'] ?? '');
         $medical_conditions = sanitize_textarea_field($_POST['medical_conditions'] ?? '');
@@ -68,8 +68,26 @@ if (isset($_POST['jgk_register_member'])) {
         if ($password !== $confirm_password) {
             $registration_errors[] = 'Passwords do not match.';
         }
-        if (empty($membership_type)) {
-            $registration_errors[] = 'Membership type is required.';
+        
+        // Validation de l'âge (2-17 ans) - OBLIGATOIRE pour juniors
+        if (empty($date_of_birth)) {
+            $registration_errors[] = 'La date de naissance est obligatoire pour vérifier l\'éligibilité.';
+        } else {
+            try {
+                $birthdate = new DateTime($date_of_birth);
+                $today = new DateTime();
+                $age = $today->diff($birthdate)->y;
+                
+                if ($age < 2) {
+                    $registration_errors[] = 'L\'âge minimum pour s\'inscrire est de 2 ans.';
+                }
+                
+                if ($age >= 18) {
+                    $registration_errors[] = 'Ce programme est réservé aux juniors de moins de 18 ans. Si vous avez 18 ans ou plus, veuillez nous contacter directement.';
+                }
+            } catch (Exception $e) {
+                $registration_errors[] = 'Format de date de naissance invalide.';
+            }
         }
         
         // Check if email already exists
@@ -77,9 +95,17 @@ if (isset($_POST['jgk_register_member'])) {
             $registration_errors[] = 'This email address is already registered.';
         }
         
-        // For junior members, require parent information
-        if ($membership_type === 'junior' && empty($parent_first_name)) {
-            $registration_errors[] = 'Parent/Guardian information is required for junior members.';
+        // Informations parent/tuteur OBLIGATOIRES pour tous les juniors
+        if (empty($parent_first_name) || empty($parent_last_name)) {
+            $registration_errors[] = 'Les informations du parent/tuteur sont obligatoires (prénom et nom).';
+        }
+        
+        if (empty($parent_email) && empty($parent_phone)) {
+            $registration_errors[] = 'Au moins un moyen de contact du parent est requis (email ou téléphone).';
+        }
+        
+        if (empty($parent_relationship)) {
+            $registration_errors[] = 'Veuillez indiquer votre relation avec l\'enfant (mère, père, tuteur...).';
         }
         
         // If no errors, proceed with registration
@@ -331,8 +357,14 @@ if (isset($_POST['jgk_register_member'])) {
 
                 <div class="jgk-form-row">
                     <div class="jgk-form-field">
-                        <label for="date_of_birth">Date of Birth</label>
-                        <input type="date" id="date_of_birth" name="date_of_birth" value="<?php echo esc_attr($_POST['date_of_birth'] ?? ''); ?>">
+                        <label for="date_of_birth">Date de naissance *</label>
+                        <input type="date" id="date_of_birth" name="date_of_birth" 
+                               value="<?php echo esc_attr($_POST['date_of_birth'] ?? ''); ?>" 
+                               required 
+                               max="<?php echo date('Y-m-d', strtotime('-2 years')); ?>"
+                               min="<?php echo date('Y-m-d', strtotime('-18 years')); ?>">
+                        <small style="color: #666;">L'enfant doit avoir entre 2 et 17 ans</small>
+                        <div id="age-validation-message" style="margin-top: 10px;"></div>
                     </div>
                     <div class="jgk-form-field">
                         <label for="gender">Gender</label>
@@ -359,18 +391,24 @@ if (isset($_POST['jgk_register_member'])) {
                 <h3><span class="dashicons dashicons-id-alt"></span> Membership Details</h3>
                 
                 <div class="jgk-form-row">
-                    <div class="jgk-form-field">
-                        <label for="membership_type">Membership Type *</label>
-                        <select id="membership_type" name="membership_type" required>
-                            <option value="">Select Membership Type</option>
-                            <option value="junior" <?php selected($_POST['membership_type'] ?? '', 'junior'); ?>>Junior (Under 18) - KSh 5,000/year</option>
-                            <option value="youth" <?php selected($_POST['membership_type'] ?? '', 'youth'); ?>>Youth (18-25) - KSh 8,000/year</option>
-                            <option value="adult" <?php selected($_POST['membership_type'] ?? '', 'adult'); ?>>Adult (26+) - KSh 15,000/year</option>
-                            <option value="senior" <?php selected($_POST['membership_type'] ?? '', 'senior'); ?>>Senior (65+) - KSh 10,000/year</option>
-                            <option value="family" <?php selected($_POST['membership_type'] ?? '', 'family'); ?>>Family Package - KSh 30,000/year</option>
-                        </select>
+                    <div class="jgk-form-field jgk-form-field-full">
+                        <div class="jgk-membership-info" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 12px; text-align: center;">
+                            <h4 style="margin: 0 0 12px 0; font-size: 22px; font-weight: 600;">⛳ Programme Junior Golf Kenya</h4>
+                            <p style="margin: 0 0 15px 0; font-size: 16px; opacity: 0.95; line-height: 1.6;">
+                                Programme de développement pour jeunes golfeurs<br>
+                                <strong style="font-size: 18px;">Âge requis : 2 à 17 ans</strong>
+                            </p>
+                            <div style="background: rgba(255,255,255,0.2); padding: 12px 20px; border-radius: 8px; display: inline-block;">
+                                <p style="margin: 0; font-size: 18px; font-weight: 600;">
+                                    Cotisation annuelle : KSh 5,000
+                                </p>
+                            </div>
+                            <input type="hidden" name="membership_type" value="junior">
+                        </div>
                     </div>
-                    <div class="jgk-form-field">
+                </div>
+                
+                <div class="jgk-form-row">
                         <label for="club_affiliation">Club Affiliation</label>
                         <input type="text" id="club_affiliation" name="club_affiliation" value="<?php echo esc_attr($_POST['club_affiliation'] ?? ''); ?>" placeholder="Your golf club (if any)">
                     </div>
@@ -390,36 +428,40 @@ if (isset($_POST['jgk_register_member'])) {
             </div>
 
             <!-- Parent/Guardian Information (for minors) -->
-            <div class="jgk-form-section" id="parent-section">
+            <div class="jgk-form-section" id="parent-section" style="display: block;">
                 <h3><span class="dashicons dashicons-groups"></span> Parent/Guardian Information</h3>
-                <p class="jgk-section-description">Required for junior members (under 18)</p>
+                <p class="jgk-section-description" style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; color: #856404; margin: 10px 0 20px 0; border-radius: 4px;">
+                    <strong>⚠️ Obligatoire</strong> - Les informations du parent ou tuteur légal sont requises pour tous les membres juniors.
+                </p>
                 
                 <div class="jgk-form-row">
                     <div class="jgk-form-field">
-                        <label for="parent_first_name">Parent/Guardian First Name</label>
-                        <input type="text" id="parent_first_name" name="parent_first_name" value="<?php echo esc_attr($_POST['parent_first_name'] ?? ''); ?>">
+                        <label for="parent_first_name">Parent/Guardian First Name *</label>
+                        <input type="text" id="parent_first_name" name="parent_first_name" value="<?php echo esc_attr($_POST['parent_first_name'] ?? ''); ?>" required>
                     </div>
                     <div class="jgk-form-field">
-                        <label for="parent_last_name">Parent/Guardian Last Name</label>
-                        <input type="text" id="parent_last_name" name="parent_last_name" value="<?php echo esc_attr($_POST['parent_last_name'] ?? ''); ?>">
+                        <label for="parent_last_name">Parent/Guardian Last Name *</label>
+                        <input type="text" id="parent_last_name" name="parent_last_name" value="<?php echo esc_attr($_POST['parent_last_name'] ?? ''); ?>" required>
                     </div>
                 </div>
 
                 <div class="jgk-form-row">
                     <div class="jgk-form-field">
-                        <label for="parent_email">Parent/Guardian Email</label>
+                        <label for="parent_email">Parent/Guardian Email *</label>
                         <input type="email" id="parent_email" name="parent_email" value="<?php echo esc_attr($_POST['parent_email'] ?? ''); ?>">
+                        <small>Au moins email OU téléphone requis</small>
                     </div>
                     <div class="jgk-form-field">
-                        <label for="parent_phone">Parent/Guardian Phone</label>
+                        <label for="parent_phone">Parent/Guardian Phone *</label>
                         <input type="tel" id="parent_phone" name="parent_phone" value="<?php echo esc_attr($_POST['parent_phone'] ?? ''); ?>" placeholder="+254...">
+                        <small>Au moins email OU téléphone requis</small>
                     </div>
                 </div>
 
                 <div class="jgk-form-row">
                     <div class="jgk-form-field">
-                        <label for="parent_relationship">Relationship</label>
-                        <select id="parent_relationship" name="parent_relationship">
+                        <label for="parent_relationship">Relationship *</label>
+                        <select id="parent_relationship" name="parent_relationship" required>
                             <option value="">Select Relationship</option>
                             <option value="mother" <?php selected($_POST['parent_relationship'] ?? '', 'mother'); ?>>Mother</option>
                             <option value="father" <?php selected($_POST['parent_relationship'] ?? '', 'father'); ?>>Father</option>
@@ -838,7 +880,7 @@ if (isset($_POST['jgk_register_member'])) {
 
 /* Show/hide parent section based on membership type */
 #parent-section {
-    display: none;
+    display: block; /* Toujours visible pour les juniors */
 }
 
 #parent-section.show {
@@ -847,27 +889,59 @@ if (isset($_POST['jgk_register_member'])) {
 </style>
 
 <script>
-// Show/hide parent section based on membership type
-document.getElementById('membership_type')?.addEventListener('change', function() {
-    const parentSection = document.getElementById('parent-section');
-    if (this.value === 'junior') {
-        parentSection.classList.add('show');
-        // Make parent fields required
-        document.getElementById('parent_first_name').required = true;
-        document.getElementById('parent_last_name').required = true;
+// Validation d'âge en temps réel (2-17 ans)
+document.getElementById('date_of_birth')?.addEventListener('change', function() {
+    const dob = new Date(this.value);
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const monthDiff = today.getMonth() - dob.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+        age--;
+    }
+    
+    const messageDiv = document.getElementById('age-validation-message');
+    
+    if (!messageDiv) return;
+    
+    if (age < 2) {
+        messageDiv.style.background = '#f8d7da';
+        messageDiv.style.color = '#721c24';
+        messageDiv.style.padding = '10px';
+        messageDiv.style.borderRadius = '5px';
+        messageDiv.style.border = '1px solid #f5c6cb';
+        messageDiv.innerHTML = '❌ L\'enfant doit avoir au moins 2 ans pour s\'inscrire.';
+        this.setCustomValidity('Âge minimum : 2 ans');
+    } else if (age >= 18) {
+        messageDiv.style.background = '#f8d7da';
+        messageDiv.style.color = '#721c24';
+        messageDiv.style.padding = '10px';
+        messageDiv.style.borderRadius = '5px';
+        messageDiv.style.border = '1px solid #f5c6cb';
+        messageDiv.innerHTML = '❌ Ce programme est réservé aux juniors de moins de 18 ans.';
+        this.setCustomValidity('Âge maximum : 17 ans');
     } else {
-        parentSection.classList.remove('show');
-        // Remove required attribute
-        document.getElementById('parent_first_name').required = false;
-        document.getElementById('parent_last_name').required = false;
+        messageDiv.style.background = '#d4edda';
+        messageDiv.style.color = '#155724';
+        messageDiv.style.padding = '10px';
+        messageDiv.style.borderRadius = '5px';
+        messageDiv.style.border = '1px solid #c3e6cb';
+        messageDiv.innerHTML = `✅ Âge valide : ${age} ans`;
+        this.setCustomValidity('');
     }
 });
 
-// Trigger on page load if junior is already selected
+// Trigger validation on page load if date is already filled
 document.addEventListener('DOMContentLoaded', function() {
-    const membershipType = document.getElementById('membership_type');
-    if (membershipType && membershipType.value === 'junior') {
-        document.getElementById('parent-section').classList.add('show');
+    const dobField = document.getElementById('date_of_birth');
+    if (dobField && dobField.value) {
+        dobField.dispatchEvent(new Event('change'));
+    }
+    
+    // Parent section toujours visible (programme juniors uniquement)
+    const parentSection = document.getElementById('parent-section');
+    if (parentSection) {
+        parentSection.style.display = 'block';
     }
 });
 

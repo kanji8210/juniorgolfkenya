@@ -62,71 +62,105 @@ if (isset($_POST['action'])) {
             break;
 
         case 'create_member':
-            $user_data = array(
-                'user_login' => sanitize_user($_POST['username']),
-                'user_email' => sanitize_email($_POST['email']),
-                'display_name' => sanitize_text_field($_POST['display_name']),
-                'first_name' => sanitize_text_field($_POST['first_name']),
-                'last_name' => sanitize_text_field($_POST['last_name']),
-                'user_pass' => $_POST['password']
-            );
+            // Validation de l'âge (2-17 ans)
+            $date_of_birth = sanitize_text_field($_POST['date_of_birth'] ?? '');
+            $create_error = false;
             
-            $member_data = array(
-                'membership_type' => sanitize_text_field($_POST['membership_type']),
-                'status' => sanitize_text_field($_POST['status']),
-                'date_of_birth' => sanitize_text_field($_POST['date_of_birth']),
-                'gender' => sanitize_text_field($_POST['gender']),
-                'phone' => sanitize_text_field($_POST['phone']),
-                'handicap' => floatval($_POST['handicap']),
-                'club_affiliation' => sanitize_text_field($_POST['club_affiliation']),
-                'emergency_contact_name' => sanitize_text_field($_POST['emergency_contact_name']),
-                'emergency_contact_phone' => sanitize_text_field($_POST['emergency_contact_phone']),
-                'medical_conditions' => sanitize_textarea_field($_POST['medical_conditions']),
-                'join_date' => current_time('Y-m-d'),
-                'expiry_date' => date('Y-m-d', strtotime('+1 year'))
-            );
-
-            // Collect parent/guardian data if provided
-            $parent_data = array();
-            if (isset($_POST['parent_first_name']) && is_array($_POST['parent_first_name'])) {
-                $parent_count = count($_POST['parent_first_name']);
-                for ($i = 0; $i < $parent_count; $i++) {
-                    // Skip empty entries
-                    if (empty($_POST['parent_first_name'][$i]) && empty($_POST['parent_last_name'][$i])) {
-                        continue;
+            if (!empty($date_of_birth)) {
+                try {
+                    $birthdate = new DateTime($date_of_birth);
+                    $today = new DateTime();
+                    $age = $today->diff($birthdate)->y;
+                    
+                    if ($age < 2) {
+                        $message = 'Erreur : L\'âge minimum est de 2 ans.';
+                        $message_type = 'error';
+                        $create_error = true;
                     }
                     
-                    $parent_data[] = array(
-                        'first_name' => sanitize_text_field($_POST['parent_first_name'][$i]),
-                        'last_name' => sanitize_text_field($_POST['parent_last_name'][$i]),
-                        'relationship' => sanitize_text_field($_POST['parent_relationship'][$i] ?? 'parent'),
-                        'phone' => sanitize_text_field($_POST['parent_phone'][$i] ?? ''),
-                        'email' => sanitize_email($_POST['parent_email'][$i] ?? ''),
-                        'occupation' => sanitize_text_field($_POST['parent_occupation'][$i] ?? ''),
-                        'is_primary_contact' => isset($_POST['parent_is_primary'][$i]) ? 1 : 0,
-                        'emergency_contact' => isset($_POST['parent_is_emergency'][$i]) ? 1 : 0,
-                        'can_pickup' => isset($_POST['parent_can_pickup'][$i]) ? 1 : 0
-                    );
+                    if ($age >= 18) {
+                        $message = 'Erreur : Ce programme est réservé aux juniors de moins de 18 ans.';
+                        $message_type = 'error';
+                        $create_error = true;
+                    }
+                } catch (Exception $e) {
+                    $message = 'Erreur : Format de date de naissance invalide.';
+                    $message_type = 'error';
+                    $create_error = true;
                 }
+            } else {
+                $message = 'Erreur : La date de naissance est obligatoire.';
+                $message_type = 'error';
+                $create_error = true;
             }
+            
+            if (!$create_error) {
+                $user_data = array(
+                    'user_login' => sanitize_user($_POST['username']),
+                    'user_email' => sanitize_email($_POST['email']),
+                    'display_name' => sanitize_text_field($_POST['display_name']),
+                    'first_name' => sanitize_text_field($_POST['first_name']),
+                    'last_name' => sanitize_text_field($_POST['last_name']),
+                    'user_pass' => $_POST['password']
+                );
+                
+                $member_data = array(
+                    'membership_type' => 'junior', // Forcé : programme juniors uniquement
+                    'status' => sanitize_text_field($_POST['status']),
+                    'date_of_birth' => $date_of_birth,
+                    'gender' => sanitize_text_field($_POST['gender']),
+                    'phone' => sanitize_text_field($_POST['phone']),
+                    'handicap' => floatval($_POST['handicap']),
+                    'club_affiliation' => sanitize_text_field($_POST['club_affiliation']),
+                    'emergency_contact_name' => sanitize_text_field($_POST['emergency_contact_name']),
+                    'emergency_contact_phone' => sanitize_text_field($_POST['emergency_contact_phone']),
+                    'medical_conditions' => sanitize_textarea_field($_POST['medical_conditions']),
+                    'join_date' => current_time('Y-m-d'),
+                    'expiry_date' => date('Y-m-d', strtotime('+1 year'))
+                );
 
-            $result = JuniorGolfKenya_User_Manager::create_member_user($user_data, $member_data, $parent_data);
-            $message = $result['message'];
-            $message_type = $result['success'] ? 'success' : 'error';
-            
-            // Add warnings if any
-            if (isset($result['warnings'])) {
-                $message .= ' ' . implode(' ', $result['warnings']);
-            }
-            
-            // Handle profile image upload if member was created successfully
-            if ($result['success'] && isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] === UPLOAD_ERR_OK) {
-                $upload_result = JuniorGolfKenya_Media::upload_profile_image($result['member_id'], $_FILES['profile_image']);
-                if ($upload_result['success']) {
-                    $message .= ' Profile photo uploaded successfully.';
-                } else {
-                    $message .= ' Warning: ' . $upload_result['message'];
-                    $message_type = 'warning';
+                // Collect parent/guardian data if provided
+                $parent_data = array();
+                if (isset($_POST['parent_first_name']) && is_array($_POST['parent_first_name'])) {
+                    $parent_count = count($_POST['parent_first_name']);
+                    for ($i = 0; $i < $parent_count; $i++) {
+                        // Skip empty entries
+                        if (empty($_POST['parent_first_name'][$i]) && empty($_POST['parent_last_name'][$i])) {
+                            continue;
+                        }
+                        
+                        $parent_data[] = array(
+                            'first_name' => sanitize_text_field($_POST['parent_first_name'][$i]),
+                            'last_name' => sanitize_text_field($_POST['parent_last_name'][$i]),
+                            'relationship' => sanitize_text_field($_POST['parent_relationship'][$i] ?? 'parent'),
+                            'phone' => sanitize_text_field($_POST['parent_phone'][$i] ?? ''),
+                            'email' => sanitize_email($_POST['parent_email'][$i] ?? ''),
+                            'occupation' => sanitize_text_field($_POST['parent_occupation'][$i] ?? ''),
+                            'is_primary_contact' => isset($_POST['parent_is_primary'][$i]) ? 1 : 0,
+                            'emergency_contact' => isset($_POST['parent_is_emergency'][$i]) ? 1 : 0,
+                            'can_pickup' => isset($_POST['parent_can_pickup'][$i]) ? 1 : 0
+                        );
+                    }
+                }
+
+                $result = JuniorGolfKenya_User_Manager::create_member_user($user_data, $member_data, $parent_data);
+                $message = $result['message'];
+                $message_type = $result['success'] ? 'success' : 'error';
+                
+                // Add warnings if any
+                if (isset($result['warnings'])) {
+                    $message .= ' ' . implode(' ', $result['warnings']);
+                }
+                
+                // Handle profile image upload if member was created successfully
+                if ($result['success'] && isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] === UPLOAD_ERR_OK) {
+                    $upload_result = JuniorGolfKenya_Media::upload_profile_image($result['member_id'], $_FILES['profile_image']);
+                    if ($upload_result['success']) {
+                        $message .= ' Profile photo uploaded successfully.';
+                    } else {
+                        $message .= ' Warning: ' . $upload_result['message'];
+                        $message_type = 'warning';
+                    }
                 }
             }
             break;
@@ -139,7 +173,7 @@ if (isset($_POST['action'])) {
                 $member_data = array(
                     'first_name' => sanitize_text_field($_POST['first_name']),
                     'last_name' => sanitize_text_field($_POST['last_name']),
-                    'membership_type' => sanitize_text_field($_POST['membership_type']),
+                    'membership_type' => 'junior', // Forcé : programme juniors uniquement
                     'status' => sanitize_text_field($_POST['status']),
                     'date_of_birth' => sanitize_text_field($_POST['date_of_birth']),
                     'gender' => sanitize_text_field($_POST['gender']),
@@ -355,8 +389,12 @@ $coaches = JuniorGolfKenya_User_Manager::get_available_coaches();
             
             <div class="jgk-form-row">
                 <div class="jgk-form-field">
-                    <label for="date_of_birth">Date of Birth</label>
-                    <input type="date" id="date_of_birth" name="date_of_birth">
+                    <label for="date_of_birth">Date de naissance *</label>
+                    <input type="date" id="date_of_birth" name="date_of_birth" 
+                           required 
+                           max="<?php echo date('Y-m-d', strtotime('-2 years')); ?>"
+                           min="<?php echo date('Y-m-d', strtotime('-18 years')); ?>">
+                    <small style="color: #666;">Âge requis : 2-17 ans</small>
                 </div>
                 <div class="jgk-form-field">
                     <label for="gender">Gender</label>
@@ -384,14 +422,15 @@ $coaches = JuniorGolfKenya_User_Manager::get_available_coaches();
             <h3>Membership Details</h3>
             <div class="jgk-form-row">
                 <div class="jgk-form-field">
-                    <label for="membership_type">Membership Type *</label>
-                    <select id="membership_type" name="membership_type" required>
-                        <option value="junior">Junior (Under 18)</option>
-                        <option value="youth">Youth (18-25)</option>
-                        <option value="adult">Adult (26+)</option>
-                        <option value="senior">Senior (65+)</option>
-                        <option value="family">Family Package</option>
-                    </select>
+                    <div class="jgk-form-field-info" style="background: #e7f3ff; border-left: 4px solid #0073aa; padding: 15px; border-radius: 5px;">
+                        <label style="font-weight: 600; color: #0073aa; display: block; margin-bottom: 5px;">
+                            Membership Type
+                        </label>
+                        <p style="margin: 0; color: #555;">
+                            <strong>Junior Golf Kenya</strong> - Programme réservé aux 2-17 ans
+                        </p>
+                        <input type="hidden" name="membership_type" value="junior">
+                    </div>
                 </div>
                 <div class="jgk-form-field">
                     <label for="status">Initial Status *</label>

@@ -254,7 +254,7 @@ class JuniorGolfKenya_Activator {
         $charset_collate = $wpdb->get_charset_collate();
 
         // Coach ratings table
-        $table_coach_ratings = $wpdb->prefix . 'jgf_coach_ratings';
+        $table_coach_ratings = $wpdb->prefix . 'jgk_coach_ratings';
         $sql_coach_ratings = "CREATE TABLE $table_coach_ratings (
             id mediumint(9) NOT NULL AUTO_INCREMENT,
             coach_user_id bigint(20) UNSIGNED NOT NULL,
@@ -269,7 +269,7 @@ class JuniorGolfKenya_Activator {
         ) $charset_collate;";
 
         // Recommendations table
-        $table_recommendations = $wpdb->prefix . 'jgf_recommendations';
+        $table_recommendations = $wpdb->prefix . 'jgk_recommendations';
         $sql_recommendations = "CREATE TABLE $table_recommendations (
             id mediumint(9) NOT NULL AUTO_INCREMENT,
             recommender_user_id bigint(20) UNSIGNED NOT NULL,
@@ -288,7 +288,7 @@ class JuniorGolfKenya_Activator {
         ) $charset_collate;";
 
         // Training schedules table
-        $table_training_schedules = $wpdb->prefix . 'jgf_training_schedules';
+        $table_training_schedules = $wpdb->prefix . 'jgk_training_schedules';
         $sql_training_schedules = "CREATE TABLE $table_training_schedules (
             id mediumint(9) NOT NULL AUTO_INCREMENT,
             coach_user_id bigint(20) UNSIGNED NOT NULL,
@@ -307,7 +307,7 @@ class JuniorGolfKenya_Activator {
         ) $charset_collate;";
 
         // Role requests table
-        $table_role_requests = $wpdb->prefix . 'jgf_role_requests';
+        $table_role_requests = $wpdb->prefix . 'jgk_role_requests';
         $sql_role_requests = "CREATE TABLE $table_role_requests (
             id mediumint(9) NOT NULL AUTO_INCREMENT,
             requester_user_id bigint(20) UNSIGNED NOT NULL,
@@ -324,7 +324,7 @@ class JuniorGolfKenya_Activator {
         ) $charset_collate;";
 
         // Coach profiles table
-        $table_coach_profiles = $wpdb->prefix . 'jgf_coach_profiles';
+        $table_coach_profiles = $wpdb->prefix . 'jgk_coach_profiles';
         $sql_coach_profiles = "CREATE TABLE $table_coach_profiles (
             id mediumint(9) NOT NULL AUTO_INCREMENT,
             user_id bigint(20) UNSIGNED NOT NULL,
@@ -388,18 +388,18 @@ class JuniorGolfKenya_Activator {
      * @since    1.0.0
      */
     private static function create_roles_and_capabilities() {
-        // JGF Member Role
-        if (!get_role('jgf_member')) {
-            add_role('jgf_member', 'JGF Member', array(
+        // JGK Member Role (Junior Golf Kenya)
+        if (!get_role('jgk_member')) {
+            add_role('jgk_member', 'JGK Member', array(
                 'read' => true,
                 'view_member_dashboard' => true,
                 'manage_own_profile' => true,
             ));
         }
 
-        // JGF Coach Role
-        if (!get_role('jgf_coach')) {
-            add_role('jgf_coach', 'JGF Coach', array(
+        // JGK Coach Role
+        if (!get_role('jgk_coach')) {
+            add_role('jgk_coach', 'JGK Coach', array(
                 'read' => true,
                 'view_member_dashboard' => true,
                 'coach_rate_player' => true,
@@ -409,9 +409,9 @@ class JuniorGolfKenya_Activator {
             ));
         }
 
-        // JGF Staff Role
-        if (!get_role('jgf_staff')) {
-            add_role('jgf_staff', 'JGF Staff', array(
+        // JGK Staff Role
+        if (!get_role('jgk_staff')) {
+            add_role('jgk_staff', 'JGK Staff', array(
                 'read' => true,
                 'view_member_dashboard' => true,
                 'edit_members' => true,
@@ -923,11 +923,11 @@ class JuniorGolfKenya_Activator {
             'jgk_competition_entries',
             'jgk_certifications',
             'jgk_audit_log',
-            'jgf_coach_ratings',
-            'jgf_recommendations',
-            'jgf_training_schedules',
-            'jgf_role_requests',
-            'jgf_coach_profiles',
+            'jgk_coach_ratings',
+            'jgk_recommendations',
+            'jgk_training_schedules',
+            'jgk_role_requests',
+            'jgk_coach_profiles',
             'jgk_parents_guardians'
         );
         

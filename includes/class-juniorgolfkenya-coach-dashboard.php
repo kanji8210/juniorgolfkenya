@@ -87,7 +87,7 @@ class JuniorGolfKenya_Coach_Dashboard {
         $recent_activities = $wpdb->get_results($wpdb->prepare("
             SELECT 
                 cm.member_id,
-                cm.assigned_at,
+                cm.assigned_date as assigned_at,
                 cm.is_primary,
                 CONCAT(m.first_name, ' ', m.last_name) as member_name,
                 m.membership_type,
@@ -96,7 +96,7 @@ class JuniorGolfKenya_Coach_Dashboard {
             INNER JOIN {$members_table} m ON cm.member_id = m.id
             WHERE cm.coach_id = %d 
             AND cm.status = 'active'
-            ORDER BY cm.assigned_at DESC
+            ORDER BY cm.assigned_date DESC
             LIMIT 10
         ", $coach_id));
         
@@ -157,7 +157,7 @@ class JuniorGolfKenya_Coach_Dashboard {
                 u.user_email,
                 u.display_name,
                 cm.is_primary,
-                cm.assigned_at
+                cm.assigned_date as assigned_at
             FROM {$coach_members_table} cm
             INNER JOIN {$members_table} m ON cm.member_id = m.id
             LEFT JOIN {$users_table} u ON m.user_id = u.ID
@@ -217,7 +217,7 @@ class JuniorGolfKenya_Coach_Dashboard {
             FROM {$coach_members_table}
             WHERE coach_id = %d 
             AND status = 'active'
-            AND assigned_at >= {$date_condition}
+            AND assigned_date >= {$date_condition}
         ", $coach_id));
         
         // Get removed members in period

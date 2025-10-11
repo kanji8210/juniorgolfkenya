@@ -92,8 +92,13 @@ if (!defined('ABSPATH')) {
             
             <div class="jgk-form-row">
                 <div class="jgk-form-field">
-                    <label for="date_of_birth">Date of Birth</label>
-                    <input type="date" id="date_of_birth" name="date_of_birth" value="<?php echo esc_attr($edit_member->date_of_birth ?? ''); ?>">
+                    <label for="date_of_birth">Date de naissance *</label>
+                    <input type="date" id="date_of_birth" name="date_of_birth" 
+                           value="<?php echo esc_attr($edit_member->date_of_birth ?? ''); ?>" 
+                           required 
+                           max="<?php echo date('Y-m-d', strtotime('-2 years')); ?>"
+                           min="<?php echo date('Y-m-d', strtotime('-18 years')); ?>">
+                    <small style="color: #666;">Âge requis : 2-17 ans</small>
                 </div>
                 <div class="jgk-form-field">
                     <label for="gender">Gender</label>
@@ -121,14 +126,32 @@ if (!defined('ABSPATH')) {
             <h2>Membership Details</h2>
             <div class="jgk-form-row">
                 <div class="jgk-form-field">
-                    <label for="membership_type">Membership Type *</label>
-                    <select id="membership_type" name="membership_type" required>
-                        <option value="junior" <?php selected($edit_member->membership_type, 'junior'); ?>>Junior (Under 18)</option>
-                        <option value="youth" <?php selected($edit_member->membership_type, 'youth'); ?>>Youth (18-25)</option>
-                        <option value="adult" <?php selected($edit_member->membership_type, 'adult'); ?>>Adult (26+)</option>
-                        <option value="senior" <?php selected($edit_member->membership_type, 'senior'); ?>>Senior (65+)</option>
-                        <option value="family" <?php selected($edit_member->membership_type, 'family'); ?>>Family Package</option>
-                    </select>
+                    <div class="jgk-form-field-info" style="background: #e7f3ff; border-left: 4px solid #0073aa; padding: 15px; border-radius: 5px;">
+                        <label style="font-weight: 600; color: #0073aa; display: block; margin-bottom: 5px;">
+                            Membership Type
+                        </label>
+                        <p style="margin: 0; color: #555;">
+                            <strong>Junior</strong> 
+                            <?php 
+                            if (!empty($edit_member->date_of_birth)) {
+                                try {
+                                    $birthdate = new DateTime($edit_member->date_of_birth);
+                                    $today = new DateTime();
+                                    $age = $today->diff($birthdate)->y;
+                                    echo "({$age} ans)";
+                                } catch (Exception $e) {
+                                    echo "(âge non calculable)";
+                                }
+                            }
+                            ?>
+                        </p>
+                        <input type="hidden" name="membership_type" value="junior">
+                        <?php if (!empty($edit_member->membership_type) && $edit_member->membership_type !== 'junior'): ?>
+                        <p style="color: #d63638; font-size: 12px; margin: 5px 0 0 0;">
+                            ⚠️ Ancien type : <?php echo esc_html(ucfirst($edit_member->membership_type)); ?> (sera converti en Junior lors de la sauvegarde)
+                        </p>
+                        <?php endif; ?>
+                    </div>
                 </div>
                 <div class="jgk-form-field">
                     <label for="status">Status *</label>
