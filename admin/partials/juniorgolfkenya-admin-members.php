@@ -739,6 +739,12 @@ $coaches = JuniorGolfKenya_User_Manager::get_available_coaches();
                                 Change Status
                             </button>
                             
+                            <!-- View Details Button -->
+                            <button class="button button-small jgk-button-view" 
+                                    onclick="openMemberDetailsModal(<?php echo $member->id; ?>)">
+                                View Details
+                            </button>
+                            
                             <!-- Assign Coach Button -->
                             <button class="button button-small jgk-button-coach" 
                                     onclick="openCoachModal(<?php echo $member->id; ?>, '<?php echo esc_js($member->display_name); ?>')">
@@ -854,6 +860,24 @@ $coaches = JuniorGolfKenya_User_Manager::get_available_coaches();
                     <button type="button" class="button" onclick="closeCoachModal()">Cancel</button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Member Details Modal -->
+<div id="member-details-modal" class="jgk-modal" style="display: none;">
+    <div class="jgk-modal-content">
+        <div class="jgk-modal-header">
+            <h2>Member Details</h2>
+            <span class="jgk-modal-close" onclick="closeMemberDetailsModal()">&times;</span>
+        </div>
+        <div class="jgk-modal-body">
+            <div id="member-details-content">
+                <div style="text-align: center; padding: 40px; color: #999;">
+                    <div class="spinner" style="float: none; margin: 0 auto 10px;"></div>
+                    <p>Loading member details...</p>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -1002,6 +1026,27 @@ $coaches = JuniorGolfKenya_User_Manager::get_available_coaches();
 
 .jgk-modal-body {
     padding: 20px;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+/* Scrollbar styling for modal body */
+.jgk-modal-body::-webkit-scrollbar {
+    width: 8px;
+}
+
+.jgk-modal-body::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.jgk-modal-body::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.jgk-modal-body::-webkit-scrollbar-thumb:hover {
+    background: #555;
 }
 
 @media (max-width: 768px) {
@@ -1074,16 +1119,171 @@ function viewMemberDetails(memberId) {
     window.open(url, '_blank');
 }
 
+function openMemberDetailsModal(memberId) {
+    const modal = document.getElementById('member-details-modal');
+    const contentDiv = document.getElementById('member-details-content');
+    
+    // Show modal with loading state
+    modal.style.display = 'block';
+    contentDiv.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;"><div class="spinner" style="float: none; margin: 0 auto 10px;"></div><p>Loading member details...</p></div>';
+    
+    // Get AJAX URL (fallback for compatibility)
+    const ajaxUrl = (typeof jgkAjax !== 'undefined') ? jgkAjax.ajaxurl : '<?php echo admin_url('admin-ajax.php'); ?>';
+    
+    // Fetch member details via AJAX
+    jQuery.post(ajaxUrl, {
+        action: 'jgk_get_member_details',
+        member_id: memberId,
+        nonce: '<?php echo wp_create_nonce('jgk_get_member_details'); ?>'
+    }, function(response) {
+        if (response.success) {
+            const member = response.data;
+            let html = '<div class="member-details-wrapper">';
+            
+            // Profile section with larger photo and more details
+            html += '<div class="member-profile-section" style="text-align: center; padding: 30px; border-bottom: 2px solid #2271b1; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">';
+            if (member.profile_image) {
+                html += '<img src="' + member.profile_image + '" alt="Profile" style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover; margin-bottom: 20px; border: 5px solid white; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">';
+            } else {
+                html += '<div style="width: 150px; height: 150px; border-radius: 50%; background: rgba(255,255,255,0.2); margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; font-size: 60px; color: white; border: 5px solid white;"><span class="dashicons dashicons-admin-users"></span></div>';
+            }
+            html += '<h2 style="margin: 0 0 10px; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">' + member.display_name + '</h2>';
+            if (member.membership_number) {
+                html += '<div style="font-size: 14px; opacity: 0.9; margin-bottom: 10px;">Member #' + member.membership_number + '</div>';
+            }
+            html += '<span class="member-status-badge status-' + member.status + '" style="display: inline-block; padding: 8px 20px; border-radius: 20px; font-size: 13px; font-weight: 700; background: white; color: #667eea; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">' + member.status.charAt(0).toUpperCase() + member.status.slice(1) + '</span>';
+            html += '</div>';
+            
+            // Three-column layout for comprehensive details
+            html += '<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; padding: 25px; background: #f8f9fa;">';
+            
+            // Column 1 - Personal Information
+            html += '<div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">';
+            html += '<h4 style="margin-top: 0; padding-bottom: 12px; border-bottom: 3px solid #667eea; color: #667eea; display: flex; align-items: center;"><span class="dashicons dashicons-admin-users" style="margin-right: 8px;"></span>Personal Information</h4>';
+            html += '<table class="member-details-table" style="width: 100%; margin-top: 15px; font-size: 14px;">';
+            if (member.first_name || member.last_name) html += '<tr><td style="padding: 10px 0; font-weight: 600; color: #555;">Full Name:</td><td style="padding: 10px 0; color: #333;">' + member.first_name + ' ' + member.last_name + '</td></tr>';
+            if (member.email) html += '<tr><td style="padding: 10px 0; font-weight: 600; color: #555;">Email:</td><td style="padding: 10px 0;"><a href="mailto:' + member.email + '" style="color: #667eea; text-decoration: none;">' + member.email + '</a></td></tr>';
+            if (member.phone) html += '<tr><td style="padding: 10px 0; font-weight: 600; color: #555;">Phone:</td><td style="padding: 10px 0; color: #333;"><a href="tel:' + member.phone + '" style="color: #667eea; text-decoration: none;">' + member.phone + '</a></td></tr>';
+            if (member.date_of_birth) html += '<tr><td style="padding: 10px 0; font-weight: 600; color: #555;">Date of Birth:</td><td style="padding: 10px 0; color: #333;">' + member.date_of_birth + '</td></tr>';
+            if (member.age) html += '<tr><td style="padding: 10px 0; font-weight: 600; color: #555;">Age:</td><td style="padding: 10px 0; color: #333;"><strong>' + member.age + ' years old</strong></td></tr>';
+            if (member.gender) html += '<tr><td style="padding: 10px 0; font-weight: 600; color: #555;">Gender:</td><td style="padding: 10px 0; color: #333;">' + member.gender.charAt(0).toUpperCase() + member.gender.slice(1) + '</td></tr>';
+            html += '</table>';
+            
+            // Address if available
+            if (member.address) {
+                html += '<div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e0e0e0;">';
+                html += '<div style="font-weight: 600; color: #555; margin-bottom: 8px; display: flex; align-items: center;"><span class="dashicons dashicons-location" style="margin-right: 5px;"></span>Address:</div>';
+                html += '<p style="margin: 0; line-height: 1.6; color: #333; font-size: 13px;">' + member.address.replace(/\n/g, '<br>') + '</p>';
+                html += '</div>';
+            }
+            html += '</div>';
+            
+            // Column 2 - Membership & Golf Details
+            html += '<div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">';
+            html += '<h4 style="margin-top: 0; padding-bottom: 12px; border-bottom: 3px solid #667eea; color: #667eea; display: flex; align-items: center;"><span class="dashicons dashicons-admin-site" style="margin-right: 8px;"></span>Membership & Golf</h4>';
+            html += '<table class="member-details-table" style="width: 100%; margin-top: 15px; font-size: 14px;">';
+            if (member.membership_type) html += '<tr><td style="padding: 10px 0; font-weight: 600; color: #555;">Type:</td><td style="padding: 10px 0; color: #333;"><span style="background: #667eea; color: white; padding: 3px 10px; border-radius: 12px; font-size: 12px;">' + member.membership_type.charAt(0).toUpperCase() + member.membership_type.slice(1) + '</span></td></tr>';
+            if (member.membership_number) html += '<tr><td style="padding: 10px 0; font-weight: 600; color: #555;">Number:</td><td style="padding: 10px 0; color: #333; font-family: monospace;"><strong>' + member.membership_number + '</strong></td></tr>';
+            if (member.club_name) html += '<tr><td style="padding: 10px 0; font-weight: 600; color: #555;">Club:</td><td style="padding: 10px 0; color: #333;">' + member.club_name + '</td></tr>';
+            if (member.date_joined) html += '<tr><td style="padding: 10px 0; font-weight: 600; color: #555;">Joined:</td><td style="padding: 10px 0; color: #333;">' + member.date_joined + '</td></tr>';
+            if (member.handicap) html += '<tr><td style="padding: 10px 0; font-weight: 600; color: #555;">Handicap:</td><td style="padding: 10px 0; color: #333;"><strong style="font-size: 18px; color: #667eea;">' + member.handicap + '</strong></td></tr>';
+            html += '</table>';
+            
+            // Assigned Coaches
+            html += '<div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e0e0e0;">';
+            html += '<div style="font-weight: 600; color: #555; margin-bottom: 10px; display: flex; align-items: center;"><span class="dashicons dashicons-groups" style="margin-right: 5px;"></span>Assigned Coaches:</div>';
+            if (member.coaches && member.coaches.length > 0) {
+                member.coaches.forEach(function(coach) {
+                    html += '<div style="padding: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);">';
+                    html += '<div style="display: flex; align-items: center;"><span class="dashicons dashicons-admin-users" style="margin-right: 10px; font-size: 20px;"></span>';
+                    html += '<span style="font-weight: 600; font-size: 14px;">' + coach.name + '</span></div>';
+                    if (coach.is_primary) {
+                        html += '<span style="background: rgba(255,255,255,0.3); padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 700; border: 1px solid rgba(255,255,255,0.5);">PRIMARY</span>';
+                    }
+                    html += '</div>';
+                });
+            } else {
+                html += '<p style="margin: 0; color: #999; font-style: italic; font-size: 13px;">No coaches assigned yet</p>';
+            }
+            html += '</div>';
+            html += '</div>';
+            
+            // Column 3 - Emergency & Additional
+            html += '<div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">';
+            html += '<h4 style="margin-top: 0; padding-bottom: 12px; border-bottom: 3px solid #d63638; color: #d63638; display: flex; align-items: center;"><span class="dashicons dashicons-sos" style="margin-right: 8px;"></span>Emergency Contact</h4>';
+            if (member.emergency_contact_name || member.emergency_contact_phone) {
+                html += '<div style="padding: 15px; background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); color: white; border-radius: 8px; margin-top: 15px; box-shadow: 0 2px 6px rgba(214, 54, 56, 0.3);">';
+                if (member.emergency_contact_name) html += '<div style="font-weight: 700; margin-bottom: 10px; font-size: 15px; display: flex; align-items: center;"><span class="dashicons dashicons-admin-users" style="margin-right: 8px;"></span>' + member.emergency_contact_name + '</div>';
+                if (member.emergency_contact_phone) html += '<div style="display: flex; align-items: center; font-size: 14px;"><span class="dashicons dashicons-phone" style="margin-right: 8px; font-size: 16px;"></span><a href="tel:' + member.emergency_contact_phone + '" style="color: white; text-decoration: none; font-weight: 600;">' + member.emergency_contact_phone + '</a></div>';
+                html += '</div>';
+            } else {
+                html += '<p style="margin-top: 15px; color: #999; font-style: italic; font-size: 13px;">No emergency contact provided</p>';
+            }
+            
+            // Additional info
+            if (member.biography) {
+                html += '<div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e0e0e0;">';
+                html += '<div style="font-weight: 600; color: #555; margin-bottom: 8px; display: flex; align-items: center;"><span class="dashicons dashicons-edit" style="margin-right: 5px;"></span>Biography:</div>';
+                html += '<p style="margin: 0; line-height: 1.6; color: #333; font-size: 13px; max-height: 150px; overflow-y: auto;">' + member.biography.replace(/\n/g, '<br>') + '</p>';
+                html += '</div>';
+            }
+            html += '</div>';
+            
+            html += '</div>'; // End three-column grid
+            
+            // Parents/Guardians section (full width with enhanced styling)
+            if (member.parents && member.parents.length > 0) {
+                html += '<div style="padding: 25px; background: white; margin: 0 25px 25px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">';
+                html += '<h4 style="margin-top: 0; padding-bottom: 12px; border-bottom: 3px solid #667eea; color: #667eea; display: flex; align-items: center; font-size: 18px;"><span class="dashicons dashicons-groups" style="margin-right: 10px; font-size: 24px;"></span>Parents/Guardians (' + member.parents.length + ')</h4>';
+                html += '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; margin-top: 20px;">';
+                member.parents.forEach(function(parent) {
+                    html += '<div style="padding: 20px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">';
+                    html += '<div style="display: flex; align-items: center; margin-bottom: 15px;">';
+                    html += '<div style="width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center; margin-right: 12px; border: 2px solid rgba(255,255,255,0.5);"><span class="dashicons dashicons-admin-users" style="font-size: 24px;"></span></div>';
+                    html += '<div style="flex: 1;"><div style="font-weight: 700; font-size: 16px; margin-bottom: 3px;">' + parent.name + '</div>';
+                    if (parent.relationship) html += '<div style="font-size: 12px; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.5px;">' + parent.relationship + '</div>';
+                    html += '</div></div>';
+                    if (parent.phone || parent.email) {
+                        html += '<div style="padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.3);">';
+                        if (parent.phone) html += '<div style="margin-bottom: 8px; display: flex; align-items: center;"><span class="dashicons dashicons-phone" style="font-size: 16px; margin-right: 8px;"></span><a href="tel:' + parent.phone + '" style="color: white; text-decoration: none; font-weight: 500;">' + parent.phone + '</a></div>';
+                        if (parent.email) html += '<div style="display: flex; align-items: center;"><span class="dashicons dashicons-email" style="font-size: 16px; margin-right: 8px;"></span><a href="mailto:' + parent.email + '" style="color: white; text-decoration: none; font-weight: 500; word-break: break-all;">' + parent.email + '</a></div>';
+                        html += '</div>';
+                    }
+                    html += '</div>';
+                });
+                html += '</div>';
+                html += '</div>';
+            }
+            
+            html += '</div>'; // End wrapper
+            
+            contentDiv.innerHTML = html;
+        } else {
+            contentDiv.innerHTML = '<div style="text-align: center; padding: 40px; color: #d63638;"><span class="dashicons dashicons-warning" style="font-size: 48px; margin-bottom: 10px;"></span><p>' + (response.data || 'Failed to load member details') + '</p></div>';
+        }
+    }).fail(function() {
+        contentDiv.innerHTML = '<div style="text-align: center; padding: 40px; color: #d63638;"><span class="dashicons dashicons-warning" style="font-size: 48px; margin-bottom: 10px;"></span><p>Network error. Please try again.</p></div>';
+    });
+}
+
+function closeMemberDetailsModal() {
+    document.getElementById('member-details-modal').style.display = 'none';
+}
+
 // Close modals when clicking outside
 window.onclick = function(event) {
     const statusModal = document.getElementById('status-modal');
     const coachModal = document.getElementById('coach-modal');
+    const memberDetailsModal = document.getElementById('member-details-modal');
     
     if (event.target === statusModal) {
         closeStatusModal();
     }
     if (event.target === coachModal) {
         closeCoachModal();
+    }
+    if (event.target === memberDetailsModal) {
+        closeMemberDetailsModal();
     }
 }
 

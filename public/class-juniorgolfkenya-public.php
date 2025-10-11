@@ -75,6 +75,8 @@ class JuniorGolfKenya_Public {
         add_shortcode('jgk_member_portal', array($this, 'member_portal_shortcode'));
         add_shortcode('jgk_registration_form', array($this, 'registration_form_shortcode'));
         add_shortcode('jgk_verification_widget', array($this, 'verification_widget_shortcode'));
+        add_shortcode('jgk_coach_dashboard', array($this, 'coach_dashboard_shortcode'));
+        add_shortcode('jgk_member_dashboard', array($this, 'member_dashboard_shortcode'));
     }
 
     /**
@@ -107,6 +109,54 @@ class JuniorGolfKenya_Public {
     public function verification_widget_shortcode($atts) {
         ob_start();
         include JUNIORGOLFKENYA_PLUGIN_PATH . 'public/partials/juniorgolfkenya-verification-widget.php';
+        return ob_get_clean();
+    }
+
+    /**
+     * Coach dashboard shortcode.
+     *
+     * @since    1.0.0
+     */
+    public function coach_dashboard_shortcode($atts) {
+        // Check if user is logged in
+        if (!is_user_logged_in()) {
+            return '<div class="jgk-notice jgk-notice-error">You must be logged in to view this page.</div>';
+        }
+
+        // Get current user
+        $current_user = wp_get_current_user();
+        
+        // Check if user has coach role
+        if (!in_array('jgk_coach', $current_user->roles)) {
+            return '<div class="jgk-notice jgk-notice-error">You do not have permission to view this page.</div>';
+        }
+
+        ob_start();
+        include JUNIORGOLFKENYA_PLUGIN_PATH . 'public/partials/juniorgolfkenya-coach-dashboard.php';
+        return ob_get_clean();
+    }
+
+    /**
+     * Member dashboard shortcode.
+     *
+     * @since    1.0.0
+     */
+    public function member_dashboard_shortcode($atts) {
+        // Check if user is logged in
+        if (!is_user_logged_in()) {
+            return '<div class="jgk-notice jgk-notice-error">You must be logged in to view this page.</div>';
+        }
+
+        // Get current user
+        $current_user = wp_get_current_user();
+        
+        // Check if user has member role
+        if (!in_array('jgk_member', $current_user->roles)) {
+            return '<div class="jgk-notice jgk-notice-error">You do not have permission to view this page.</div>';
+        }
+
+        ob_start();
+        include JUNIORGOLFKENYA_PLUGIN_PATH . 'public/partials/juniorgolfkenya-member-dashboard.php';
         return ob_get_clean();
     }
 }
