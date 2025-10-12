@@ -176,7 +176,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['jgk_import_action']))
                             <input type="checkbox" name="force_junior_type" id="force_junior_type" value="1" checked>
                             Force all imported members to have "junior" membership type
                         </label>
-                        <p class="description">This is a Junior Golf program - all members should be juniors (2-17 years old)</p>
+                        <p class="description">All imported members will be assigned as juniors regardless of age</p>
                     </td>
                 </tr>
                 <tr>
@@ -236,7 +236,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['jgk_import_action']))
                         <td>
                             <?php if ($row['age'] !== null): ?>
                                 <span style="padding: 3px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; 
-                                      background: <?php echo ($row['age'] >= 2 && $row['age'] < 18) ? '#28a745' : '#dc3545'; ?>; color: white;">
+                                      background: #28a745; color: white;">
                                     <?php echo $row['age']; ?> years
                                 </span>
                             <?php else: ?>
@@ -252,10 +252,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['jgk_import_action']))
                         <td>
                             <?php if ($row['exists_in_jgk']): ?>
                                 <span style="color: #ffc107;">⚠️ Already exists</span>
-                            <?php elseif ($row['will_import']): ?>
-                                <span style="color: #28a745;">✓ Will import</span>
                             <?php else: ?>
-                                <span style="color: #dc3545;">✗ Will skip (age)</span>
+                                <span style="color: #28a745;">✓ Will import</span>
                             <?php endif; ?>
                         </td>
                     </tr>
@@ -273,7 +271,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['jgk_import_action']))
         </h3>
         <ul style="line-height: 1.8;">
             <li><strong>Data Mapping:</strong> ARMember user accounts will be mapped to Junior Golf Kenya members</li>
-            <li><strong>Age Validation:</strong> Only members aged 2-17 years will be imported (unless force junior type is enabled)</li>
+            <li><strong>No Age Restrictions:</strong> All members will be imported regardless of age</li>
             <li><strong>Status Mapping:</strong> ARMember status codes will be automatically mapped to JGK statuses</li>
             <li><strong>User Meta:</strong> First name, last name, phone, date of birth, and gender will be imported</li>
             <li><strong>Safe Operation:</strong> The import will not modify existing WordPress user accounts</li>

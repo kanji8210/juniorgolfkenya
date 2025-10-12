@@ -152,36 +152,25 @@ class JuniorGolfKenya_ARMember_Importer {
             }
         }
 
-        // Calculate age from date of birth
+        // Calculate age from date of birth (for informational purposes only)
         $age = null;
-        $is_junior = false;
         if (!empty($armember_data->date_of_birth)) {
             try {
                 $birthdate = new DateTime($armember_data->date_of_birth);
                 $today = new DateTime();
                 $age = $today->diff($birthdate)->y;
-                $is_junior = ($age >= 2 && $age < 18);
             } catch (Exception $e) {
-                // Invalid date format
+                // Invalid date format - continue anyway
             }
         }
 
-        // Determine membership type
+        // Determine membership type - always use 'junior' or force type
         $membership_type = 'junior';
-        if ($options['force_junior_type']) {
-            $membership_type = 'junior';
-        } elseif ($is_junior) {
-            $membership_type = 'junior';
-        } else {
-            // Not a junior, skip or convert?
-            if ($age !== null && $age >= 18) {
-                return array(
-                    'success' => false,
-                    'message' => 'Member is not a junior (age: ' . $age . ')',
-                    'status' => 'skipped_age'
-                );
-            }
+        if (isset($options['force_junior_type'])) {
+            $membership_type = $options['force_junior_type'] ? 'junior' : 'junior';
         }
+
+        // No age validation - import all members regardless of age
 
         // Prepare member data
         $member_data = array(
@@ -399,7 +388,7 @@ class JuniorGolfKenya_ARMember_Importer {
                 'gender' => $member->gender,
                 'arm_status' => $member->arm_primary_status,
                 'exists_in_jgk' => !empty($existing),
-                'will_import' => empty($existing) && ($age === null || ($age >= 2 && $age < 18))
+                'will_import' => empty($existing)  // Import all members regardless of age
             );
         }
 
