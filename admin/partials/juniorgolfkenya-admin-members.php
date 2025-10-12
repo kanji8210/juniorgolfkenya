@@ -48,6 +48,19 @@ if (isset($_POST['action'])) {
             }
             break;
 
+        case 'update_member_status':
+            if (isset($_POST['member_id']) && isset($_POST['new_status'])) {
+                $result = JuniorGolfKenya_User_Manager::update_member_status($_POST['member_id'], $_POST['new_status']);
+                if ($result) {
+                    $message = 'Member status updated successfully!';
+                    $message_type = 'success';
+                } else {
+                    $message = 'Failed to update member status.';
+                    $message_type = 'error';
+                }
+            }
+            break;
+
         case 'create_member':
             // Validation de l'âge (2-17 ans)
             $date_of_birth = sanitize_text_field($_POST['date_of_birth'] ?? '');
@@ -756,6 +769,26 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
                             </form>
                             <?php endif; ?>
                             
+                            <!-- Change Status Dropdown -->
+                            <form method="post" style="display: inline-block; margin-left: 5px;">
+                                <?php wp_nonce_field('jgk_members_action'); ?>
+                                <input type="hidden" name="action" value="update_member_status">
+                                <input type="hidden" name="member_id" value="<?php echo $member->id; ?>">
+                                <select name="new_status" onchange="if(confirm('Are you sure you want to change this member\'s status?')) { this.form.submit(); }" style="font-size: 11px; padding: 2px 4px;">
+                                    <option value="">Change Status</option>
+                                    <option value="active" <?php selected($member->status, 'active'); ?>>Active</option>
+                                    <option value="pending" <?php selected($member->status, 'pending'); ?>>Pending</option>
+                                    <option value="suspended" <?php selected($member->status, 'suspended'); ?>>Suspended</option>
+                                    <option value="expired" <?php selected($member->status, 'expired'); ?>>Expired</option>
+                                </select>
+                            </form>
+                            
+                            <!-- View Details -->
+                            <button type="button" class="button button-small jgk-button-view" 
+                                    onclick="viewMemberDetails(<?php echo $member->id; ?>)">
+                                View Details
+                            </button>
+                            
                             <!-- Edit Member -->
                             <a href="<?php echo admin_url('admin.php?page=juniorgolfkenya-members&action=edit&member_id=' . $member->id); ?>" 
                                class="button button-small jgk-button-edit">
@@ -788,6 +821,24 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
         </div>
     </div>
     <?php endif; ?>
+</div>
+
+<!-- Member Details Modal -->
+<div id="member-details-modal" class="jgk-modal" style="display: none;">
+    <div class="jgk-modal-overlay" onclick="closeMemberDetailsModal()"></div>
+    <div class="jgk-modal-content">
+        <div class="jgk-modal-header">
+            <h2>Member Details</h2>
+            <button type="button" class="jgk-modal-close" onclick="closeMemberDetailsModal()">&times;</button>
+        </div>
+        <div class="jgk-modal-body">
+            <div id="member-details-content">
+                <div class="member-details-loading">
+                    <p>Loading member details...</p>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <style>
@@ -879,6 +930,16 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
     white-space: nowrap;
 }
 
+.jgk-action-buttons select {
+    margin: 0;
+    padding: 3px 6px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    background: #fff;
+    font-size: 12px;
+    cursor: pointer;
+}
+
 .jgk-button-approve { background: #00a32a; color: white; border-color: #00a32a; }
 
 .jgk-status-active { color: #00a32a; font-weight: bold; }
@@ -895,6 +956,252 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
     .jgk-action-buttons {
         flex-direction: row;
         flex-wrap: wrap;
+    }
+}
+
+/* Member Details Modal Styles */
+.jgk-modal {
+    display: none;
+    position: fixed;
+    z-index: 10000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.jgk-modal-overlay {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+}
+
+.jgk-modal-content {
+    position: relative;
+    background-color: #fff;
+    margin: 5% auto;
+    padding: 0;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 1000px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.jgk-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 30px;
+    border-bottom: 1px solid #ddd;
+    background: #f8f9fa;
+}
+
+.jgk-modal-header h2 {
+    margin: 0;
+    color: #23282d;
+    font-size: 24px;
+}
+
+.jgk-modal-close {
+    background: none;
+    border: none;
+    font-size: 28px;
+    cursor: pointer;
+    color: #666;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+}
+
+.jgk-modal-close:hover {
+    background-color: #f0f0f0;
+    color: #333;
+}
+
+.jgk-modal-body {
+    padding: 30px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+/* Member Details Content Styles */
+.member-details-wrapper {
+    max-width: none;
+}
+
+.member-profile-section {
+    text-align: center;
+    margin-bottom: 30px;
+    padding: 20px;
+    background: linear-gradient(135deg, #f6f9fc 0%, #ffffff 100%);
+    border-radius: 8px;
+}
+
+.member-profile-header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    justify-content: center;
+}
+
+.member-profile-info h3 {
+    margin: 0 0 5px 0;
+    color: #23282d;
+    font-size: 28px;
+}
+
+.member-email {
+    color: #666;
+    font-size: 16px;
+    margin-bottom: 10px;
+}
+
+.member-status-badge {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.member-status-badge.status-active {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.member-status-badge.status-pending {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.member-status-badge.status-suspended {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.member-status-badge.status-expired {
+    background-color: #e2e3e5;
+    color: #383d41;
+    border: 1px solid #d6d8db;
+}
+
+.member-details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 30px;
+    margin-bottom: 30px;
+}
+
+.member-details-section {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.member-details-section h4 {
+    margin: 0 0 20px 0;
+    color: #23282d;
+    border-bottom: 2px solid #0073aa;
+    padding-bottom: 10px;
+    font-size: 18px;
+}
+
+.member-details-table {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.detail-row {
+    display: flex;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f1;
+}
+
+.detail-row:last-child {
+    border-bottom: none;
+}
+
+.detail-label {
+    font-weight: 600;
+    color: #666;
+    min-width: 140px;
+    flex-shrink: 0;
+}
+
+.detail-value {
+    color: #23282d;
+    flex: 1;
+}
+
+.member-details-loading {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+}
+
+.member-details-loading p {
+    font-size: 16px;
+    margin: 0;
+}
+
+/* Responsive Design for Modal */
+@media (max-width: 768px) {
+    .jgk-modal-content {
+        width: 95%;
+        margin: 2% auto;
+        max-height: 96vh;
+    }
+    
+    .jgk-modal-header {
+        padding: 15px 20px;
+    }
+    
+    .jgk-modal-header h2 {
+        font-size: 20px;
+    }
+    
+    .jgk-modal-body {
+        padding: 20px;
+    }
+    
+    .member-profile-header {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .member-profile-info h3 {
+        font-size: 24px;
+    }
+    
+    .member-details-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .detail-row {
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .detail-label {
+        min-width: auto;
+        font-size: 14px;
     }
 }
 </style>
@@ -934,5 +1241,66 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+});
+</script>
+
+<script>
+// Member Details Modal Functions
+function viewMemberDetails(memberId) {
+    const modal = document.getElementById('member-details-modal');
+    const content = document.getElementById('member-details-content');
+    
+    // Show modal with loading
+    modal.style.display = 'block';
+    content.innerHTML = '<div class="member-details-loading"><p>Loading member details...</p></div>';
+    
+    // Fetch member details via AJAX
+    fetch(ajaxurl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+            'action': 'jgk_get_member_details',
+            'member_id': memberId,
+            'nonce': '<?php echo wp_create_nonce("jgk_members_action"); ?>'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            content.innerHTML = data.html;
+        } else {
+            content.innerHTML = '<div class="notice notice-error"><p>Error loading member details: ' + (data.message || 'Unknown error') + '</p></div>';
+        }
+    })
+    .catch(error => {
+        content.innerHTML = '<div class="notice notice-error"><p>Error loading member details. Please try again.</p></div>';
+        console.error('Error:', error);
+    });
+}
+
+function closeMemberDetailsModal() {
+    const modal = document.getElementById('member-details-modal');
+    modal.style.display = 'none';
+}
+
+// Close modal when clicking outside
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('member-details-modal');
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                closeMemberDetailsModal();
+            }
+        });
+    }
+    
+    // Close modal on Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeMemberDetailsModal();
+        }
+    });
 });
 </script>

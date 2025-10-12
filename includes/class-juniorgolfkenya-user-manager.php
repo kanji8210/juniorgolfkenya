@@ -169,6 +169,51 @@ class JuniorGolfKenya_User_Manager {
     }
 
     /**
+     * Update member status
+     *
+     * @since    1.0.0
+     * @param    int       $member_id    Member ID
+     * @param    string    $new_status   New status (active, pending, suspended, expired)
+     * @return   bool
+     */
+    public static function update_member_status($member_id, $new_status) {
+        // Validate status
+        $valid_statuses = array('active', 'pending', 'suspended', 'expired');
+        if (!in_array($new_status, $valid_statuses)) {
+            return false;
+        }
+
+        // Get current member data for logging
+        $member = JuniorGolfKenya_Database::get_member($member_id);
+        if (!$member) {
+            return false;
+        }
+
+        // Don't update if status is the same
+        if ($member->status === $new_status) {
+            return true;
+        }
+
+        // Update member status
+        $result = JuniorGolfKenya_Database::update_member($member_id, array('status' => $new_status));
+
+        if ($result) {
+            // Log the status change
+            JuniorGolfKenya_Database::log_audit(array(
+                'action' => 'member_status_changed',
+                'object_type' => 'member',
+                'object_id' => $member_id,
+                'old_values' => json_encode(array('status' => $member->status)),
+                'new_values' => json_encode(array('status' => $new_status))
+            ));
+
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * Process role request
      *
      * @since    1.0.0
