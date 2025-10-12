@@ -200,27 +200,22 @@ class JuniorGolfKenya_Media {
         );
 
         $dimension = isset($sizes[$size]) ? $sizes[$size] : 150;
-        
+
         $class = isset($attr['class']) ? esc_attr($attr['class']) : 'jgk-profile-image';
-        $alt = isset($attr['alt']) ? esc_attr($attr['alt']) : 'Default Avatar';
+        $alt = isset($attr['alt']) ? esc_attr($attr['alt']) : 'Golfer Avatar';
 
-        // Use initials for default avatar
-        $initials = '';
-        if (isset($member->first_name) && isset($member->last_name)) {
-            $initials = strtoupper(substr($member->first_name, 0, 1) . substr($member->last_name, 0, 1));
-        }
-
-        $colors = array('#0073aa', '#46b450', '#d54e21', '#6f6f6f', '#9b6a3a', '#826eb4');
-        $color = $colors[$member->id % count($colors)];
+        // Golfer SVG icon
+        $golfer_svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="' . floor($dimension * 0.6) . '" height="' . floor($dimension * 0.6) . '">
+            <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 1H5C3.89 1 3 1.89 3 3V21H5V15.5C5 13.57 6.57 12 8.5 12S12 13.57 12 15.5V21H14V15.5C14 13.57 15.57 12 17.5 12S21 13.57 21 15.5V21H23V9H21ZM5 5H7V7H5V5ZM5 9H7V11H5V9ZM5 13H7V15H5V13Z"/>
+        </svg>';
 
         return sprintf(
-            '<div class="%s jgk-avatar-default" style="width: %dpx; height: %dpx; background-color: %s; display: flex; align-items: center; justify-content: center; color: white; font-size: %dpx; font-weight: bold; border-radius: 50%%;">%s</div>',
+            '<div class="%s jgk-avatar-default" style="width: %dpx; height: %dpx; background-color: #f0f0f0; border: 2px solid #0073aa; display: flex; align-items: center; justify-content: center; color: #0073aa; border-radius: 50%%;" title="%s">%s</div>',
             $class,
             $dimension,
             $dimension,
-            $color,
-            floor($dimension * 0.4),
-            $initials
+            $alt,
+            $golfer_svg
         );
     }
 
