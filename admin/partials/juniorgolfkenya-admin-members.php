@@ -9,6 +9,12 @@
  * @subpackage JuniorGolfKenya/admin/partials
  */
 
+// Localize AJAX variables for this page
+wp_localize_script('juniorgolfkenya', 'jgkAjax', array(
+    'ajaxurl' => admin_url('admin-ajax.php'),
+    'members_nonce' => wp_create_nonce('jgk_members_action')
+));
+
 // Prevent direct access
 if (!defined('ABSPATH')) {
     exit;
@@ -62,7 +68,7 @@ if (isset($_POST['action'])) {
             break;
 
         case 'create_member':
-            // Validation de l'âge (2-17 ans)
+            // Age validation (2-17 years)
             $date_of_birth = sanitize_text_field($_POST['date_of_birth'] ?? '');
             $create_error = false;
             
@@ -73,23 +79,23 @@ if (isset($_POST['action'])) {
                     $age = $today->diff($birthdate)->y;
                     
                     if ($age < 2) {
-                        $message = 'Erreur : L\'âge minimum est de 2 ans.';
+                        $message = 'Error: The minimum age is 2 years.';
                         $message_type = 'error';
                         $create_error = true;
                     }
                     
                     if ($age >= 18) {
-                        $message = 'Erreur : Ce programme est réservé aux juniors de moins de 18 ans.';
+                        $message = 'Error: This program is reserved for juniors under 18 years old.';
                         $message_type = 'error';
                         $create_error = true;
                     }
                 } catch (Exception $e) {
-                    $message = 'Erreur : Format de date de naissance invalide.';
+                    $message = 'Error: Invalid date of birth format.';
                     $message_type = 'error';
                     $create_error = true;
                 }
             } else {
-                $message = 'Erreur : La date de naissance est obligatoire.';
+                $message = 'Error: Date of birth is required.';
                 $message_type = 'error';
                 $create_error = true;
             }
@@ -105,7 +111,7 @@ if (isset($_POST['action'])) {
                 );
                 
                 $member_data = array(
-                    'membership_type' => 'junior', // Forcé : programme juniors uniquement
+                    'membership_type' => 'junior', // Forced: junior program only
                     'status' => sanitize_text_field($_POST['status']),
                     'date_of_birth' => $date_of_birth,
                     'gender' => sanitize_text_field($_POST['gender']),
@@ -173,7 +179,7 @@ if (isset($_POST['action'])) {
                 $member_data = array(
                     'first_name' => sanitize_text_field($_POST['first_name']),
                     'last_name' => sanitize_text_field($_POST['last_name']),
-                    'membership_type' => 'junior', // Forcé : programme juniors uniquement
+                    'membership_type' => 'junior', // Forced: junior program only
                     'status' => sanitize_text_field($_POST['status']),
                     'date_of_birth' => sanitize_text_field($_POST['date_of_birth']),
                     'gender' => sanitize_text_field($_POST['gender']),
@@ -373,7 +379,7 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
             
             <div class="jgk-form-row">
                 <div class="jgk-form-field">
-                    <label for="date_of_birth">Date de naissance *</label>
+                    <label for="date_of_birth">Date of birth *</label>
                     <input type="date" id="date_of_birth" name="date_of_birth" 
                            required 
                            max="<?php echo date('Y-m-d', strtotime('-2 years')); ?>"
@@ -411,7 +417,7 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
                             Membership Type
                         </label>
                         <p style="margin: 0; color: #555;">
-                            <strong>Junior Golf Kenya</strong> - Programme réservé aux 2-17 ans
+                            <strong>Junior Golf Kenya</strong> - Program reserved for 2-17 years old
                         </p>
                         <input type="hidden" name="membership_type" value="junior">
                     </div>
@@ -1298,6 +1304,14 @@ function viewMemberDetails(memberId) {
         });
         content.innerHTML = '<div class="notice notice-error"><p>Error loading member details: ' + error.message + '. Please try again.</p></div>';
     });
+}
+
+// Close member details modal
+function closeMemberDetailsModal() {
+    const modal = document.getElementById('member-details-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
 }
 
 // Debug function to test AJAX connectivity

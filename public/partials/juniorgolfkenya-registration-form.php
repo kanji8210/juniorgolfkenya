@@ -32,7 +32,7 @@ if (isset($_POST['jgk_register_member'])) {
         $phone = sanitize_text_field($_POST['phone'] ?? '');
         $date_of_birth = sanitize_text_field($_POST['date_of_birth'] ?? '');
         $gender = sanitize_text_field($_POST['gender'] ?? '');
-        $membership_type = 'junior'; // Forcé : programme juniors uniquement (2-17 ans)
+        $membership_type = 'junior'; // Forced: junior program only (2-17 years)
         $club_affiliation = sanitize_text_field($_POST['club_affiliation'] ?? '');
         $address = sanitize_textarea_field($_POST['address'] ?? '');
         $medical_conditions = sanitize_textarea_field($_POST['medical_conditions'] ?? '');
@@ -69,9 +69,9 @@ if (isset($_POST['jgk_register_member'])) {
             $registration_errors[] = 'Passwords do not match.';
         }
         
-        // Validation de l'âge (2-17 ans) - OBLIGATOIRE pour juniors
+        // Age validation (2-17 years) - REQUIRED for juniors
         if (empty($date_of_birth)) {
-            $registration_errors[] = 'La date de naissance est obligatoire pour vérifier l\'éligibilité.';
+            $registration_errors[] = 'Date of birth is required to verify eligibility.';
         } else {
             try {
                 $birthdate = new DateTime($date_of_birth);
@@ -79,14 +79,14 @@ if (isset($_POST['jgk_register_member'])) {
                 $age = $today->diff($birthdate)->y;
                 
                 if ($age < 2) {
-                    $registration_errors[] = 'L\'âge minimum pour s\'inscrire est de 2 ans.';
+                    $registration_errors[] = 'The minimum age for registration is 2 years.';
                 }
                 
                 if ($age >= 18) {
-                    $registration_errors[] = 'Ce programme est réservé aux juniors de moins de 18 ans. Si vous avez 18 ans ou plus, veuillez nous contacter directement.';
+                    $registration_errors[] = 'This program is reserved for juniors under 18 years old. If you are 18 years or older, please contact us directly.';
                 }
             } catch (Exception $e) {
-                $registration_errors[] = 'Format de date de naissance invalide.';
+                $registration_errors[] = 'Invalid date of birth format.';
             }
         }
         
@@ -95,13 +95,13 @@ if (isset($_POST['jgk_register_member'])) {
             $registration_errors[] = 'This email address is already registered.';
         }
         
-        // Informations parent/tuteur OBLIGATOIRES pour tous les juniors
+        // Parent/guardian information REQUIRED for all juniors
         if (empty($parent_first_name) || empty($parent_last_name)) {
-            $registration_errors[] = 'Les informations du parent/tuteur sont obligatoires (prénom et nom).';
+            $registration_errors[] = 'Parent/guardian information is required (first name and last name).';
         }
         
         if (empty($parent_email) && empty($parent_phone)) {
-            $registration_errors[] = 'Au moins un moyen de contact du parent est requis (email ou téléphone).';
+            $registration_errors[] = 'At least one parent contact method is required (email or phone).';
         }
         
         if (empty($parent_relationship)) {
@@ -357,7 +357,7 @@ if (isset($_POST['jgk_register_member'])) {
 
                 <div class="jgk-form-row">
                     <div class="jgk-form-field">
-                        <label for="date_of_birth">Date de naissance *</label>
+                        <label for="date_of_birth">Date of birth *</label>
                         <input type="date" id="date_of_birth" name="date_of_birth" 
                                value="<?php echo esc_attr($_POST['date_of_birth'] ?? ''); ?>" 
                                required 
@@ -393,7 +393,7 @@ if (isset($_POST['jgk_register_member'])) {
                 <div class="jgk-form-row">
                     <div class="jgk-form-field jgk-form-field-full">
                         <div class="jgk-membership-info" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 12px; text-align: center;">
-                            <h4 style="margin: 0 0 12px 0; font-size: 22px; font-weight: 600;">⛳ Programme Junior Golf Kenya</h4>
+                            <h4 style="margin: 0 0 12px 0; font-size: 22px; font-weight: 600;">⛳ Junior Golf Kenya Program</h4>
                             <p style="margin: 0 0 15px 0; font-size: 16px; opacity: 0.95; line-height: 1.6;">
                                 Programme de développement pour jeunes golfeurs<br>
                                 <strong style="font-size: 18px;">Âge requis : 2 à 17 ans</strong>
