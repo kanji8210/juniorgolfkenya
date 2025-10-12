@@ -282,9 +282,6 @@ if ($search) {
     $total_members = JuniorGolfKenya_Database::get_members_count($status_filter);
 }
 
-// Debug output
-echo "<!-- DEBUG: search='$search', status_filter='$status_filter', members_count=" . count($members) . ", total_members=$total_members -->\n";
-
 $total_pages = ceil($total_members / $per_page);
 
 // Get statistics
@@ -691,20 +688,6 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
 
     <!-- Members Table -->
     <div class="jgk-table-container">
-        <!-- DEBUG: Force display members -->
-        <div style="background: #ffeaa7; padding: 10px; margin: 10px 0; border: 1px solid #d63031;">
-            <strong>DEBUG INFO:</strong><br>
-            Search: '<?php echo esc_html($search); ?>'<br>
-            Status Filter: '<?php echo esc_html($status_filter); ?>'<br>
-            Members Count: <?php echo count($members); ?><br>
-            Total Members: <?php echo $total_members; ?><br>
-            Total Pages: <?php echo $total_pages; ?><br>
-            Current Page: <?php echo $page; ?><br>
-            <?php if (!empty($members)): ?>
-            <strong>First Member:</strong> <?php echo esc_html($members[0]->full_name ?? 'No name'); ?> (ID: <?php echo $members[0]->id ?? 'No ID'; ?>)
-            <?php endif; ?>
-        </div>
-
         <table class="wp-list-table widefat fixed striped jgk-table">
             <thead>
                 <tr>

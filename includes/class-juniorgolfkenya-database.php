@@ -69,43 +69,66 @@ class JuniorGolfKenya_Database {
      */
     public static function get_members($page = 1, $per_page = 20, $status = '') {
         global $wpdb;
-        
+
         $table = $wpdb->prefix . 'jgk_members';
         $users_table = $wpdb->users;
         $coaches_table = $wpdb->users;
         $coach_members_table = $wpdb->prefix . 'jgk_coach_members';
-        
+
         $offset = ($page - 1) * $per_page;
-        
-        $query = "
-            SELECT m.*, u.user_email, u.display_name, u.user_login,
-                   TIMESTAMPDIFF(YEAR, m.date_of_birth, CURDATE()) as age,
-                   CONCAT(m.first_name, ' ', m.last_name) as full_name,
-                   c.display_name as primary_coach_name,
-                   GROUP_CONCAT(DISTINCT c2.display_name ORDER BY c2.display_name SEPARATOR ', ') as all_coaches
-            FROM $table m 
-            LEFT JOIN $users_table u ON m.user_id = u.ID 
-            LEFT JOIN $coaches_table c ON m.coach_id = c.ID
-            LEFT JOIN $coach_members_table cm ON m.id = cm.member_id AND cm.status = 'active'
-            LEFT JOIN $coaches_table c2 ON cm.coach_id = c2.ID
-        ";
-        
+
+        // Check if coach_members table exists and has data
+        $coach_members_exists = $wpdb->get_var("SHOW TABLES LIKE '{$coach_members_table}'");
+        $coach_members_count = $coach_members_exists ? $wpdb->get_var("SELECT COUNT(*) FROM {$coach_members_table}") : 0;
+
+        if ($coach_members_exists && $coach_members_count > 0) {
+            // Use full query with coach JOINs
+            $query = "
+                SELECT m.*, u.user_email, u.display_name, u.user_login,
+                       TIMESTAMPDIFF(YEAR, m.date_of_birth, CURDATE()) as age,
+                       CONCAT(m.first_name, ' ', m.last_name) as full_name,
+                       c.display_name as primary_coach_name,
+                       GROUP_CONCAT(DISTINCT c2.display_name ORDER BY c2.display_name SEPARATOR ', ') as all_coaches
+                FROM $table m
+                LEFT JOIN $users_table u ON m.user_id = u.ID
+                LEFT JOIN $coaches_table c ON m.coach_id = c.ID
+                LEFT JOIN $coach_members_table cm ON m.id = cm.member_id AND cm.status = 'active'
+                LEFT JOIN $coaches_table c2 ON cm.coach_id = c2.ID
+            ";
+        } else {
+            // Fallback query without coach_members JOIN
+            $query = "
+                SELECT m.*, u.user_email, u.display_name, u.user_login,
+                       TIMESTAMPDIFF(YEAR, m.date_of_birth, CURDATE()) as age,
+                       CONCAT(m.first_name, ' ', m.last_name) as full_name,
+                       c.display_name as primary_coach_name,
+                       NULL as all_coaches
+                FROM $table m
+                LEFT JOIN $users_table u ON m.user_id = u.ID
+                LEFT JOIN $coaches_table c ON m.coach_id = c.ID
+            ";
+        }
+
         $where_conditions = array();
         $params = array();
-        
+
         if ($status) {
             $where_conditions[] = "m.status = %s";
             $params[] = $status;
         }
-        
+
         if (!empty($where_conditions)) {
             $query .= " WHERE " . implode(" AND ", $where_conditions);
         }
-        
-        $query .= " GROUP BY m.id ORDER BY m.created_at DESC LIMIT %d OFFSET %d";
+
+        if ($coach_members_exists && $coach_members_count > 0) {
+            $query .= " GROUP BY m.id";
+        }
+
+        $query .= " ORDER BY m.created_at DESC LIMIT %d OFFSET %d";
         $params[] = $per_page;
         $params[] = $offset;
-        
+
         return $wpdb->get_results($wpdb->prepare($query, $params));
     }
 
