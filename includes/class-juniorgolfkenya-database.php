@@ -567,4 +567,25 @@ class JuniorGolfKenya_Database {
         
         return $result !== false;
     }
+
+    /**
+     * Get member parents/guardians
+     *
+     * @since    1.0.0
+     * @param    int    $member_id    Member ID
+     * @return   array
+     */
+    public static function get_member_parents($member_id) {
+        global $wpdb;
+        
+        $table = $wpdb->prefix . 'jgk_parents_guardians';
+        
+        $query = $wpdb->prepare("
+            SELECT * FROM $table 
+            WHERE member_id = %d 
+            ORDER BY is_primary_contact DESC, created_at ASC
+        ", $member_id);
+        
+        return $wpdb->get_results($query);
+    }
 }

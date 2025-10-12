@@ -1254,8 +1254,15 @@ function viewMemberDetails(memberId) {
     modal.style.display = 'block';
     content.innerHTML = '<div class="member-details-loading"><p>Loading member details...</p></div>';
     
+    // Debug: Log AJAX parameters
+    console.log('JGK AJAX Debug:', {
+        ajaxurl: jgkAjax.ajaxurl,
+        nonce: jgkAjax.members_nonce,
+        memberId: memberId
+    });
+    
     // Fetch member details via AJAX
-    fetch(ajaxurl, {
+    fetch(jgkAjax.ajaxurl, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
@@ -1263,10 +1270,18 @@ function viewMemberDetails(memberId) {
         body: new URLSearchParams({
             'action': 'jgk_get_member_details',
             'member_id': memberId,
-            'nonce': '<?php echo wp_create_nonce("jgk_members_action"); ?>'
+            'nonce': jgkAjax.members_nonce
         })
     })
-    .then(response => response.json())
+    .then(response => {
+        console.log('JGK Response status:', response.status);
+        console.log('JGK Response ok:', response.ok);
+        console.log('JGK Response headers:', response.headers);
+        if (!response.ok) {
+            throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             content.innerHTML = data.html;
@@ -1275,18 +1290,59 @@ function viewMemberDetails(memberId) {
         }
     })
     .catch(error => {
-        content.innerHTML = '<div class="notice notice-error"><p>Error loading member details. Please try again.</p></div>';
-        console.error('Error:', error);
+        console.error('JGK AJAX Error Details:', {
+            error: error,
+            message: error.message,
+            stack: error.stack,
+            name: error.name
+        });
+        content.innerHTML = '<div class="notice notice-error"><p>Error loading member details: ' + error.message + '. Please try again.</p></div>';
     });
 }
 
-function closeMemberDetailsModal() {
-    const modal = document.getElementById('member-details-modal');
-    modal.style.display = 'none';
+// Debug function to test AJAX connectivity
+function jgkTestAjax() {
+    console.log('JGK Test: Testing AJAX connectivity...');
+    
+    if (typeof jgkAjax === 'undefined') {
+        console.error('JGK Test: jgkAjax is not defined!');
+        return;
+    }
+    
+    fetch(jgkAjax.ajaxurl + '?action=jgk_get_member_details&member_id=1&nonce=' + jgkAjax.members_nonce, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        }
+    })
+    .then(response => {
+        console.log('JGK Test: Response status:', response.status);
+        console.log('JGK Test: Response ok:', response.ok);
+        return response.text(); // Get raw response first
+    })
+    .then(text => {
+        console.log('JGK Test: Raw response:', text);
+        try {
+            const data = JSON.parse(text);
+            console.log('JGK Test: Parsed JSON:', data);
+        } catch (e) {
+            console.error('JGK Test: Failed to parse JSON:', e);
+        }
+    })
+    .catch(error => {
+        console.error('JGK Test: AJAX error:', error);
+    });
 }
 
 // Close modal when clicking outside
 document.addEventListener('DOMContentLoaded', function() {
+    // Debug: Check if jgkAjax is available
+    console.log('JGK DOM loaded - jgkAjax check:', {
+        available: typeof jgkAjax !== 'undefined',
+        ajaxurl: typeof jgkAjax !== 'undefined' ? jgkAjax.ajaxurl : 'NOT AVAILABLE',
+        nonce: typeof jgkAjax !== 'undefined' ? jgkAjax.members_nonce : 'NOT AVAILABLE'
+    });
+    
     const modal = document.getElementById('member-details-modal');
     if (modal) {
         modal.addEventListener('click', function(e) {

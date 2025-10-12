@@ -459,6 +459,24 @@ class JuniorGolfKenya_Activator {
             KEY is_primary_contact (is_primary_contact)
         ) $charset_collate;";
 
+        // Coach-Members junction table
+        $table_coach_members = $wpdb->prefix . 'jgk_coach_members';
+        $sql_coach_members = "CREATE TABLE $table_coach_members (
+            id mediumint(9) NOT NULL AUTO_INCREMENT,
+            coach_id bigint(20) UNSIGNED NOT NULL,
+            member_id mediumint(9) NOT NULL,
+            status varchar(20) DEFAULT 'active',
+            assigned_date datetime DEFAULT CURRENT_TIMESTAMP,
+            notes text,
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            UNIQUE KEY coach_member (coach_id, member_id),
+            KEY coach_id (coach_id),
+            KEY member_id (member_id),
+            KEY status (status)
+        ) $charset_collate;";
+
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         
         // Capture output to prevent "headers already sent" errors
@@ -470,6 +488,7 @@ class JuniorGolfKenya_Activator {
         $results['role_requests'] = dbDelta($sql_role_requests);
         $results['coach_profiles'] = dbDelta($sql_coach_profiles);
         $results['parents_guardians'] = dbDelta($sql_parents_guardians);
+        $results['coach_members'] = dbDelta($sql_coach_members);
         ob_end_clean();
         
         return $results;

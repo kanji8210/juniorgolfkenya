@@ -175,6 +175,7 @@ class JuniorGolfKenya_ARMember_Importer {
         // Prepare member data
         $member_data = array(
             'user_id' => $armember_data->user_id,
+            'membership_number' => JuniorGolfKenya_Database::generate_membership_number(),
             'membership_type' => $membership_type,
             'status' => self::map_armember_status($armember_data->arm_primary_status, $options['default_status']),
             'date_of_birth' => $armember_data->date_of_birth ?: null,
@@ -189,7 +190,7 @@ class JuniorGolfKenya_ARMember_Importer {
         $result = $wpdb->insert(
             $jgk_members_table,
             $member_data,
-            array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')
+            array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')
         );
 
         if ($result === false) {

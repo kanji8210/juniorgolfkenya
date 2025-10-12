@@ -192,48 +192,41 @@ function jgk_ajax_search_members() {
 add_action('wp_ajax_jgk_get_member_details', 'jgk_get_member_details_callback');
 
 function jgk_get_member_details_callback() {
+    // Debug: Log the request
+    error_log('JGK Member Details AJAX: Request received at ' . date('Y-m-d H:i:s'));
+    error_log('JGK Member Details AJAX: POST data: ' . print_r($_POST, true));
+    error_log('JGK Member Details AJAX: REQUEST data: ' . print_r($_REQUEST, true));
+    
     // Load required classes
     require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-database.php';
     require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-media.php';
     
-    // Debug: Log the request
-    error_log('JGK Member Details AJAX: Request received');
-    error_log('JGK Member Details AJAX: POST data: ' . print_r($_POST, true));
-    
     // Verify nonce
     if (!wp_verify_nonce($_POST['nonce'], 'jgk_members_action')) {
-        error_log('JGK Member Details AJAX: Nonce verification failed');
         wp_send_json_error(array('message' => 'Security check failed'));
         return;
     }
     
     // Check permissions
     if (!current_user_can('manage_options')) {
-        error_log('JGK Member Details AJAX: Permission check failed - user does not have manage_options');
         wp_send_json_error(array('message' => 'Insufficient permissions'));
         return;
     }
     
     $member_id = intval($_POST['member_id']);
-    error_log('JGK Member Details AJAX: Member ID: ' . $member_id);
-    
     if (!$member_id) {
-        error_log('JGK Member Details AJAX: Invalid member ID');
         wp_send_json_error(array('message' => 'Invalid member ID'));
         return;
     }
     
     // Get member data
     $member = JuniorGolfKenya_Database::get_member($member_id);
-    error_log('JGK Member Details AJAX: Member data: ' . print_r($member, true));
-    
     if (!$member) {
-        error_log('JGK Member Details AJAX: Member not found');
         wp_send_json_error(array('message' => 'Member not found'));
         return;
     }
-    
-    error_log('JGK Member Details AJAX: Member found, proceeding with HTML generation');    // Get member parents
+
+    // Get member parents
     $member_parents = JuniorGolfKenya_Database::get_member_parents($member_id);
 
     // Get coach name if assigned
@@ -255,189 +248,122 @@ function jgk_get_member_details_callback() {
         }
     }
 
-    // Build HTML response
-    ob_start();
-    ?>
-    <div class="member-details-wrapper">
-        <div class="member-profile-section">
-            <div class="member-profile-header">
-                <?php echo JuniorGolfKenya_Media::get_profile_image_html($member->id, 'medium', array('style' => 'width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid #0073aa;')); ?>
-                <div class="member-profile-info">
-                    <h3><?php echo esc_html($member->first_name . ' ' . $member->last_name); ?></h3>
-                    <p class="member-email"><?php echo esc_html($member->user_email); ?></p>
-                    <span class="member-status-badge status-<?php echo esc_attr($member->status); ?>">
-                        <?php echo ucfirst(esc_html($member->status)); ?>
-                    </span>
-                </div>
-            </div>
-        </div>
+    // Build HTML as string instead of using output buffering
+    try {
+        error_log('JGK Member Details AJAX: Starting HTML generation');
+        $html = '<div class="member-details-wrapper">';
 
-        <div class="member-details-grid">
-            <div class="member-details-section">
-                <h4>Personal Information</h4>
-                <div class="member-details-table">
-                    <div class="detail-row">
-                        <span class="detail-label">Full Name:</span>
-                        <span class="detail-value"><?php echo esc_html($member->first_name . ' ' . $member->last_name); ?></span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Email:</span>
-                        <span class="detail-value"><?php echo esc_html($member->user_email); ?></span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Phone:</span>
-                        <span class="detail-value"><?php echo esc_html($member->phone ?: 'Not provided'); ?></span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Date of Birth:</span>
-                        <span class="detail-value"><?php echo esc_html($member->date_of_birth ?: 'Not provided'); ?></span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Age:</span>
-                        <span class="detail-value"><?php echo esc_html($age ?: 'Not calculated'); ?></span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Gender:</span>
-                        <span class="detail-value"><?php echo esc_html($member->gender ?: 'Not specified'); ?></span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Golf Handicap:</span>
-                        <span class="detail-value"><?php echo esc_html($member->handicap ?: 'Not set'); ?></span>
-                    </div>
-                </div>
-            </div>
+        // Profile section
+        $html .= '<div class="member-profile-section">';
+        $html .= '<div class="member-profile-header">';
+        error_log('JGK Member Details AJAX: About to call get_profile_image_html');
+        $profile_image_html = JuniorGolfKenya_Media::get_profile_image_html($member->id, 'medium', array('style' => 'width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid #0073aa;'));
+        error_log('JGK Member Details AJAX: get_profile_image_html returned: ' . substr($profile_image_html, 0, 100));
+        $html .= $profile_image_html;
+        $html .= '<div class="member-profile-info">';
+        $html .= '<h3>' . esc_html($member->first_name . ' ' . $member->last_name) . '</h3>';
+        $html .= '<p class="member-email">' . esc_html($member->user_email) . '</p>';
+        $html .= '<span class="member-status-badge status-' . esc_attr($member->status) . '">';
+        $html .= ucfirst(esc_html($member->status));
+        $html .= '</span>';
+        $html .= '</div></div></div>';
 
-            <div class="member-details-section">
-                <h4>Membership Details</h4>
-                <div class="member-details-table">
-                    <div class="detail-row">
-                        <span class="detail-label">Membership Type:</span>
-                        <span class="detail-value"><?php echo esc_html(ucfirst($member->membership_type)); ?></span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Status:</span>
-                        <span class="detail-value">
-                            <span class="member-status-badge status-<?php echo esc_attr($member->status); ?>">
-                                <?php echo ucfirst(esc_html($member->status)); ?>
-                            </span>
-                        </span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Club Affiliation:</span>
-                        <span class="detail-value"><?php echo esc_html($member->club_affiliation ?: 'None'); ?></span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Assigned Coach:</span>
-                        <span class="detail-value"><?php echo esc_html($coach_name ?: 'No coach assigned'); ?></span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Public Visibility:</span>
-                        <span class="detail-value">
-                            <?php if ($member->is_public): ?>
-                                <span style="color: #28a745;">✓ Visible on public pages</span>
-                            <?php else: ?>
-                                <span style="color: #dc3545;">✗ Hidden from public</span>
-                            <?php endif; ?>
-                        </span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Member Since:</span>
-                        <span class="detail-value"><?php echo date('M j, Y', strtotime($member->created_at)); ?></span>
-                    </div>
-                </div>
-            </div>
+        // Details grid
+        $html .= '<div class="member-details-grid">';
 
-            <div class="member-details-section">
-                <h4>Emergency Contact</h4>
-                <div class="member-details-table">
-                    <div class="detail-row">
-                        <span class="detail-label">Contact Name:</span>
-                        <span class="detail-value"><?php echo esc_html($member->emergency_contact_name ?: 'Not provided'); ?></span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Contact Phone:</span>
-                        <span class="detail-value"><?php echo esc_html($member->emergency_contact_phone ?: 'Not provided'); ?></span>
-                    </div>
-                </div>
-            </div>
+        // Personal Information
+        $html .= '<div class="member-details-section">';
+        $html .= '<h4>Personal Information</h4>';
+        $html .= '<div class="member-details-table">';
+        $html .= '<div class="detail-row"><span class="detail-label">Full Name:</span><span class="detail-value">' . esc_html($member->first_name . ' ' . $member->last_name) . '</span></div>';
+        $html .= '<div class="detail-row"><span class="detail-label">Email:</span><span class="detail-value">' . esc_html($member->user_email) . '</span></div>';
+        $html .= '<div class="detail-row"><span class="detail-label">Phone:</span><span class="detail-value">' . esc_html($member->phone ?: 'Not provided') . '</span></div>';
+        $html .= '<div class="detail-row"><span class="detail-label">Date of Birth:</span><span class="detail-value">' . esc_html($member->date_of_birth ?: 'Not provided') . '</span></div>';
+        $html .= '<div class="detail-row"><span class="detail-label">Age:</span><span class="detail-value">' . esc_html($age ?: 'Not calculated') . '</span></div>';
+        $html .= '<div class="detail-row"><span class="detail-label">Gender:</span><span class="detail-value">' . esc_html($member->gender ?: 'Not specified') . '</span></div>';
+        $html .= '<div class="detail-row"><span class="detail-label">Golf Handicap:</span><span class="detail-value">' . esc_html($member->handicap ?: 'Not set') . '</span></div>';
+        $html .= '</div></div>';
 
-            <div class="member-details-section">
-                <h4>Additional Information</h4>
-                <div class="member-details-table">
-                    <div class="detail-row">
-                        <span class="detail-label">Medical Conditions:</span>
-                        <span class="detail-value"><?php echo esc_html($member->medical_conditions ?: 'None specified'); ?></span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Address:</span>
-                        <span class="detail-value"><?php echo nl2br(esc_html($member->address ?: 'Not provided')); ?></span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Biography:</span>
-                        <span class="detail-value"><?php echo nl2br(esc_html($member->biography ?: 'Not provided')); ?></span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Photography Consent:</span>
-                        <span class="detail-value">
-                            <?php if ($member->consent_photography === 'yes'): ?>
-                                <span style="color: #28a745;">✓ Granted</span>
-                            <?php else: ?>
-                                <span style="color: #dc3545;">✗ Not granted</span>
-                            <?php endif; ?>
-                        </span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Parental Consent:</span>
-                        <span class="detail-value">
-                            <?php if ($member->parental_consent): ?>
-                                <span style="color: #28a745;">✓ Granted</span>
-                            <?php else: ?>
-                                <span style="color: #dc3545;">✗ Not granted</span>
-                            <?php endif; ?>
-                        </span>
-                    </div>
-                </div>
-            </div>
-        </div>
+        // Membership Details
+        $html .= '<div class="member-details-section">';
+        $html .= '<h4>Membership Details</h4>';
+        $html .= '<div class="member-details-table">';
+        $html .= '<div class="detail-row"><span class="detail-label">Membership Type:</span><span class="detail-value">' . esc_html(ucfirst($member->membership_type)) . '</span></div>';
+        $html .= '<div class="detail-row"><span class="detail-label">Status:</span><span class="detail-value"><span class="member-status-badge status-' . esc_attr($member->status) . '">' . ucfirst(esc_html($member->status)) . '</span></span></div>';
+        $html .= '<div class="detail-row"><span class="detail-label">Club Affiliation:</span><span class="detail-value">' . esc_html($member->club_affiliation ?: 'None') . '</span></div>';
+        $html .= '<div class="detail-row"><span class="detail-label">Assigned Coach:</span><span class="detail-value">' . esc_html($coach_name ?: 'No coach assigned') . '</span></div>';
+        $html .= '<div class="detail-row"><span class="detail-label">Public Visibility:</span><span class="detail-value">';
+        $html .= ($member->is_public) ? '<span style="color: #28a745;">✓ Visible on public pages</span>' : '<span style="color: #dc3545;">✗ Hidden from public</span>';
+        $html .= '</span></div>';
+        $html .= '<div class="detail-row"><span class="detail-label">Member Since:</span><span class="detail-value">' . date('M j, Y', strtotime($member->created_at)) . '</span></div>';
+        $html .= '</div></div>';
 
-        <?php if (!empty($member_parents)): ?>
-        <div class="member-details-section">
-            <h4>Parents/Guardians</h4>
-            <div class="parents-list">
-                <?php foreach ($member_parents as $parent): ?>
-                <div class="parent-entry" style="background: #f9f9f9; padding: 15px; margin-bottom: 10px; border-radius: 5px; border-left: 4px solid #0073aa;">
-                    <h5 style="margin: 0 0 10px 0; color: #0073aa;">
-                        <?php echo esc_html($parent->first_name . ' ' . $parent->last_name); ?>
-                        <span style="font-weight: normal; font-size: 14px; color: #666;">
-                            (<?php echo ucfirst($parent->relationship); ?>)
-                        </span>
-                    </h5>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px;">
-                        <div><strong>Phone:</strong> <?php echo esc_html($parent->phone ?: 'N/A'); ?></div>
-                        <div><strong>Email:</strong> <?php echo esc_html($parent->email ?: 'N/A'); ?></div>
-                        <?php if ($parent->occupation): ?>
-                        <div><strong>Occupation:</strong> <?php echo esc_html($parent->occupation); ?></div>
-                        <?php endif; ?>
-                        <div>
-                            <?php if ($parent->is_primary_contact): ?>
-                            <span style="color: #46b450; font-weight: bold;">✓ Primary Contact</span>
-                            <?php endif; ?>
-                            <?php if ($parent->emergency_contact): ?>
-                            <span style="color: #d54e21; font-weight: bold;">⚠ Emergency Contact</span>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                </div>
-                <?php endforeach; ?>
-            </div>
-        </div>
-        <?php endif; ?>
-    </div>
-    <?php
+        // Emergency Contact
+        $html .= '<div class="member-details-section">';
+        $html .= '<h4>Emergency Contact</h4>';
+        $html .= '<div class="member-details-table">';
+        $html .= '<div class="detail-row"><span class="detail-label">Contact Name:</span><span class="detail-value">' . esc_html($member->emergency_contact_name ?: 'Not provided') . '</span></div>';
+        $html .= '<div class="detail-row"><span class="detail-label">Contact Phone:</span><span class="detail-value">' . esc_html($member->emergency_contact_phone ?: 'Not provided') . '</span></div>';
+        $html .= '</div></div>';
 
-    $html = ob_get_clean();
-    error_log('JGK Member Details AJAX: HTML generated successfully, length: ' . strlen($html));
-    wp_send_json_success(array('html' => $html));
+        // Additional Information
+        $html .= '<div class="member-details-section">';
+        $html .= '<h4>Additional Information</h4>';
+        $html .= '<div class="member-details-table">';
+        $html .= '<div class="detail-row"><span class="detail-label">Medical Conditions:</span><span class="detail-value">' . esc_html($member->medical_conditions ?: 'None specified') . '</span></div>';
+        $html .= '<div class="detail-row"><span class="detail-label">Address:</span><span class="detail-value">' . nl2br(esc_html($member->address ?: 'Not provided')) . '</span></div>';
+        $html .= '<div class="detail-row"><span class="detail-label">Biography:</span><span class="detail-value">' . nl2br(esc_html($member->biography ?: 'Not provided')) . '</span></div>';
+        $html .= '<div class="detail-row"><span class="detail-label">Photography Consent:</span><span class="detail-value">';
+        $html .= ($member->consent_photography === 'yes') ? '<span style="color: #28a745;">✓ Granted</span>' : '<span style="color: #dc3545;">✗ Not granted</span>';
+        $html .= '</span></div>';
+        $html .= '<div class="detail-row"><span class="detail-label">Parental Consent:</span><span class="detail-value">';
+        $html .= ($member->parental_consent) ? '<span style="color: #28a745;">✓ Granted</span>' : '<span style="color: #dc3545;">✗ Not granted</span>';
+        $html .= '</span></div>';
+        $html .= '</div></div>';
+
+        $html .= '</div>'; // End member-details-grid
+
+        // Parents section
+        if (!empty($member_parents)) {
+            $html .= '<div class="member-details-section">';
+            $html .= '<h4>Parents/Guardians</h4>';
+            $html .= '<div class="parents-list">';
+
+            foreach ($member_parents as $parent) {
+                $html .= '<div class="parent-entry" style="background: #f9f9f9; padding: 15px; margin-bottom: 10px; border-radius: 5px; border-left: 4px solid #0073aa;">';
+                $html .= '<h5 style="margin: 0 0 10px 0; color: #0073aa;">';
+                $html .= esc_html($parent->first_name . ' ' . $parent->last_name);
+                $html .= '<span style="font-weight: normal; font-size: 14px; color: #666;"> (' . ucfirst($parent->relationship) . ')</span>';
+                $html .= '</h5>';
+                $html .= '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px;">';
+                $html .= '<div><strong>Phone:</strong> ' . esc_html($parent->phone ?: 'N/A') . '</div>';
+                $html .= '<div><strong>Email:</strong> ' . esc_html($parent->email ?: 'N/A') . '</div>';
+                if ($parent->occupation) {
+                    $html .= '<div><strong>Occupation:</strong> ' . esc_html($parent->occupation) . '</div>';
+                }
+                $html .= '<div>';
+                if ($parent->is_primary_contact) {
+                    $html .= '<span style="color: #46b450; font-weight: bold;">✓ Primary Contact</span> ';
+                }
+                if ($parent->emergency_contact) {
+                    $html .= '<span style="color: #d54e21; font-weight: bold;">⚠ Emergency Contact</span>';
+                }
+                $html .= '</div>';
+                $html .= '</div></div>';
+            }
+
+            $html .= '</div></div>';
+        }
+
+        $html .= '</div>'; // End member-details-wrapper
+
+        error_log('JGK Member Details AJAX: HTML generated successfully, length: ' . strlen($html));
+        wp_send_json_success(array('html' => $html));
+    } catch (Exception $e) {
+        error_log('JGK Member Details AJAX: Exception during HTML generation: ' . $e->getMessage());
+        error_log('JGK Member Details AJAX: Stack trace: ' . $e->getTraceAsString());
+        wp_send_json_error(array('message' => 'Error generating member details: ' . $e->getMessage()));
+    }
 }
 
 /**
