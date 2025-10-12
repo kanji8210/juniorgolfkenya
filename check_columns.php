@@ -8,8 +8,8 @@
  * 3. Vérifiez si vous avez club_name ou club_affiliation, handicap_index ou handicap
  */
 
-// Load WordPress
-require_once('../../../../wp-load.php');
+// Load WordPress - correct path from plugin folder
+require_once(dirname(__FILE__) . '/../../../wp-load.php');
 
 // Check if user is admin
 if (!current_user_can('manage_options')) {

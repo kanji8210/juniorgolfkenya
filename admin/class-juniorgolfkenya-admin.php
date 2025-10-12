@@ -68,7 +68,7 @@ class JuniorGolfKenya_Admin {
         // Localize script with AJAX URL
         wp_localize_script($this->plugin_name, 'jgkAjax', array(
             'ajaxurl' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('jgk_ajax_nonce')
+            'nonce' => wp_create_nonce('jgk_get_member_details')  // Changed to match AJAX handler
         ));
     }
 
