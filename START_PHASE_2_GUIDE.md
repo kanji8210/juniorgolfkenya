@@ -11,9 +11,9 @@
 INSCRIPTION → AUTO-LOGIN → MEMBER PORTAL → DASHBOARD
     ↓             ↓              ↓              ↓
   Form        Connecté       4 Cards       Profil complet
-```
+``` 
 
-### Test Rapide (5 minutes)
+### tst Rapide (5 minutes)
 1. Aller sur `/member-registration`
 2. Remplir formulaire + choisir mot de passe
 3. Cliquer "Register"

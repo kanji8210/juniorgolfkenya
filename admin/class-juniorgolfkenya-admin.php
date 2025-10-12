@@ -67,8 +67,7 @@ class JuniorGolfKenya_Admin {
         
         // Localize script with AJAX URL
         wp_localize_script($this->plugin_name, 'jgkAjax', array(
-            'ajaxurl' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('jgk_get_member_details')  // Changed to match AJAX handler
+            'ajaxurl' => admin_url('admin-ajax.php')
         ));
     }
 
@@ -142,6 +141,15 @@ class JuniorGolfKenya_Admin {
 
         add_submenu_page(
             'juniorgolfkenya',
+            'Import from ARMember',
+            'Import Data',
+            'manage_options',
+            'juniorgolfkenya-import',
+            array($this, 'display_import_page')
+        );
+
+        add_submenu_page(
+            'juniorgolfkenya',
             'Settings',
             'Settings',
             'manage_options',
@@ -202,6 +210,15 @@ class JuniorGolfKenya_Admin {
      */
     public function display_reports_page() {
         include_once JUNIORGOLFKENYA_PLUGIN_PATH . 'admin/partials/juniorgolfkenya-admin-reports.php';
+    }
+
+    /**
+     * Display the import page.
+     *
+     * @since    1.0.0
+     */
+    public function display_import_page() {
+        include_once JUNIORGOLFKENYA_PLUGIN_PATH . 'admin/partials/juniorgolfkenya-admin-import.php';
     }
 
     /**

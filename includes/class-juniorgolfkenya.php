@@ -96,6 +96,11 @@ class JuniorGolfKenya {
         require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-user-manager.php';
 
         /**
+         * ARMember data importer
+         */
+        require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-armember-importer.php';
+
+        /**
          * The class responsible for defining all actions that occur in the admin area.
          */
         require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'admin/class-juniorgolfkenya-admin.php';

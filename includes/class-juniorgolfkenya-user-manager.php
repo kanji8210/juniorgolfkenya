@@ -169,41 +169,6 @@ class JuniorGolfKenya_User_Manager {
     }
 
     /**
-     * Assign coach to member
-     *
-     * @since    1.0.0
-     * @param    int    $member_id    Member ID
-     * @param    int    $coach_id     Coach User ID
-     * @return   bool
-     */
-    public static function assign_coach($member_id, $coach_id) {
-        // Verify coach has proper role
-        $coach_user = get_user_by('ID', $coach_id);
-        if (!$coach_user || !in_array('jgk_coach', $coach_user->roles)) { // Fixed: Changed from jgf_coach to jgk_coach
-            return false;
-        }
-
-        // Update member record with assigned coach
-        $result = JuniorGolfKenya_Database::update_member($member_id, array(
-            'coach_id' => $coach_id
-        ));
-
-        if ($result) {
-            // Log the assignment
-            JuniorGolfKenya_Database::log_audit(array(
-                'action' => 'coach_assigned',
-                'object_type' => 'member',
-                'object_id' => $member_id,
-                'new_values' => json_encode(array('coach_id' => $coach_id))
-            ));
-
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
      * Process role request
      *
      * @since    1.0.0

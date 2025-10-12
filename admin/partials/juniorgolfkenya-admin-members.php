@@ -48,19 +48,6 @@ if (isset($_POST['action'])) {
             }
             break;
 
-        case 'assign_coach':
-            if (isset($_POST['member_id']) && isset($_POST['coach_id'])) {
-                $result = JuniorGolfKenya_User_Manager::assign_coach($_POST['member_id'], $_POST['coach_id']);
-                if ($result) {
-                    $message = 'Coach assigned successfully!';
-                    $message_type = 'success';
-                } else {
-                    $message = 'Failed to assign coach.';
-                    $message_type = 'error';
-                }
-            }
-            break;
-
         case 'create_member':
             // Validation de l'âge (2-17 ans)
             $date_of_birth = sanitize_text_field($_POST['date_of_birth'] ?? '');
@@ -237,23 +224,6 @@ if (isset($_POST['action'])) {
                 // Don't redirect - let the page render with the success message
             }
             break;
-
-        case 'update_member_status':
-            if (isset($_POST['member_id']) && isset($_POST['new_status'])) {
-                $member_id = intval($_POST['member_id']);
-                $new_status = sanitize_text_field($_POST['new_status']);
-                $reason = sanitize_textarea_field($_POST['reason']);
-                
-                $result = JuniorGolfKenya_Database::update_member_status($member_id, $new_status, $reason);
-                if ($result) {
-                    $message = 'Member status updated successfully!';
-                    $message_type = 'success';
-                } else {
-                    $message = 'Failed to update member status.';
-                    $message_type = 'error';
-                }
-            }
-            break;
     }
 }
 
@@ -303,9 +273,6 @@ $total_pages = ceil($total_members / $per_page);
 
 // Get statistics
 $stats = JuniorGolfKenya_Database::get_membership_stats();
-
-// Get available coaches
-$coaches = JuniorGolfKenya_User_Manager::get_available_coaches();
 ?>
 
 <div class="wrap jgk-admin-container">
@@ -789,18 +756,6 @@ $coaches = JuniorGolfKenya_User_Manager::get_available_coaches();
                             </form>
                             <?php endif; ?>
                             
-                            <!-- Change Status Button -->
-                            <button class="button button-small jgk-button-status" 
-                                    onclick="openStatusModal(<?php echo $member->id; ?>, '<?php echo esc_js($member->display_name); ?>', '<?php echo esc_js($member->status); ?>')">
-                                Change Status
-                            </button>
-                            
-                            <!-- Assign Coach Button -->
-                            <button class="button button-small jgk-button-coach" 
-                                    onclick="openCoachModal(<?php echo $member->id; ?>, '<?php echo esc_js($member->display_name); ?>')">
-                                <?php echo $member->all_coaches ? 'Manage Coaches' : 'Assign Coach'; ?>
-                            </button>
-                            
                             <!-- Edit Member -->
                             <a href="<?php echo admin_url('admin.php?page=juniorgolfkenya-members&action=edit&member_id=' . $member->id); ?>" 
                                class="button button-small jgk-button-edit">
@@ -833,85 +788,6 @@ $coaches = JuniorGolfKenya_User_Manager::get_available_coaches();
         </div>
     </div>
     <?php endif; ?>
-</div>
-
-<!-- Change Status Modal -->
-<div id="status-modal" class="jgk-modal" style="display: none;">
-    <div class="jgk-modal-content">
-        <div class="jgk-modal-header">
-            <h2>Change Member Status</h2>
-            <span class="jgk-modal-close" onclick="closeStatusModal()">&times;</span>
-        </div>
-        <div class="jgk-modal-body">
-            <form method="post" id="status-form">
-                <?php wp_nonce_field('jgk_members_action'); ?>
-                <input type="hidden" name="action" value="update_member_status">
-                <input type="hidden" name="member_id" id="status-member-id">
-                
-                <p><strong>Member:</strong> <span id="status-member-name"></span></p>
-                <p><strong>Current Status:</strong> <span id="status-current"></span></p>
-                
-                <div class="jgk-form-field">
-                    <label for="new_status">New Status:</label>
-                    <select id="new_status" name="new_status" required>
-                        <option value="active">Active</option>
-                        <option value="pending">Pending Approval</option>
-                        <option value="expired">Expired</option>
-                        <option value="suspended">Suspended</option>
-                    </select>
-                </div>
-                
-                <div class="jgk-form-field">
-                    <label for="status_reason">Reason for change:</label>
-                    <textarea id="status_reason" name="reason" rows="3" placeholder="Optional reason for status change..."></textarea>
-                </div>
-                
-                <div class="jgk-form-field">
-                    <input type="submit" class="button-primary" value="Update Status">
-                    <button type="button" class="button" onclick="closeStatusModal()">Cancel</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Assign Coach Modal -->
-<div id="coach-modal" class="jgk-modal" style="display: none;">
-    <div class="jgk-modal-content">
-        <div class="jgk-modal-header">
-            <h2>Assign Coach</h2>
-            <span class="jgk-modal-close" onclick="closeCoachModal()">&times;</span>
-        </div>
-        <div class="jgk-modal-body">
-            <form method="post" id="coach-form">
-                <?php wp_nonce_field('jgk_members_action'); ?>
-                <input type="hidden" name="action" value="assign_coach">
-                <input type="hidden" name="member_id" id="coach-member-id">
-                
-                <p><strong>Member:</strong> <span id="coach-member-name"></span></p>
-                
-                <div class="jgk-form-field">
-                    <label for="coach_id">Select Coach:</label>
-                    <select id="coach_id" name="coach_id" required>
-                        <option value="">Choose a coach...</option>
-                        <?php foreach ($coaches as $coach): ?>
-                        <option value="<?php echo $coach->user_id; ?>">
-                            <?php echo esc_html($coach->display_name); ?>
-                            <?php if (isset($coach->member_count)): ?>
-                            (<?php echo intval($coach->member_count); ?> members)
-                            <?php endif; ?>
-                        </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                
-                <div class="jgk-form-field">
-                    <input type="submit" class="button-primary" value="Assign Coach">
-                    <button type="button" class="button" onclick="closeCoachModal()">Cancel</button>
-                </div>
-            </form>
-        </div>
-    </div>
 </div>
 
 <style>
@@ -1004,82 +880,11 @@ $coaches = JuniorGolfKenya_User_Manager::get_available_coaches();
 }
 
 .jgk-button-approve { background: #00a32a; color: white; border-color: #00a32a; }
-.jgk-button-status { background: #2271b1; color: white; border-color: #2271b1; }
-.jgk-button-coach { background: #dba617; color: white; border-color: #dba617; }
-.jgk-button-view { background: #666; color: white; border-color: #666; }
 
 .jgk-status-active { color: #00a32a; font-weight: bold; }
 .jgk-status-pending { color: #b32d2e; font-weight: bold; }
 .jgk-status-expired { color: #d63638; font-weight: bold; }
 .jgk-status-suspended { color: #dba617; font-weight: bold; }
-
-.jgk-modal {
-    position: fixed;
-    z-index: 100000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0,0,0,0.5);
-}
-
-.jgk-modal-content {
-    background-color: #fff;
-    margin: 10% auto;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    width: 60%;
-    max-width: 500px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-}
-
-.jgk-modal-header {
-    padding: 20px;
-    background-color: #f7f7f7;
-    border-bottom: 1px solid #ddd;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.jgk-modal-header h2 {
-    margin: 0;
-}
-
-.jgk-modal-close {
-    font-size: 24px;
-    cursor: pointer;
-    color: #666;
-}
-
-.jgk-modal-close:hover {
-    color: #000;
-}
-
-.jgk-modal-body {
-    padding: 20px;
-    max-height: 70vh;
-    overflow-y: auto;
-}
-
-/* Scrollbar styling for modal body */
-.jgk-modal-body::-webkit-scrollbar {
-    width: 8px;
-}
-
-.jgk-modal-body::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 4px;
-}
-
-.jgk-modal-body::-webkit-scrollbar-thumb {
-    background: #888;
-    border-radius: 4px;
-}
-
-.jgk-modal-body::-webkit-scrollbar-thumb:hover {
-    background: #555;
-}
 
 @media (max-width: 768px) {
     .jgk-form-row {
@@ -1090,11 +895,6 @@ $coaches = JuniorGolfKenya_User_Manager::get_available_coaches();
     .jgk-action-buttons {
         flex-direction: row;
         flex-wrap: wrap;
-    }
-    
-    .jgk-modal-content {
-        width: 90%;
-        margin: 5% auto;
     }
 }
 </style>
@@ -1118,49 +918,6 @@ function toggleAddMemberForm() {
         
         firstName.addEventListener('blur', updateDisplayName);
         lastName.addEventListener('blur', updateDisplayName);
-    }
-}
-
-function openStatusModal(memberId, memberName, currentStatus) {
-    document.getElementById('status-member-id').value = memberId;
-    document.getElementById('status-member-name').textContent = memberName;
-    document.getElementById('status-current').textContent = currentStatus.charAt(0).toUpperCase() + currentStatus.slice(1);
-    document.getElementById('new_status').value = currentStatus;
-    document.getElementById('status-modal').style.display = 'block';
-}
-
-function closeStatusModal() {
-    document.getElementById('status-modal').style.display = 'none';
-    document.getElementById('status-form').reset();
-}
-
-function openCoachModal(memberId, memberName) {
-    document.getElementById('coach-member-id').value = memberId;
-    document.getElementById('coach-member-name').textContent = memberName;
-    document.getElementById('coach-modal').style.display = 'block';
-}
-
-function closeCoachModal() {
-    document.getElementById('coach-modal').style.display = 'none';
-    document.getElementById('coach-form').reset();
-}
-
-function viewMemberDetails(memberId) {
-    // Open member details in new tab/window
-    const url = '<?php echo admin_url('admin.php?page=juniorgolfkenya-member-details&member_id='); ?>' + memberId;
-    window.open(url, '_blank');
-}
-
-// Close modals when clicking outside
-window.onclick = function(event) {
-    const statusModal = document.getElementById('status-modal');
-    const coachModal = document.getElementById('coach-modal');
-    
-    if (event.target === statusModal) {
-        closeStatusModal();
-    }
-    if (event.target === coachModal) {
-        closeCoachModal();
     }
 }
 

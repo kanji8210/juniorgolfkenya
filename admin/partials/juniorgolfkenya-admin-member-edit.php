@@ -99,8 +99,8 @@ if (!defined('ABSPATH')) {
                            max="<?php echo date('Y-m-d', strtotime('-2 years')); ?>"
                            min="<?php echo date('Y-m-d', strtotime('-18 years')); ?>">
                     <small style="color: #666;">Âge requis : 2-17 ans</small>
-                </div>
-                <div class="jgk-form-field">
+                </div>   
+                <div class="jgk-f rm-field">
                     <label for="gender">Gender</label>
                     <select id="gender" name="gender">
                         <option value="">Select Gender</option>
