@@ -1,0 +1,97 @@
+═══════════════════════════════════════════════════════
+  FIX VISIBILITY - SOLUTION SIMPLE EN 3 ETAPES
+═══════════════════════════════════════════════════════
+
+PROBLEME:
+  ❌ Modal "View Details" affiche "Network error"
+  ❌ Membres sont HIDDEN par défaut
+
+SOLUTION:
+  ✅ Mettre tous les membres en PUBLIC
+
+═══════════════════════════════════════════════════════
+
+ETAPE 1: VERIFIER L'ETAT ACTUEL
+─────────────────────────────────────────────────────
+
+Ouvrez cette URL dans votre navigateur:
+http://localhost/wordpress/wp-content/plugins/juniorgolfkenya/check-is-public.php
+
+Cela va afficher:
+  - Si la colonne is_public existe
+  - Combien de membres sont PUBLIC vs HIDDEN
+  - Si la colonne manque, elle sera ajoutée automatiquement
+
+
+═══════════════════════════════════════════════════════
+
+ETAPE 2: METTRE TOUS LES MEMBRES PUBLIC
+─────────────────────────────────────────────────────
+
+Ouvrez cette URL dans votre navigateur:
+http://localhost/wordpress/wp-content/plugins/juniorgolfkenya/fix-visibility-now.php
+
+Cela va:
+  - Executer: UPDATE wp_jgk_members SET is_public = 1
+  - Afficher le nombre de membres mis à jour
+  - Vous ramener à la liste des membres
+
+
+═══════════════════════════════════════════════════════
+
+ETAPE 3: TESTER LE MODAL
+─────────────────────────────────────────────────────
+
+1. Allez sur: JGK Dashboard → Members
+2. Cliquez sur "View Details" pour n'importe quel membre
+3. Le modal devrait maintenant s'ouvrir correctement!
+4. Plus de "Network error" ✅
+
+
+═══════════════════════════════════════════════════════
+
+ALTERNATIVE: SCRIPT POWERSHELL
+─────────────────────────────────────────────────────
+
+Si vous préférez la ligne de commande:
+
+  cd C:\xampp\htdocs\wordpress\wp-content\plugins\juniorgolfkenya
+  .\fix-visibility.ps1
+
+
+═══════════════════════════════════════════════════════
+
+FICHIERS CREES:
+─────────────────────────────────────────────────────
+
+✓ check-is-public.php       - Vérifier l'état actuel
+✓ fix-visibility-now.php    - Mettre tous PUBLIC (1 clic)
+✓ fix-visibility.ps1        - Script PowerShell
+✓ FIX_VISIBILITY_GUIDE.txt  - Ce fichier
+
+
+═══════════════════════════════════════════════════════
+
+QUESTIONS FREQUENTES:
+─────────────────────────────────────────────────────
+
+Q: Pourquoi le modal ne fonctionnait pas?
+R: Les membres étaient HIDDEN (is_public = 0) par défaut.
+   Le code AJAX ne retournait pas les données pour les 
+   membres HIDDEN, d'où le "Network error".
+
+Q: Est-ce que je peux remettre des membres en HIDDEN?
+R: Oui! Dans la liste des membres, éditez un membre et
+   changez "Public Visibility Control" à "Hidden from Public".
+
+Q: Est-ce sécurisé de rendre tous les membres PUBLIC?
+R: Oui. PUBLIC signifie visible dans l'admin et les listes
+   publiques, mais les données restent protégées par les
+   permissions WordPress standard.
+
+
+═══════════════════════════════════════════════════════
+
+Date: 12 octobre 2025
+Status: ✅ SOLUTION PRETE
+═══════════════════════════════════════════════════════

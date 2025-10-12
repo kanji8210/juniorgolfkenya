@@ -197,13 +197,18 @@ if (!defined('ABSPATH')) {
                     </p>
                     <?php endif; ?>
                 </div>
-                <div class="jgk-form-field">
-                    <label for="is_public">Public Visibility</label>
-                    <select id="is_public" name="is_public">
-                        <option value="1" <?php selected($edit_member->is_public ?? 0, 1); ?>>✓ Visible Publicly</option>
-                        <option value="0" <?php selected($edit_member->is_public ?? 0, 0); ?>>✗ Hidden from Public</option>
+                <div class="jgk-form-field" style="background: #f0f8ff; padding: 15px; border-left: 4px solid #0073aa; border-radius: 4px;">
+                    <label for="is_public" style="font-weight: 600; color: #0073aa; font-size: 14px;">
+                        🌐 Public Visibility Control
+                    </label>
+                    <select id="is_public" name="is_public" style="width: 100%; padding: 8px; margin-top: 8px;">
+                        <option value="1" <?php selected($edit_member->is_public ?? 1, 1); ?>>✅ Visible Publicly - Show in directories, galleries, and public listings</option>
+                        <option value="0" <?php selected($edit_member->is_public ?? 1, 0); ?>>🔒 Hidden from Public - Only visible to administrators and coaches</option>
                     </select>
-                    <small>Control if this member appears in public member directories, galleries, and listings</small>
+                    <small style="display: block; margin-top: 8px; color: #666; font-style: italic;">
+                        <strong>Important:</strong> Controls whether this member appears on public pages, member directories, galleries, and team listings. 
+                        When hidden, the member profile is only accessible to logged-in administrators and coaches.
+                    </small>
                 </div>
             </div>
             

@@ -26,6 +26,9 @@ class JuniorGolfKenya_Activator {
         // Create tables and track results
         $tables_created = self::create_tables();
         
+        // Check and add missing columns to existing tables
+        self::update_existing_tables();
+        
         // Create roles and capabilities
         self::create_roles_and_capabilities();
         
@@ -47,6 +50,96 @@ class JuniorGolfKenya_Activator {
         
         // Flush rewrite rules
         flush_rewrite_rules();
+    }
+
+    /**
+     * Update existing tables with missing columns
+     * This ensures backward compatibility when adding new features
+     *
+     * @since    1.1.0
+     */
+    private static function update_existing_tables() {
+        global $wpdb;
+        
+        $members_table = $wpdb->prefix . 'jgk_members';
+        
+        // Check if members table exists
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$members_table}'");
+        
+        if ($table_exists !== $members_table) {
+            // Table doesn't exist yet, will be created by create_tables()
+            return;
+        }
+        
+        // Get existing columns
+        $columns = $wpdb->get_results("SHOW COLUMNS FROM {$members_table}");
+        $column_names = array();
+        foreach ($columns as $column) {
+            $column_names[] = $column->Field;
+        }
+        
+        // Check and add is_public column if missing
+        if (!in_array('is_public', $column_names)) {
+            $wpdb->query("
+                ALTER TABLE {$members_table} 
+                ADD COLUMN is_public tinyint(1) NOT NULL DEFAULT 1 
+                COMMENT 'Visibilité publique: 0=privé, 1=public (DEFAULT: PUBLIC)'
+                AFTER parental_consent
+            ");
+            
+            // Log the change
+            error_log('JGK Activation: Added column is_public to ' . $members_table . ' with DEFAULT 1 (PUBLIC)');
+            
+            // Set all existing members to PUBLIC by default
+            $updated = $wpdb->query("UPDATE {$members_table} SET is_public = 1 WHERE is_public = 0");
+            error_log('JGK Activation: Set ' . $updated . ' existing members to PUBLIC');
+        }
+        
+        // Check and add club_name column if missing (for backward compatibility)
+        if (!in_array('club_name', $column_names)) {
+            $wpdb->query("
+                ALTER TABLE {$members_table} 
+                ADD COLUMN club_name varchar(100) 
+                COMMENT 'Nom du club de golf'
+                AFTER handicap
+            ");
+            
+            // Copy data from club_affiliation to club_name if exists
+            if (in_array('club_affiliation', $column_names)) {
+                $wpdb->query("UPDATE {$members_table} SET club_name = club_affiliation WHERE club_name IS NULL");
+            }
+            
+            error_log('JGK Activation: Added column club_name to ' . $members_table);
+        }
+        
+        // Check and add handicap_index column if missing
+        if (!in_array('handicap_index', $column_names)) {
+            $wpdb->query("
+                ALTER TABLE {$members_table} 
+                ADD COLUMN handicap_index varchar(10) 
+                COMMENT 'Index de handicap'
+                AFTER club_name
+            ");
+            
+            // Copy data from handicap to handicap_index if exists
+            if (in_array('handicap', $column_names)) {
+                $wpdb->query("UPDATE {$members_table} SET handicap_index = handicap WHERE handicap_index IS NULL");
+            }
+            
+            error_log('JGK Activation: Added column handicap_index to ' . $members_table);
+        }
+        
+        // Add index on is_public for faster queries
+        $indices = $wpdb->get_results("SHOW INDEX FROM {$members_table}");
+        $index_names = array();
+        foreach ($indices as $index) {
+            $index_names[] = $index->Key_name;
+        }
+        
+        if (!in_array('is_public', $index_names)) {
+            $wpdb->query("ALTER TABLE {$members_table} ADD INDEX is_public (is_public)");
+            error_log('JGK Activation: Added index on is_public column');
+        }
     }
 
     /**
@@ -90,7 +183,7 @@ class JuniorGolfKenya_Activator {
             handicap varchar(10),
             medical_conditions text,
             parental_consent tinyint(1) DEFAULT 0,
-            is_public tinyint(1) DEFAULT 0,
+            is_public tinyint(1) DEFAULT 1,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),

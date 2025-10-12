@@ -191,6 +191,10 @@ if (isset($_POST['action'])) {
                     'is_public' => isset($_POST['is_public']) ? intval($_POST['is_public']) : 0
                 );
                 
+                // Log for debugging
+                error_log('JGK Member Update - is_public value: ' . (isset($_POST['is_public']) ? $_POST['is_public'] : 'not set'));
+                error_log('JGK Member Update - Data: ' . print_r($member_data, true));
+                
                 $result = JuniorGolfKenya_Database::update_member($member_id, $member_data);
                 
                 if ($result) {
@@ -1182,12 +1186,16 @@ function openMemberDetailsModal(memberId) {
     // Get AJAX URL (fallback for compatibility)
     const ajaxUrl = (typeof jgkAjax !== 'undefined') ? jgkAjax.ajaxurl : '<?php echo admin_url('admin-ajax.php'); ?>';
     
+    console.log('JGK Modal Debug - Member ID:', memberId);
+    console.log('JGK Modal Debug - AJAX URL:', ajaxUrl);
+    
     // Fetch member details via AJAX
     jQuery.post(ajaxUrl, {
         action: 'jgk_get_member_details',
         member_id: memberId,
         nonce: '<?php echo wp_create_nonce('jgk_get_member_details'); ?>'
     }, function(response) {
+        console.log('JGK Modal Debug - Response received:', response);
         if (response.success) {
             const member = response.data;
             let html = '<div class="member-details-wrapper">';
@@ -1311,10 +1319,19 @@ function openMemberDetailsModal(memberId) {
             
             contentDiv.innerHTML = html;
         } else {
-            contentDiv.innerHTML = '<div style="text-align: center; padding: 40px; color: #d63638;"><span class="dashicons dashicons-warning" style="font-size: 48px; margin-bottom: 10px;"></span><p>' + (response.data || 'Failed to load member details') + '</p></div>';
+            console.error('JGK Modal Debug - Error in response:', response);
+            const errorMsg = response.data ? response.data.message || response.data : 'Failed to load member details';
+            contentDiv.innerHTML = '<div style="text-align: center; padding: 40px; color: #d63638;"><span class="dashicons dashicons-warning" style="font-size: 48px; margin-bottom: 10px;"></span><p>' + errorMsg + '</p><p style="font-size: 12px; color: #999; margin-top: 20px;">Check browser console (F12) for more details.</p></div>';
         }
-    }).fail(function() {
-        contentDiv.innerHTML = '<div style="text-align: center; padding: 40px; color: #d63638;"><span class="dashicons dashicons-warning" style="font-size: 48px; margin-bottom: 10px;"></span><p>Network error. Please try again.</p></div>';
+    }).fail(function(jqXHR, textStatus, errorThrown) {
+        console.error('JGK Modal Debug - AJAX Failed:', {
+            status: jqXHR.status,
+            statusText: jqXHR.statusText,
+            textStatus: textStatus,
+            errorThrown: errorThrown,
+            responseText: jqXHR.responseText
+        });
+        contentDiv.innerHTML = '<div style="text-align: center; padding: 40px; color: #d63638;"><span class="dashicons dashicons-warning" style="font-size: 48px; margin-bottom: 10px;"></span><p>Network error. Please try again.</p><p style="font-size: 12px; color: #999; margin-top: 10px;">Status: ' + jqXHR.status + ' - ' + textStatus + '</p><p style="font-size: 12px; color: #999;">Check browser console (F12) for more details.</p></div>';
     });
 }
 
