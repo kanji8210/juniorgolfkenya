@@ -65,9 +65,10 @@ class JuniorGolfKenya_Admin {
     public function enqueue_scripts() {
         wp_enqueue_script($this->plugin_name, JUNIORGOLFKENYA_PLUGIN_URL . 'admin/js/juniorgolfkenya-admin.js', array('jquery'), $this->version, false);
         
-        // Localize script with AJAX URL
+        // Localize script with AJAX URL and nonces
         wp_localize_script($this->plugin_name, 'jgkAjax', array(
-            'ajaxurl' => admin_url('admin-ajax.php')
+            'ajaxurl' => admin_url('admin-ajax.php'),
+            'members_nonce' => wp_create_nonce('jgk_members_action')
         ));
     }
 
