@@ -91,17 +91,62 @@ class JuniorGolfKenya_WooCommerce {
     private static function order_contains_membership_product($order) {
         $membership_product_id = get_option('jgk_membership_product_id', 0);
 
+        // Advanced Payment Debug Logging
+        error_log("JGK PAYMENT DEBUG: === Payment Check Started ===");
+        error_log("JGK PAYMENT DEBUG: Order ID: " . $order->get_id());
+        error_log("JGK PAYMENT DEBUG: Membership Product ID from settings: " . ($membership_product_id ?: 'NOT SET'));
+
         if (!$membership_product_id) {
+            error_log("JGK PAYMENT DEBUG: ❌ No membership product ID configured in plugin settings");
+            error_log("JGK PAYMENT DEBUG: === Payment Check Failed - No Product ID ===");
             return false;
         }
 
+        error_log("JGK PAYMENT DEBUG: ✅ Membership product ID is configured: {$membership_product_id}");
+
+        // Check if product exists in WooCommerce
+        $product = wc_get_product($membership_product_id);
+        if (!$product) {
+            error_log("JGK PAYMENT DEBUG: ❌ Membership product ID {$membership_product_id} does not exist in WooCommerce");
+            error_log("JGK PAYMENT DEBUG: === Payment Check Failed - Product Not Found ===");
+            return false;
+        }
+
+        error_log("JGK PAYMENT DEBUG: ✅ Membership product exists: '" . $product->get_name() . "' (ID: {$membership_product_id})");
+
+        // Count total payments for this membership product
+        global $wpdb;
+        $payments_count = $wpdb->get_var($wpdb->prepare("
+            SELECT COUNT(*) FROM {$wpdb->prefix}jgk_payments
+            WHERE membership_id IS NOT NULL AND status = 'completed'
+        "));
+        error_log("JGK PAYMENT DEBUG: 📊 Total completed membership payments: " . ($payments_count ?: 0));
+
+        // Count payments specifically for this product via WooCommerce orders
+        $wc_payments_count = $wpdb->get_var($wpdb->prepare("
+            SELECT COUNT(DISTINCT o.ID)
+            FROM {$wpdb->postmeta} pm
+            INNER JOIN {$wpdb->posts} o ON pm.post_id = o.ID
+            WHERE pm.meta_key = '_product_id'
+            AND pm.meta_value = %s
+            AND o.post_type = 'shop_order'
+            AND o.post_status IN ('wc-completed', 'wc-processing')
+        ", $membership_product_id));
+        error_log("JGK PAYMENT DEBUG: 🛒 WooCommerce orders with this membership product: " . ($wc_payments_count ?: 0));
+
         foreach ($order->get_items() as $item) {
             $product_id = $item->get_product_id();
+            error_log("JGK PAYMENT DEBUG: Checking order item - Product ID: {$product_id}, Quantity: " . $item->get_quantity() . ", Name: '" . $item->get_name() . "'");
+
             if ($product_id == $membership_product_id) {
+                error_log("JGK PAYMENT DEBUG: ✅ MATCH FOUND - Order contains membership product!");
+                error_log("JGK PAYMENT DEBUG: === Payment Check Successful ===");
                 return true;
             }
         }
 
+        error_log("JGK PAYMENT DEBUG: ❌ No membership product found in order items");
+        error_log("JGK PAYMENT DEBUG: === Payment Check Failed - Product Not In Order ===");
         return false;
     }
 
@@ -115,7 +160,13 @@ class JuniorGolfKenya_WooCommerce {
         $membership_product_id = get_option('jgk_membership_product_id', 0);
         $customer_id = $order->get_customer_id();
 
+        error_log("JGK PAYMENT DEBUG: === Payment Processing Started ===");
+        error_log("JGK PAYMENT DEBUG: Processing order ID: " . $order->get_id() . " for customer ID: " . ($customer_id ?: 'GUEST'));
+        error_log("JGK PAYMENT DEBUG: Membership Product ID: " . ($membership_product_id ?: 'NOT SET'));
+
         if (!$membership_product_id || !$customer_id) {
+            error_log("JGK PAYMENT DEBUG: ❌ Payment processing failed - Missing product ID or customer ID");
+            error_log("JGK PAYMENT DEBUG: === Payment Processing Aborted ===");
             error_log("JGK: Missing membership product ID or customer ID for order {$order->get_id()}");
             return;
         }
@@ -124,15 +175,23 @@ class JuniorGolfKenya_WooCommerce {
         $member = JuniorGolfKenya_Database::get_member_by_user_id($customer_id);
 
         if (!$member) {
+            error_log("JGK PAYMENT DEBUG: ❌ No member found for customer ID {$customer_id}");
+            error_log("JGK PAYMENT DEBUG: === Payment Processing Aborted - No Member ===");
             error_log("JGK: No member found for user ID {$customer_id} in order {$order->get_id()}");
             return;
         }
 
+        error_log("JGK PAYMENT DEBUG: ✅ Member found - ID: {$member->id}, Name: {$member->first_name} {$member->last_name}, Status: {$member->status}");
+
         // Check if member is approved (should be before payment)
         if ($member->status !== 'approved') {
+            error_log("JGK PAYMENT DEBUG: ❌ Member status is '{$member->status}' - must be 'approved' for payment processing");
+            error_log("JGK PAYMENT DEBUG: === Payment Processing Aborted - Member Not Approved ===");
             error_log("JGK: Member {$member->id} is not approved for payment processing in order {$order->get_id()}");
             return;
         }
+
+        error_log("JGK PAYMENT DEBUG: ✅ Member is approved for payment processing");
 
         // Calculate membership amount from order
         $membership_amount = 0;
@@ -140,14 +199,19 @@ class JuniorGolfKenya_WooCommerce {
             $product_id = $item->get_product_id();
             if ($product_id == $membership_product_id) {
                 $membership_amount = $item->get_total();
+                error_log("JGK PAYMENT DEBUG: 📦 Found membership product in order - Amount: {$membership_amount}");
                 break;
             }
         }
 
         if ($membership_amount <= 0) {
+            error_log("JGK PAYMENT DEBUG: ❌ Invalid membership amount: {$membership_amount}");
+            error_log("JGK PAYMENT DEBUG: === Payment Processing Aborted - Invalid Amount ===");
             error_log("JGK: Invalid membership amount for order {$order->get_id()}");
             return;
         }
+
+        error_log("JGK PAYMENT DEBUG: 💰 Valid membership amount: {$membership_amount}");
 
         // Record the payment in JGK system
         $payment_id = JuniorGolfKenya_Database::record_payment(
@@ -160,9 +224,13 @@ class JuniorGolfKenya_WooCommerce {
         );
 
         if (!$payment_id) {
+            error_log("JGK PAYMENT DEBUG: ❌ Failed to record payment in JGK database");
+            error_log("JGK PAYMENT DEBUG: === Payment Processing Failed ===");
             error_log("JGK: Failed to record payment for member {$member->id} in order {$order->get_id()}");
             return;
         }
+
+        error_log("JGK PAYMENT DEBUG: ✅ Payment recorded in JGK database (Payment ID: {$payment_id})");
 
         // Update member status to active
         $user_manager = new JuniorGolfKenya_User_Manager();
@@ -172,8 +240,16 @@ class JuniorGolfKenya_WooCommerce {
             // Send payment confirmation email
             $user_manager->send_payment_confirmation_email($member->id, $membership_amount);
 
+            error_log("JGK PAYMENT DEBUG: ✅ Member status updated to 'active'");
+            error_log("JGK PAYMENT DEBUG: ✅ Payment confirmation email sent");
+            error_log("JGK PAYMENT DEBUG: 🎉 SUCCESSFULLY PROCESSED MEMBERSHIP PAYMENT!");
+            error_log("JGK PAYMENT DEBUG: Member ID: {$member->id}, Amount: {$membership_amount}, Order ID: {$order->get_id()}");
+            error_log("JGK PAYMENT DEBUG: === Payment Processing Completed Successfully ===");
+
             error_log("JGK: Successfully processed membership payment for member {$member->id} via WooCommerce order {$order->get_id()}");
         } else {
+            error_log("JGK PAYMENT DEBUG: ❌ Failed to update member status to 'active'");
+            error_log("JGK PAYMENT DEBUG: === Payment Processing Partially Failed ===");
             error_log("JGK: Failed to update member status for member {$member->id} in order {$order->get_id()}");
         }
     }

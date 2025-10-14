@@ -288,6 +288,34 @@ if ($search) {
     $total_members = JuniorGolfKenya_Database::get_members_count($status_filter);
 }
 
+// Debug information
+error_log("JGK Debug: Page: $page, Per Page: $per_page, Status Filter: '$status_filter', Search: '$search'");
+error_log("JGK Debug: Members count: " . (is_array($members) ? count($members) : 'Not an array'));
+error_log("JGK Debug: Total members: $total_members");
+if (is_array($members) && count($members) > 0) {
+    error_log("JGK Debug: First member ID: " . $members[0]->id);
+} elseif (is_array($members)) {
+    error_log("JGK Debug: Members array is empty");
+} else {
+    error_log("JGK Debug: Members is not an array: " . gettype($members));
+}
+
+// Additional debug: Check raw database count
+global $wpdb;
+$raw_count = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}jgk_members");
+$table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$wpdb->prefix}jgk_members'");
+error_log("JGK Debug: Raw database count: $raw_count");
+error_log("JGK Debug: Table exists: " . ($table_exists ? 'Yes' : 'No'));
+
+// Check table structure
+if ($table_exists) {
+    $columns = $wpdb->get_results("DESCRIBE {$wpdb->prefix}jgk_members");
+    error_log("JGK Debug: Table columns: " . count($columns));
+    foreach ($columns as $column) {
+        error_log("JGK Debug: Column {$column->Field}: {$column->Type}");
+    }
+}
+
 $total_pages = ceil($total_members / $per_page);
 
 // Get statistics
@@ -664,6 +692,66 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
     });
     </script>
 
+    <script>
+    // Inline Member Details Toggle Functions
+    function toggleMemberDetails(memberId) {
+        const detailsRow = document.getElementById('member-details-' + memberId);
+        const toggleButton = document.querySelector(`[data-member-id="${memberId}"]`);
+        const viewText = toggleButton ? toggleButton.querySelector('.view-text') : null;
+        const hideText = toggleButton ? toggleButton.querySelector('.hide-text') : null;
+
+        if (!detailsRow || !toggleButton || !viewText || !hideText) {
+            return;
+        }
+
+        if (detailsRow.style.display === 'none' || detailsRow.style.display === '') {
+            // Show details
+            detailsRow.style.display = 'table-row';
+            viewText.style.display = 'none';
+            hideText.style.display = 'inline';
+            toggleButton.classList.add('expanded');
+
+            // Smooth animation
+            const content = detailsRow.querySelector('.member-details-content');
+            if (content) {
+                content.style.maxHeight = '0px';
+                content.style.overflow = 'hidden';
+                content.style.transition = 'max-height 0.3s ease-in-out';
+
+                // Force reflow
+                content.offsetHeight;
+
+                content.style.maxHeight = content.scrollHeight + 'px';
+
+                setTimeout(() => {
+                    content.style.maxHeight = 'none';
+                    content.style.overflow = 'visible';
+                }, 300);
+            }
+
+        } else {
+            // Hide details
+            const content = detailsRow.querySelector('.member-details-content');
+            if (content) {
+                content.style.maxHeight = content.scrollHeight + 'px';
+                content.style.overflow = 'hidden';
+                content.style.transition = 'max-height 0.3s ease-in-out';
+
+                setTimeout(() => {
+                    content.style.maxHeight = '0px';
+                }, 10);
+
+                setTimeout(() => {
+                    detailsRow.style.display = 'none';
+                    viewText.style.display = 'inline';
+                    hideText.style.display = 'none';
+                    toggleButton.classList.remove('expanded');
+                }, 300);
+            }
+        }
+    }
+    </script>
+
     <!-- Filters and Search -->
     <div class="tablenav top">
         <div class="alignleft actions">
@@ -695,6 +783,18 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
 
     <!-- Members Table -->
     <div class="jgk-table-container">
+        <!-- Debug Information -->
+        <div style="background: #f0f0f0; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; font-family: monospace; font-size: 12px;">
+            <strong>Debug Info:</strong><br>
+            Page: <?php echo $page; ?> | Per Page: <?php echo $per_page; ?> | Status Filter: '<?php echo $status_filter; ?>' | Search: '<?php echo $search; ?>'<br>
+            Members Count: <?php echo is_array($members) ? count($members) : 'Not an array'; ?> | Total Members: <?php echo $total_members; ?> | Total Pages: <?php echo $total_pages; ?><br>
+            <?php if (is_array($members) && count($members) > 0): ?>
+                First Member ID: <?php echo $members[0]->id; ?> | Name: <?php echo esc_html($members[0]->first_name . ' ' . $members[0]->last_name); ?>
+                <br><button onclick="console.log('Testing toggle...'); toggleMemberDetails(<?php echo $members[0]->id; ?>)">Test Toggle First Member</button>
+                <button onclick="console.log('JGK Debug: Checking elements...'); console.log('Details row:', document.getElementById('member-details-<?php echo $members[0]->id; ?>')); console.log('Toggle button:', document.querySelector('[data-member-id=\"<?php echo $members[0]->id; ?>\"]'));">Check Elements</button>
+            <?php endif; ?>
+        </div>
+
         <table class="wp-list-table widefat fixed striped jgk-table">
             <thead>
                 <tr>
@@ -716,6 +816,18 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
                     <td colspan="10">No members found.</td>
                 </tr>
                 <?php else: ?>
+                <!-- Debug row to show member data -->
+                <tr style="background: #ffeaa7;">
+                    <td colspan="10" style="font-family: monospace; font-size: 11px;">
+                        <strong>Debug - Members Array:</strong><br>
+                        <?php
+                        echo 'Count: ' . count($members) . '<br>';
+                        foreach ($members as $index => $member) {
+                            echo "[$index] ID: {$member->id}, Name: " . esc_html($member->first_name . ' ' . $member->last_name) . ", Status: {$member->status}<br>";
+                        }
+                        ?>
+                    </td>
+                </tr>
                 <?php foreach ($members as $member): ?>
                 <tr>
                     <td>
@@ -792,9 +904,11 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
                             </form>
                             
                             <!-- View Details -->
-                            <button type="button" class="button button-small jgk-button-view" 
-                                    onclick="viewMemberDetails(<?php echo $member->id; ?>)">
-                                View Details
+                            <button type="button" class="button button-small jgk-button-view jgk-toggle-details"
+                                    data-member-id="<?php echo $member->id; ?>"
+                                    onclick="toggleMemberDetails(<?php echo $member->id; ?>)">
+                                <span class="view-text">View Details</span>
+                                <span class="hide-text" style="display: none;">Hide Details</span>
                             </button>
                             
                             <!-- Edit Member -->
@@ -802,6 +916,114 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
                                class="button button-small jgk-button-edit">
                                 Edit Member
                             </a>
+                        </div>
+                    </td>
+                </tr>
+                <!-- Expandable Member Details Row -->
+                <tr class="member-details-row" id="member-details-<?php echo $member->id; ?>" style="display: none;">
+                    <td colspan="10" class="member-details-cell">
+                        <div class="member-details-content">
+                            <?php
+                            // Get member details data
+                            $member_parents = JuniorGolfKenya_Database::get_member_parents($member->id);
+                            $coach_name = $member->primary_coach_name;
+                            $age = $member->date_of_birth ? floor((time() - strtotime($member->date_of_birth)) / 31556926) : null;
+                            ?>
+
+                            <div class="member-details-wrapper">
+                                <!-- Profile section -->
+                                <div class="member-profile-section">
+                                    <div class="member-profile-header">
+                                        <?php echo JuniorGolfKenya_Media::get_profile_image_html(
+                                            $member->id,
+                                            'medium',
+                                            array(
+                                                'style' => 'width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid #0073aa;',
+                                                'class' => 'member-profile-image'
+                                            )
+                                        ); ?>
+                                        <div class="member-profile-info">
+                                            <h3><?php echo esc_html($member->first_name . ' ' . $member->last_name); ?></h3>
+                                            <p class="member-email"><?php echo esc_html($member->user_email); ?></p>
+                                            <span class="member-status-badge status-<?php echo esc_attr($member->status); ?>">
+                                                <?php echo ucfirst(esc_html($member->status)); ?>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Details grid -->
+                                <div class="member-details-grid">
+                                    <!-- Personal Information -->
+                                    <div class="member-details-section">
+                                        <h4>Personal Information</h4>
+                                        <div class="member-details-table">
+                                            <div class="detail-row"><span class="detail-label">Full Name:</span><span class="detail-value"><?php echo esc_html($member->first_name . ' ' . $member->last_name); ?></span></div>
+                                            <div class="detail-row"><span class="detail-label">Email:</span><span class="detail-value"><?php echo esc_html($member->user_email); ?></span></div>
+                                            <div class="detail-row"><span class="detail-label">Phone:</span><span class="detail-value"><?php echo esc_html($member->phone ?: 'Not provided'); ?></span></div>
+                                            <div class="detail-row"><span class="detail-label">Date of Birth:</span><span class="detail-value"><?php echo esc_html($member->date_of_birth ?: 'Not provided'); ?></span></div>
+                                            <div class="detail-row"><span class="detail-label">Age:</span><span class="detail-value"><?php echo esc_html($age ?: 'Not calculated'); ?></span></div>
+                                            <div class="detail-row"><span class="detail-label">Gender:</span><span class="detail-value"><?php echo esc_html($member->gender ?: 'Not specified'); ?></span></div>
+                                            <div class="detail-row"><span class="detail-label">Golf Handicap:</span><span class="detail-value"><?php echo esc_html($member->handicap ?: 'Not set'); ?></span></div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Membership Details -->
+                                    <div class="member-details-section">
+                                        <h4>Membership Details</h4>
+                                        <div class="member-details-table">
+                                            <div class="detail-row"><span class="detail-label">Membership Type:</span><span class="detail-value"><?php echo esc_html(ucfirst($member->membership_type)); ?></span></div>
+                                            <div class="detail-row"><span class="detail-label">Status:</span><span class="detail-value"><span class="member-status-badge status-<?php echo esc_attr($member->status); ?>"><?php echo ucfirst(esc_html($member->status)); ?></span></span></div>
+                                            <div class="detail-row"><span class="detail-label">Club Affiliation:</span><span class="detail-value"><?php echo esc_html($member->club_affiliation ?: 'None'); ?></span></div>
+                                            <div class="detail-row"><span class="detail-label">Assigned Coach:</span><span class="detail-value"><?php echo esc_html($coach_name ?: 'No coach assigned'); ?></span></div>
+                                            <div class="detail-row"><span class="detail-label">Public Visibility:</span><span class="detail-value">
+                                                <?php if ($member->is_public): ?>
+                                                    <span style="color: #28a745;">✓ Visible on public pages</span>
+                                                <?php else: ?>
+                                                    <span style="color: #dc3545;">✗ Hidden from public</span>
+                                                <?php endif; ?>
+                                            </span></div>
+                                            <div class="detail-row"><span class="detail-label">Member Since:</span><span class="detail-value"><?php echo date('M j, Y', strtotime($member->created_at)); ?></span></div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Emergency Contact -->
+                                    <div class="member-details-section">
+                                        <h4>Emergency Contact</h4>
+                                        <div class="member-details-table">
+                                            <div class="detail-row"><span class="detail-label">Contact Name:</span><span class="detail-value"><?php echo esc_html($member->emergency_contact_name ?: 'Not provided'); ?></span></div>
+                                            <div class="detail-row"><span class="detail-label">Contact Phone:</span><span class="detail-value"><?php echo esc_html($member->emergency_contact_phone ?: 'Not provided'); ?></span></div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Additional Information -->
+                                    <div class="member-details-section">
+                                        <h4>Additional Information</h4>
+                                        <div class="member-details-table">
+                                            <div class="detail-row"><span class="detail-label">Medical Conditions:</span><span class="detail-value"><?php echo esc_html($member->medical_conditions ?: 'None specified'); ?></span></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Parents section -->
+                                <?php if (!empty($member_parents)): ?>
+                                <div class="member-details-section">
+                                    <h4>Parent/Guardian Information</h4>
+                                    <div class="parents-list">
+                                        <?php foreach ($member_parents as $parent): ?>
+                                        <div class="parent-item">
+                                            <div class="parent-details">
+                                                <strong><?php echo esc_html($parent->first_name . ' ' . $parent->last_name); ?></strong>
+                                                <br><small>Email: <?php echo esc_html($parent->email); ?></small>
+                                                <br><small>Phone: <?php echo esc_html($parent->phone ?: 'Not provided'); ?></small>
+                                                <br><small>Relationship: <?php echo esc_html($parent->relationship ?: 'Not specified'); ?></small>
+                                            </div>
+                                        </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     </td>
                 </tr>
@@ -831,23 +1053,7 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
     <?php endif; ?>
 </div>
 
-<!-- Member Details Modal -->
-<div id="member-details-modal" class="jgk-modal" style="display: none;">
-    <div class="jgk-modal-overlay" onclick="closeMemberDetailsModal()"></div>
-    <div class="jgk-modal-content">
-        <div class="jgk-modal-header">
-            <h2>Member Details</h2>
-            <button type="button" class="jgk-modal-close" onclick="closeMemberDetailsModal()">&times;</button>
-        </div>
-        <div class="jgk-modal-body">
-            <div id="member-details-content">
-                <div class="member-details-loading">
-                    <p>Loading member details...</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+
 
 <style>
 .jgk-form-section {
@@ -968,82 +1174,23 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
     }
 }
 
-/* Member Details Modal Styles */
-.jgk-modal {
-    display: none;
-    position: fixed;
-    z-index: 10000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
+/* Inline Member Details Styles */
+.member-details-row {
+    background-color: #f8f9fa;
 }
 
-.jgk-modal-overlay {
-    position: absolute;
-    width: 100%;
-    height: 100%;
+.member-details-cell {
+    padding: 0 !important;
+    border-top: none;
 }
 
-.jgk-modal-content {
-    position: relative;
-    background-color: #fff;
-    margin: 5% auto;
-    padding: 0;
-    border-radius: 8px;
-    width: 90%;
-    max-width: 1000px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-    max-height: 90vh;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-}
-
-.jgk-modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 20px 30px;
-    border-bottom: 1px solid #ddd;
+.member-details-content {
+    padding: 20px;
     background: #f8f9fa;
+    border-radius: 0 0 8px 8px;
+    overflow: hidden;
 }
 
-.jgk-modal-header h2 {
-    margin: 0;
-    color: #23282d;
-    font-size: 24px;
-}
-
-.jgk-modal-close {
-    background: none;
-    border: none;
-    font-size: 28px;
-    cursor: pointer;
-    color: #666;
-    padding: 0;
-    width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    transition: background-color 0.2s;
-}
-
-.jgk-modal-close:hover {
-    background-color: #f0f0f0;
-    color: #333;
-}
-
-.jgk-modal-body {
-    padding: 30px;
-    overflow-y: auto;
-    flex: 1;
-}
-
-/* Member Details Content Styles */
 .member-details-wrapper {
     max-width: none;
 }
@@ -1054,6 +1201,7 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
     padding: 20px;
     background: linear-gradient(135deg, #f6f9fc 0%, #ffffff 100%);
     border-radius: 8px;
+    border: 1px solid #e1e8ed;
 }
 
 .member-profile-header {
@@ -1066,20 +1214,20 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
 .member-profile-info h3 {
     margin: 0 0 5px 0;
     color: #23282d;
-    font-size: 28px;
+    font-size: 24px;
 }
 
 .member-email {
     color: #666;
-    font-size: 16px;
+    font-size: 14px;
     margin-bottom: 10px;
 }
 
 .member-status-badge {
     display: inline-block;
-    padding: 6px 12px;
-    border-radius: 20px;
-    font-size: 14px;
+    padding: 4px 10px;
+    border-radius: 15px;
+    font-size: 12px;
     font-weight: 600;
     text-transform: uppercase;
 }
@@ -1088,6 +1236,12 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
     background-color: #d4edda;
     color: #155724;
     border: 1px solid #c3e6cb;
+}
+
+.member-status-badge.status-approved {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
 }
 
 .member-status-badge.status-pending {
@@ -1110,36 +1264,38 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
 
 .member-details-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-    gap: 30px;
-    margin-bottom: 30px;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
 }
 
 .member-details-section {
     background: #fff;
     border: 1px solid #ddd;
-    border-radius: 8px;
-    padding: 20px;
+    border-radius: 6px;
+    padding: 15px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 .member-details-section h4 {
-    margin: 0 0 20px 0;
+    margin: 0 0 15px 0;
     color: #23282d;
     border-bottom: 2px solid #0073aa;
-    padding-bottom: 10px;
-    font-size: 18px;
+    padding-bottom: 8px;
+    font-size: 16px;
 }
 
 .member-details-table {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
 }
 
 .detail-row {
     display: flex;
-    padding: 8px 0;
+    padding: 6px 0;
     border-bottom: 1px solid #f0f0f1;
+    align-items: flex-start;
 }
 
 .detail-row:last-child {
@@ -1149,68 +1305,88 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
 .detail-label {
     font-weight: 600;
     color: #666;
-    min-width: 140px;
+    min-width: 120px;
     flex-shrink: 0;
+    font-size: 13px;
 }
 
 .detail-value {
     color: #23282d;
     flex: 1;
+    font-size: 13px;
+    line-height: 1.4;
 }
 
-.member-details-loading {
-    text-align: center;
-    padding: 40px;
+.parents-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.parent-item {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    padding: 12px;
+}
+
+.parent-details strong {
+    color: #23282d;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.parent-details small {
     color: #666;
+    display: block;
+    line-height: 1.3;
 }
 
-.member-details-loading p {
-    font-size: 16px;
-    margin: 0;
+/* Toggle Button Styles */
+.jgk-toggle-details.expanded {
+    background-color: #0073aa !important;
+    color: white !important;
+    border-color: #0073aa !important;
 }
 
-/* Responsive Design for Modal */
+.jgk-toggle-details.expanded:hover {
+    background-color: #005a87 !important;
+    border-color: #005a87 !important;
+}
+
+/* Responsive Design for Inline Details */
 @media (max-width: 768px) {
-    .jgk-modal-content {
-        width: 95%;
-        margin: 2% auto;
-        max-height: 96vh;
+    .member-details-content {
+        padding: 15px;
     }
-    
-    .jgk-modal-header {
-        padding: 15px 20px;
-    }
-    
-    .jgk-modal-header h2 {
-        font-size: 20px;
-    }
-    
-    .jgk-modal-body {
-        padding: 20px;
-    }
-    
+
     .member-profile-header {
         flex-direction: column;
         text-align: center;
+        gap: 15px;
     }
-    
+
     .member-profile-info h3 {
-        font-size: 24px;
+        font-size: 20px;
     }
-    
+
     .member-details-grid {
         grid-template-columns: 1fr;
-        gap: 20px;
+        gap: 15px;
     }
-    
+
     .detail-row {
         flex-direction: column;
         gap: 4px;
     }
-    
+
     .detail-label {
         min-width: auto;
-        font-size: 14px;
+        font-size: 12px;
+    }
+
+    .detail-value {
+        font-size: 12px;
     }
 }
 </style>
@@ -1250,73 +1426,28 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    
+    // Page load debug
+    console.log('JGK Debug: Page loaded successfully');
+    console.log('JGK Debug: toggleMemberDetails function exists:', typeof toggleMemberDetails);
+    console.log('JGK Debug: jgkAjax exists:', typeof jgkAjax);
+    
+    // Check if member detail rows exist
+    const detailRows = document.querySelectorAll('[id^="member-details-"]');
+    console.log('JGK Debug: Found detail rows:', detailRows.length);
+    
+    // Check if toggle buttons exist
+    const toggleButtons = document.querySelectorAll('[data-member-id]');
+    console.log('JGK Debug: Found toggle buttons:', toggleButtons.length);
+    
+    // Log each button's data-member-id
+    toggleButtons.forEach(button => {
+        console.log('JGK Debug: Button data-member-id:', button.getAttribute('data-member-id'));
+    });
 });
 </script>
 
 <script>
-// Member Details Modal Functions
-function viewMemberDetails(memberId) {
-    const modal = document.getElementById('member-details-modal');
-    const content = document.getElementById('member-details-content');
-    
-    // Show modal with loading
-    modal.style.display = 'block';
-    content.innerHTML = '<div class="member-details-loading"><p>Loading member details...</p></div>';
-    
-    // Debug: Log AJAX parameters
-    console.log('JGK AJAX Debug:', {
-        ajaxurl: jgkAjax.ajaxurl,
-        nonce: jgkAjax.members_nonce,
-        memberId: memberId
-    });
-    
-    // Fetch member details via AJAX
-    fetch(jgkAjax.ajaxurl, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-            'action': 'jgk_get_member_details',
-            'member_id': memberId,
-            'nonce': jgkAjax.members_nonce
-        })
-    })
-    .then(response => {
-        console.log('JGK Response status:', response.status);
-        console.log('JGK Response ok:', response.ok);
-        console.log('JGK Response headers:', response.headers);
-        if (!response.ok) {
-            throw new Error('HTTP ' + response.status + ': ' + response.statusText);
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            content.innerHTML = data.html;
-        } else {
-            content.innerHTML = '<div class="notice notice-error"><p>Error loading member details: ' + (data.message || 'Unknown error') + '</p></div>';
-        }
-    })
-    .catch(error => {
-        console.error('JGK AJAX Error Details:', {
-            error: error,
-            message: error.message,
-            stack: error.stack,
-            name: error.name
-        });
-        content.innerHTML = '<div class="notice notice-error"><p>Error loading member details: ' + error.message + '. Please try again.</p></div>';
-    });
-}
-
-// Close member details modal
-function closeMemberDetailsModal() {
-    const modal = document.getElementById('member-details-modal');
-    if (modal) {
-        modal.style.display = 'none';
-    }
-}
-
 // Debug function to test AJAX connectivity
 function jgkTestAjax() {
     console.log('JGK Test: Testing AJAX connectivity...');

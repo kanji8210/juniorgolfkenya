@@ -51,89 +51,12 @@ class JuniorGolfKenya_Member_Details {
      * @since    1.0.0
      */
     public function init() {
-        add_action('wp_ajax_jgk_get_member_details', array($this, 'ajax_get_member_details'));
-        
+        // AJAX functionality removed - now using inline expansion
+        // add_action('wp_ajax_jgk_get_member_details', array($this, 'ajax_get_member_details'));
+
         // Add debug hook if enabled
         if ($this->debug_mode) {
             add_action('wp_ajax_jgk_debug_member_details', array($this, 'debug_member_details'));
-        }
-    }
-
-    /**
-     * AJAX callback for getting member details.
-     *
-     * Handles the AJAX request for displaying member details in a modal.
-     * Validates permissions, retrieves member data, and generates HTML response.
-     *
-     * @since    1.0.0
-     */
-    public function ajax_get_member_details() {
-        $start_time = microtime(true);
-        $this->log_debug('AJAX request started', 'INFO', $_POST);
-
-        try {
-            // Load required classes
-            $this->load_dependencies();
-
-            // Validate request
-            $validation_result = $this->validate_request();
-            if (is_wp_error($validation_result)) {
-                $this->log_debug('Request validation failed: ' . $validation_result->get_error_message(), 'ERROR');
-                wp_send_json_error(array(
-                    'message' => $validation_result->get_error_message(),
-                    'code' => $validation_result->get_error_code()
-                ));
-                return;
-            }
-
-            $member_id = absint($_POST['member_id']);
-            $this->log_debug("Processing member ID: {$member_id}", 'INFO');
-
-            // Get member data
-            $member_data = $this->get_member_data($member_id);
-            if (is_wp_error($member_data)) {
-                $this->log_debug('Member data retrieval failed: ' . $member_data->get_error_message(), 'ERROR');
-                wp_send_json_error(array(
-                    'message' => $member_data->get_error_message(),
-                    'code' => $member_data->get_error_code()
-                ));
-                return;
-            }
-
-            $this->log_debug("Member data retrieved successfully", 'INFO', array(
-                'member_id' => $member_id,
-                'member_name' => $member_data->member->first_name . ' ' . $member_data->member->last_name,
-                'parents_count' => is_countable($member_data->parents) ? count($member_data->parents) : 0
-            ));
-
-            // Generate HTML response
-            $html = $this->generate_member_details_html($member_data);
-
-            $execution_time = round((microtime(true) - $start_time) * 1000, 2);
-            $this->log_debug("AJAX request completed successfully in {$execution_time}ms", 'INFO', array(
-                'html_length' => strlen($html),
-                'execution_time_ms' => $execution_time
-            ));
-
-            wp_send_json_success(array(
-                'html' => $html,
-                'execution_time' => $execution_time
-            ));
-
-        } catch (Exception $e) {
-            $execution_time = round((microtime(true) - $start_time) * 1000, 2);
-            $this->log_debug("Exception occurred: " . $e->getMessage(), 'CRITICAL', array(
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString(),
-                'execution_time_ms' => $execution_time
-            ));
-
-            wp_send_json_error(array(
-                'message' => 'Error generating member details: ' . $e->getMessage(),
-                'code' => 'internal_error',
-                'execution_time' => $execution_time
-            ));
         }
     }
 
