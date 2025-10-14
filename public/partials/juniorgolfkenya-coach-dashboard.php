@@ -121,10 +121,6 @@ $performance = JuniorGolfKenya_Coach_Dashboard::get_performance_metrics($coach_i
                     <?php foreach ($assigned_members as $member): ?>
                         <div class="jgk-member-card">
                             <div class="jgk-member-avatar">
-                                <?php 
-                                $avatar = get_avatar_url($member->user_id, array('size' => 50));
-                                ?>
-                                <img src="<?php echo esc_url($avatar); ?>" alt="<?php echo esc_attr($member->first_name); ?>">
                                 <?php if ($member->is_primary): ?>
                                     <span class="jgk-primary-badge" title="Primary Member">★</span>
                                 <?php endif; ?>

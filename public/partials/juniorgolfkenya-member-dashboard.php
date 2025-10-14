@@ -97,6 +97,18 @@ $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id,
             </div>
             <div class="jgk-payment-banner-actions">
                 <?php
+                // Debug information for payment CTA selection
+                if (WP_DEBUG) {
+                    echo '<div class="jgk-debug-info" style="background: #f0f0f0; padding: 10px; margin-bottom: 15px; border-radius: 5px; font-size: 12px;">';
+                    echo '<strong>Debug - Payment CTA Selection:</strong><br>';
+                    echo 'WooCommerce Active: ' . (class_exists('WooCommerce') ? 'Yes' : 'No') . '<br>';
+                    echo 'Membership Product ID: ' . (get_option('jgk_membership_product_id') ?: 'Not set') . '<br>';
+                    echo 'Current User ID: ' . get_current_user_id() . '<br>';
+                    echo 'Member Status: ' . $stats['member']->status . '<br>';
+                    echo 'Product URL Generation: ' . (get_option('jgk_membership_product_id') ? 'Using existing product' : 'Will create new product') . '<br>';
+                    echo '</div>';
+                }
+
                 if (class_exists('WooCommerce')) {
                     $membership_product_id = get_option('jgk_membership_product_id');
                     if ($membership_product_id) {
@@ -270,6 +282,18 @@ $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id,
                         <h4>Choose Payment Method</h4>
                         <div class="jgk-payment-buttons">
                             <?php
+                            // Debug information for payment selection
+                            if (WP_DEBUG) {
+                                echo '<div class="jgk-debug-info" style="background: #f0f0f0; padding: 10px; margin-bottom: 15px; border-radius: 5px; font-size: 12px;">';
+                                echo '<strong>Debug - Payment Selection:</strong><br>';
+                                echo 'WooCommerce Active: ' . (class_exists('WooCommerce') ? 'Yes' : 'No') . '<br>';
+                                echo 'Membership Product ID: ' . (get_option('jgk_membership_product_id') ?: 'Not set') . '<br>';
+                                echo 'Current User ID: ' . get_current_user_id() . '<br>';
+                                echo 'Member Status: ' . $stats['member']->status . '<br>';
+                                echo 'Cart URL: ' . wc_get_cart_url() . '<br>';
+                                echo '</div>';
+                            }
+
                             // Check if WooCommerce is active
                             if (class_exists('WooCommerce')) {
                                 // Get or create membership product
@@ -290,11 +314,28 @@ $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id,
                                     
                                     $membership_product_id = $product->get_id();
                                     update_option('jgk_membership_product_id', $membership_product_id);
+                                    
+                                    if (WP_DEBUG) {
+                                        echo '<div class="jgk-debug-info" style="background: #d4edda; color: #155724; padding: 10px; margin-bottom: 15px; border-radius: 5px; font-size: 12px;">';
+                                        echo '<strong>Debug:</strong> New membership product created with ID: ' . $membership_product_id;
+                                        echo '</div>';
+                                    }
                                 }
                                 
                                 $product = wc_get_product($membership_product_id);
                                 if ($product) {
                                     $add_to_cart_url = wc_get_cart_url() . '?add-to-cart=' . $membership_product_id;
+                                    
+                                    if (WP_DEBUG) {
+                                        echo '<div class="jgk-debug-info" style="background: #d1ecf1; color: #0c5460; padding: 10px; margin-bottom: 15px; border-radius: 5px; font-size: 12px;">';
+                                        echo '<strong>Debug - Product Info:</strong><br>';
+                                        echo 'Product Name: ' . $product->get_name() . '<br>';
+                                        echo 'Product Price: KSh ' . $product->get_price() . '<br>';
+                                        echo 'Add to Cart URL: ' . $add_to_cart_url . '<br>';
+                                        echo 'Product Status: ' . $product->get_status() . '<br>';
+                                        echo '</div>';
+                                    }
+                                    
                                     ?>
                                     <a href="<?php echo esc_url($add_to_cart_url); ?>" class="jgk-payment-btn jgk-payment-mpesa">
                                         <span class="dashicons dashicons-smartphone"></span>
@@ -305,9 +346,21 @@ $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id,
                                         Pay with eLipa
                                     </a>
                                     <?php
+                                } else {
+                                    if (WP_DEBUG) {
+                                        echo '<div class="jgk-debug-info" style="background: #f8d7da; color: #721c24; padding: 10px; margin-bottom: 15px; border-radius: 5px; font-size: 12px;">';
+                                        echo '<strong>Debug Error:</strong> Could not retrieve product with ID: ' . $membership_product_id;
+                                        echo '</div>';
+                                    }
                                 }
                             } else {
                                 // Fallback if WooCommerce is not active
+                                if (WP_DEBUG) {
+                                    echo '<div class="jgk-debug-info" style="background: #fff3cd; color: #856404; padding: 10px; margin-bottom: 15px; border-radius: 5px; font-size: 12px;">';
+                                    echo '<strong>Debug Warning:</strong> WooCommerce is not active or installed.';
+                                    echo '</div>';
+                                }
+                                
                                 ?>
                                 <div class="jgk-payment-notice">
                                     <p><strong>Payment system is being configured.</strong></p>

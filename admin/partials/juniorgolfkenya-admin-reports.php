@@ -35,6 +35,7 @@ $membership_stats_base = JuniorGolfKenya_Database::get_membership_stats();
 // Extend membership stats with additional data needed by the report
 global $wpdb;
 $members_table = $wpdb->prefix . 'jgk_members';
+$payments_table = $wpdb->prefix . 'jgk_payments';
 
 // Get new members in date range
 $new_members = $wpdb->get_var($wpdb->prepare(
