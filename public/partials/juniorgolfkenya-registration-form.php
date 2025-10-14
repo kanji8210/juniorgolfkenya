@@ -149,7 +149,7 @@ if (isset($_POST['jgk_register_member'])) {
                         'phone' => $phone,
                         'address' => $address,
                         'membership_type' => $membership_type,
-                        'status' => 'active', // Active immediately - no approval needed
+                        'status' => 'pending', // Await manual approval before activation
                         'date_joined' => current_time('mysql'),
                         'expiry_date' => date('Y-m-d', strtotime('+1 year')),
                         'club_affiliation' => $club_affiliation,
@@ -211,7 +211,7 @@ if (isset($_POST['jgk_register_member'])) {
                     $message .= "You can now log in and access your member dashboard:\n";
                     $message .= "Login URL: " . wp_login_url() . "\n\n";
                     $message .= "Dashboard URL: " . $dashboard_url . "\n\n";
-                    $message .= "Your membership is active and valid until " . date('F j, Y', strtotime('+1 year')) . ".\n\n";
+                    $message .= "Your application is currently pending review. We'll notify you once it's approved and active.\n\n";
                     $message .= "If you have any questions, please don't hesitate to contact us.\n\n";
                     $message .= "Best regards,\n";
                     $message .= "Junior Golf Kenya Team";
@@ -226,7 +226,7 @@ if (isset($_POST['jgk_register_member'])) {
                     $admin_message .= "Email: {$email}\n";
                     $admin_message .= "Membership Number: {$membership_number}\n";
                     $admin_message .= "Membership Type: " . ucfirst($membership_type) . "\n";
-                    $admin_message .= "Status: Active (immediate access granted)\n\n";
+                    $admin_message .= "Status: Pending approval\n\n";
                     $admin_message .= "View member details in the admin panel:\n";
                     $admin_message .= admin_url('admin.php?page=juniorgolfkenya-members&action=edit&id=' . $member_id);
                     
@@ -266,9 +266,9 @@ if (isset($_POST['jgk_register_member'])) {
             <h2>Welcome to Junior Golf Kenya!</h2>
             <p>Your account has been created successfully.</p>
             <div class="jgk-success-details">
-                <p><strong>Congratulations!</strong> Your membership is now active and ready to use.</p>
-                <p><strong>Membership Number:</strong> You will find this in your dashboard.</p>
-                <p>You can now access your member dashboard to:</p>
+                <p><strong>Thank you!</strong> Your membership application is pending review.</p>
+                <p><strong>What happens next?</strong> Our team will verify your details and activate the membership shortly.</p>
+                <p>Once approved you will be able to:</p>
                 <ul>
                     <li>✅ View your membership details</li>
                     <li>✅ Connect with your assigned coaches</li>

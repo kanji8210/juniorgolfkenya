@@ -667,7 +667,7 @@ $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id,
                         Quick Links
                     </h3>
                 </div>
-                //link edit profile to user portal of current user
+                
                 <div class="jgk-quick-links">
                     <?php 
                     $portal_page_id = get_option('jgk_page_member_portal');
