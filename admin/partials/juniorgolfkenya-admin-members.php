@@ -788,18 +788,6 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
                     <td colspan="10">No members found.</td>
                 </tr>
                 <?php else: ?>
-                <!-- Debug row to show member data -->
-                <tr style="background: #ffeaa7;">
-                    <td colspan="10" style="font-family: monospace; font-size: 11px;">
-                        <strong>Debug - Members Array:</strong><br>
-                        <?php
-                        echo 'Count: ' . count($members) . '<br>';
-                        foreach ($members as $index => $member) {
-                            echo "[$index] ID: {$member->id}, Name: " . esc_html($member->first_name . ' ' . $member->last_name) . ", Status: {$member->status}<br>";
-                        }
-                        ?>
-                    </td>
-                </tr>
                 <?php foreach ($members as $member): ?>
                 <tr>
                     <td>
