@@ -68,6 +68,13 @@ if (isset($_POST['action'])) {
             $payment_method = sanitize_text_field($_POST['payment_method']);
             $notes = sanitize_textarea_field($_POST['notes']);
             
+            // Server-side validation: amount must be > 1
+            if (!is_numeric($amount) || $amount <= 1) {
+                $message = 'Amount must be greater than 1.';
+                $message_type = 'error';
+                break;
+            }
+
             $result = JuniorGolfKenya_Database::record_manual_payment($member_id, $amount, $payment_type, $payment_method, $notes);
             
             if ($result) {
@@ -279,7 +286,7 @@ $completed_amount = array_sum(array_map(function($p) { return $p->status === 'co
                 
                 <div class="jgk-form-field">
                     <label for="amount">Amount (KSh):</label>
-                    <input type="number" id="amount" name="amount" step="0.01" min="0" required>
+                    <input type="number" id="amount" name="amount" step="0.01" min="1.01" required>
                 </div>
                 
                 <div class="jgk-form-field">
@@ -333,8 +340,8 @@ $completed_amount = array_sum(array_map(function($p) { return $p->status === 'co
                 
                 <div class="jgk-form-field">
                     <label for="update_amount">Amount (KSh):</label>
-                    <input type="number" id="update_amount" name="amount" step="0.01" min="0">
-                    <small style="color:#b32d2e;display:block;margin-top:6px;">Warning: Changing the amount will affect reports and totals.</small>
+                    <input type="number" id="update_amount" name="amount" step="0.01" min="1.01" placeholder="Leave blank to keep current amount">
+                    <small id="update_amount_help" style="color:#b32d2e;display:block;margin-top:6px;">Warning: Changing the amount will affect reports and totals.</small>
                 </div>
 
                 <div class="jgk-form-field">
@@ -414,7 +421,7 @@ function closeRecordModal() {
     document.getElementById('record-form').reset();
 }
 
-function openUpdateModal(paymentId, status, notes, amount, paymentType) {
+function openUpdateModal(paymentId, status, notes, amount, paymentType, isWooCommerce) {
     document.getElementById('update-payment-id').value = paymentId;
     document.getElementById('update_status').value = status;
     document.getElementById('update_notes').value = notes || '';
@@ -422,6 +429,20 @@ function openUpdateModal(paymentId, status, notes, amount, paymentType) {
     document.getElementById('update-original-amount').value = amount || '';
     if (paymentType) {
         document.getElementById('update_payment_type').value = paymentType;
+    }
+    // Disable amount/type for WooCommerce-origin payments
+    var amountInput = document.getElementById('update_amount');
+    var typeSelect = document.getElementById('update_payment_type');
+    var help = document.getElementById('update_amount_help');
+    if (isWooCommerce) {
+        amountInput.disabled = true;
+        amountInput.placeholder = 'Managed by WooCommerce';
+        typeSelect.disabled = true;
+        if (help) { help.style.display = 'none'; }
+    } else {
+        amountInput.disabled = false;
+        typeSelect.disabled = false;
+        if (help) { help.style.display = 'block'; }
     }
     document.getElementById('update-modal').style.display = 'block';
 }
@@ -450,14 +471,36 @@ window.onclick = function(event) {
     }
 }
 
-// Confirm if amount changed
+// Validate record form amount > 1
+document.getElementById('record-form').addEventListener('submit', function(e) {
+    var amtInput = document.getElementById('amount');
+    var amt = parseFloat(amtInput.value);
+    if (isNaN(amt) || amt <= 1) {
+        e.preventDefault();
+        alert('Amount must be greater than 1.');
+        amtInput.focus();
+    }
+});
+
+// Validate and confirm update form
 document.getElementById('update-form').addEventListener('submit', function(e) {
-    var original = parseFloat(document.getElementById('update-original-amount').value || '0');
-    var current = parseFloat(document.getElementById('update_amount').value || '0');
-    if (!isNaN(original) && !isNaN(current) && current !== original) {
-        var ok = confirm('Changing the amount will update financial totals and reports. Do you want to proceed?');
-        if (!ok) {
+    var originalStr = document.getElementById('update-original-amount').value || '';
+    var currentStr = document.getElementById('update_amount').value || '';
+    if (currentStr !== '') {
+        var current = parseFloat(currentStr);
+        if (isNaN(current) || current <= 1) {
             e.preventDefault();
+            alert('Amount must be greater than 1.');
+            document.getElementById('update_amount').focus();
+            return;
+        }
+        var original = parseFloat(originalStr || '');
+        if (!isNaN(original) && current !== original) {
+            var ok = confirm('Changing the amount will update financial totals and reports. Do you want to proceed?');
+            if (!ok) {
+                e.preventDefault();
+                return;
+            }
         }
     }
 });

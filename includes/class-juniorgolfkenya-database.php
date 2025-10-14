@@ -527,6 +527,15 @@ class JuniorGolfKenya_Database {
             }
         }
 
+        // Validate amount if present: must be numeric and > 1
+        if (isset($update['amount'])) {
+            if (!is_numeric($update['amount']) || floatval($update['amount']) <= 1) {
+                error_log('JGK PAYMENT VALIDATION: Rejecting update, amount must be > 1');
+                return false;
+            }
+            $update['amount'] = floatval($update['amount']);
+        }
+
         // If WooCommerce payment (has order_id), restrict editable fields
         if (!empty($payment->order_id)) {
             // Only allow status (non-conflicting) and notes for WC entries
@@ -723,6 +732,12 @@ class JuniorGolfKenya_Database {
 
         // Check if payments table exists
         if ($wpdb->get_var("SHOW TABLES LIKE '$table'") != $table) {
+            return false;
+        }
+
+        // Validate amount > 1
+        if (!is_numeric($amount) || floatval($amount) <= 1) {
+            error_log('JGK PAYMENT VALIDATION: record_payment rejected, amount must be > 1');
             return false;
         }
 
