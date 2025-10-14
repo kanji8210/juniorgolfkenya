@@ -406,9 +406,21 @@ class JuniorGolfKenya_Database {
 
         // Get WooCommerce payments for membership product
         $woocommerce_payments = array();
-        $membership_product_id = get_option('jgk_membership_product_id', 0);
+        // Resolve membership product id from legacy option or settings array
+        $legacy_membership_id = intval(get_option('jgk_membership_product_id', 0));
+        $payment_settings = get_option('jgk_payment_settings', array());
+        $settings_membership_id = intval($payment_settings['membership_product_id'] ?? 0);
+        $membership_product_id = $legacy_membership_id > 0 ? $legacy_membership_id : $settings_membership_id;
 
-        if ($membership_product_id) {
+        // Ensure WooCommerce tables exist before querying
+        $wc_tables_ok = (
+            $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $wpdb->posts)) === $wpdb->posts &&
+            $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $wpdb->postmeta)) === $wpdb->postmeta &&
+            $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $wpdb->prefix . 'woocommerce_order_items')) === ($wpdb->prefix . 'woocommerce_order_items') &&
+            $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $wpdb->prefix . 'woocommerce_order_itemmeta')) === ($wpdb->prefix . 'woocommerce_order_itemmeta')
+        );
+
+        if ($membership_product_id && $wc_tables_ok) {
             error_log("JGK PAYMENT DEBUG: Getting WooCommerce payments for membership product ID: {$membership_product_id}");
 
             $wc_query = "
@@ -439,7 +451,7 @@ class JuniorGolfKenya_Database {
                 LEFT JOIN {$wpdb->postmeta} om_payment ON o.ID = om_payment.post_id AND om_payment.meta_key = '_payment_method'
                 LEFT JOIN {$wpdb->postmeta} om_transaction ON o.ID = om_transaction.post_id AND om_transaction.meta_key = '_transaction_id'
                 INNER JOIN {$wpdb->prefix}woocommerce_order_items oi ON o.ID = oi.order_id
-                INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta oim ON oi.order_item_id = oim.order_item_id AND oim.meta_key = '_product_id' AND oim.meta_value = %s
+                INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta oim ON oi.order_item_id = oim.order_item_id AND oim.meta_key = '_product_id' AND oim.meta_value = %d
                 LEFT JOIN $members_table m ON om_customer.meta_value = m.user_id
                 LEFT JOIN $users_table u ON m.user_id = u.ID
                 WHERE o.post_type = 'shop_order'

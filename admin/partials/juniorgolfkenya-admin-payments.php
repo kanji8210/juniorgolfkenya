@@ -81,7 +81,14 @@ if (isset($_POST['action'])) {
                 $message = 'Payment recorded successfully!';
                 $message_type = 'success';
             } else {
-                $message = 'Failed to record payment.';
+                global $wpdb;
+                $err = method_exists($wpdb, 'last_error') ? $wpdb->last_error : '';
+                if (!empty($err)) {
+                    error_log('JGK PAYMENT INSERT ERROR: ' . $err);
+                    $message = 'Failed to record payment. DB error: ' . esc_html($err);
+                } else {
+                    $message = 'Failed to record payment.';
+                }
                 $message_type = 'error';
             }
             break;
@@ -209,6 +216,24 @@ if ($wc_sources_ok) {
         <p><?php echo esc_html($message); ?></p>
     </div>
     <?php endif; ?>
+
+        <?php
+        // Diagnostic: Woo orders detected but none loaded
+        $dbg_wc_orders = isset($dbg['woocommerce']['membership_orders']) ? intval($dbg['woocommerce']['membership_orders']) : 0;
+        $has_wc_row = false;
+        foreach ($payments as $p) { if (isset($p->source) && $p->source === 'woocommerce') { $has_wc_row = true; break; } }
+        if ($dbg_wc_orders > 0 && !$has_wc_row) : ?>
+            <div class="notice notice-warning" style="border-left-color:#dba617;">
+                <p><strong>Notice:</strong> <?php echo esc_html($dbg_wc_orders); ?> WooCommerce membership orders ont été détectées (produit ID <?php echo intval($membership_product_id); ?>) mais aucune ligne WooCommerce n'est affichée dans la liste. Causes possibles:
+                <ul style="margin-top:4px;list-style:disc;padding-left:18px;">
+                    <li>Filtres actifs (status/type/dates) excluant toutes les commandes.</li>
+                    <li>Product ID configuré différent de celui réellement utilisé dans certaines commandes (variations, produits remplacés).</li>
+                    <li>Extension de cache/objet retardant la récupération (essayez de vider le cache).</li>
+                    <li>Un statut de commande non inclus dans la requête (ex: custom status) – adapter la liste des statuts si nécessaire.</li>
+                </ul>
+                </p>
+            </div>
+        <?php endif; ?>
 
     <!-- Payment Statistics -->
     <div class="jgk-payment-stats">
