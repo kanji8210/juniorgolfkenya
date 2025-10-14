@@ -28,117 +28,46 @@ $date_from = isset($_GET['date_from']) ? sanitize_text_field($_GET['date_from'])
 $date_to = isset($_GET['date_to']) ? sanitize_text_field($_GET['date_to']) : date('Y-m-t');
 $coach_id = isset($_GET['coach_id']) ? intval($_GET['coach_id']) : 0;
 
-// Get report data
-$overview_stats = JuniorGolfKenya_Database::get_overview_statistics();
-$membership_stats_base = JuniorGolfKenya_Database::get_membership_stats();
-
-// Extend membership stats with additional data needed by the report
-global $wpdb;
-$members_table = $wpdb->prefix . 'jgk_members';
-$payments_table = $wpdb->prefix . 'jgk_payments';
-
-// Resolve membership product ID from settings (new) or legacy option
-$payment_settings = get_option('jgk_payment_settings', array());
-$membership_product_id_legacy = intval(get_option('jgk_membership_product_id', 0));
-$membership_product_id_settings = isset($payment_settings['membership_product_id']) ? intval($payment_settings['membership_product_id']) : 0;
-$membership_product_id = $membership_product_id_settings ?: $membership_product_id_legacy;
-
-// Check WooCommerce tables presence to avoid SQL errors when WooCommerce is not installed
-$wc_order_items_table = $wpdb->prefix . 'woocommerce_order_items';
-$wc_order_itemmeta_table = $wpdb->prefix . 'woocommerce_order_itemmeta';
-$wc_tables_ok = (
-    $wpdb->get_var("SHOW TABLES LIKE '{$wc_order_items_table}'") === $wc_order_items_table
-) && (
-    $wpdb->get_var("SHOW TABLES LIKE '{$wc_order_itemmeta_table}'") === $wc_order_itemmeta_table
-);
-
-// Get new members in date range
-$new_members = $wpdb->get_var($wpdb->prepare(
-    "SELECT COUNT(*) FROM $members_table WHERE DATE(created_at) BETWEEN %s AND %s",
-    $date_from,
-    $date_to
-));
-
-// Build complete membership stats
-$membership_stats = array_merge($membership_stats_base, array(
-    'new_members' => $new_members ?? 0,
-    'renewals' => 0, // TODO: implement renewals tracking
-    'cancellations' => 0, // TODO: implement cancellations tracking
-    'net_growth' => $new_members ?? 0,
-    'by_type' => array()
-));
-
-// Get stats by membership type (with new and revenue for selected period)
-$types = $wpdb->get_results("
-    SELECT membership_type, COUNT(*) as count 
-    FROM $members_table 
-    GROUP BY membership_type
-");
-foreach ($types as $type) {
-    $type_key = $type->membership_type;
-    $active_count = $wpdb->get_var($wpdb->prepare(
-        "SELECT COUNT(*) FROM $members_table WHERE membership_type = %s AND status = 'active'",
-        $type_key
+if ($membership_product_id && $wc_tables_ok) {
+    // Payment methods breakdown (WooCommerce only) — do NOT overwrite global totals from JGK payments
+    $payment_methods = $wpdb->get_results($wpdb->prepare(
+        "SELECT pm_payment.meta_value as payment_method, COUNT(*) as count, SUM(pm_total.meta_value) as amount\n        FROM {$wpdb->posts} p\n        INNER JOIN {$wpdb->postmeta} pm_payment ON p.ID = pm_payment.post_id AND pm_payment.meta_key = '_payment_method'\n        INNER JOIN {$wpdb->postmeta} pm_total ON p.ID = pm_total.post_id AND pm_total.meta_key = '_order_total'\n        INNER JOIN {$wpdb->prefix}woocommerce_order_items oi ON p.ID = oi.order_id\n        INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta oim ON oi.order_item_id = oim.order_item_id\n        WHERE p.post_type = 'shop_order'\n        AND p.post_status IN ('wc-completed', 'wc-pending', 'wc-processing', 'wc-on-hold', 'wc-failed', 'wc-cancelled', 'wc-refunded')\n        AND oim.meta_key = '_product_id'\n        AND oim.meta_value = %d\n        AND DATE(p.post_date) BETWEEN %s AND %s\n        GROUP BY pm_payment.meta_value",
+        $membership_product_id, $date_from, $date_to
     ));
-    $new_count = $wpdb->get_var($wpdb->prepare(
-        "SELECT COUNT(*) FROM $members_table WHERE membership_type = %s AND DATE(created_at) BETWEEN %s AND %s",
-        $type_key, $date_from, $date_to
-    ));
-    $type_revenue = 0;
-    if ($wpdb->get_var("SHOW TABLES LIKE '$payments_table'") == $payments_table) {
-        $type_revenue = floatval($wpdb->get_var($wpdb->prepare(
-            "SELECT COALESCE(SUM(p.amount),0)
-             FROM $payments_table p
-             INNER JOIN $members_table m ON p.member_id = m.id
-             WHERE m.membership_type = %s AND p.status = 'completed' AND DATE(p.payment_date) BETWEEN %s AND %s",
-            $type_key, $date_from, $date_to
-        )));
+
+    foreach ($payment_methods as $method) {
+        $key = $method->payment_method ?: 'other';
+        $payment_stats['by_method'][$key] = array(
+            'count' => intval($method->count),
+            'amount' => floatval($method->amount),
+            'success_rate' => 0.0,
+        );
     }
-    $membership_stats['by_type'][$type_key] = array(
-        'count' => intval($type->count),
-        'active' => intval($active_count),
-        'new' => intval($new_count),
-        'revenue' => $type_revenue,
-    );
+
+    // Success rate (WooCommerce only)
+    $method_status = $wpdb->get_results($wpdb->prepare(
+        "SELECT pm_payment.meta_value as payment_method, p.post_status, COUNT(*) as cnt\n        FROM {$wpdb->posts} p\n        INNER JOIN {$wpdb->postmeta} pm_payment ON p.ID = pm_payment.post_id AND pm_payment.meta_key = '_payment_method'\n        INNER JOIN {$wpdb->prefix}woocommerce_order_items oi ON p.ID = oi.order_id\n        INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta oim ON oi.order_item_id = oim.order_item_id\n        WHERE p.post_type = 'shop_order'\n        AND p.post_status IN ('wc-completed', 'wc-pending', 'wc-processing', 'wc-on-hold', 'wc-failed', 'wc-cancelled', 'wc-refunded')\n        AND oim.meta_key = '_product_id'\n        AND oim.meta_value = %d\n        AND DATE(p.post_date) BETWEEN %s AND %s\n        GROUP BY pm_payment.meta_value, p.post_status",
+        $membership_product_id, $date_from, $date_to
+    ));
+
+    $status_by_method = array();
+    foreach ($method_status as $row) {
+        $m = $row->payment_method ?: 'other';
+        if (!isset($status_by_method[$m])) {
+            $status_by_method[$m] = array('total' => 0, 'completed' => 0);
+        }
+        $cnt = intval($row->cnt);
+        $status_by_method[$m]['total'] += $cnt;
+        if ($row->post_status === 'wc-completed') {
+            $status_by_method[$m]['completed'] += $cnt;
+        }
+    }
+    foreach ($status_by_method as $m => $vals) {
+        if ($vals['total'] > 0 && isset($payment_stats['by_method'][$m])) {
+            $payment_stats['by_method'][$m]['success_rate'] = round(($vals['completed'] / $vals['total']) * 100, 1);
+        }
+    }
 }
-
-$coaches = JuniorGolfKenya_Database::get_coaches();
-
-// Get enhanced payment stats from WooCommerce orders
-$payment_stats = array(
-    'total_revenue' => 0,
-    'completed_payments' => 0,
-    'pending_payments' => 0,
-    'failed_payments' => 0,
-    'total_payments' => 0,
-    'by_method' => array()
-);
-
-// Aggregate primary totals from JGK payments (manual + WooCommerce recorded)
-if ($wpdb->get_var("SHOW TABLES LIKE '$payments_table'") == $payments_table) {
-    $payment_stats['total_revenue'] = floatval($wpdb->get_var($wpdb->prepare(
-        "SELECT COALESCE(SUM(amount), 0) FROM $payments_table WHERE status = 'completed' AND DATE(payment_date) BETWEEN %s AND %s",
-        $date_from, $date_to
-    )));
-    $payment_stats['completed_payments'] = intval($wpdb->get_var($wpdb->prepare(
-        "SELECT COUNT(*) FROM $payments_table WHERE status = 'completed' AND DATE(payment_date) BETWEEN %s AND %s",
-        $date_from, $date_to
-    )));
-    $payment_stats['pending_payments'] = intval($wpdb->get_var($wpdb->prepare(
-        "SELECT COUNT(*) FROM $payments_table WHERE status = 'pending' AND DATE(payment_date) BETWEEN %s AND %s",
-        $date_from, $date_to
-    )));
-    $payment_stats['failed_payments'] = intval($wpdb->get_var($wpdb->prepare(
-        "SELECT COUNT(*) FROM $payments_table WHERE status = 'failed' AND DATE(payment_date) BETWEEN %s AND %s",
-        $date_from, $date_to
-    )));
-    $payment_stats['total_payments'] = intval($wpdb->get_var($wpdb->prepare(
-        "SELECT COUNT(*) FROM $payments_table WHERE DATE(payment_date) BETWEEN %s AND %s",
-        $date_from, $date_to
-    )));
-}
-
-// Query WooCommerce orders for membership payments (for method breakdown and WC-only insights)
 if ($membership_product_id && $wc_tables_ok) {
     // Get completed orders with membership product
     $completed_orders = $wpdb->get_results($wpdb->prepare("
