@@ -1,264 +1,274 @@
 <?php
 /**
- * Provide a admin area view for reports and analytics
- *
- * @link       https://github.com/kanji8210/juniorgolfkenya
- * @since      1.0.0
- *
- * @package    JuniorGolfKenya
- * @subpackage JuniorGolfKenya/admin/partials
+ * Reports & Analytics Admin View (clean rebuilt version)
  */
-
-// Prevent direct access
-if (!defined('ABSPATH')) {
-    exit;
+if (!defined('ABSPATH')) exit;
+if (!current_user_can('view_reports')) { 
+    wp_die(__('You do not have sufficient permissions to access this page.')); 
 }
 
-// Check user permissions
-if (!current_user_can('view_reports')) {
-    wp_die(__('You do not have sufficient permissions to access this page.'));
-}
+global $wpdb;
 
-// Load required classes
-require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-database.php';
-
-// Get filter parameters
+// ------------------------------------------------------------------
+// Filters (defaults)
+// ------------------------------------------------------------------
 $report_type = isset($_GET['report_type']) ? sanitize_text_field($_GET['report_type']) : 'overview';
-$date_from = isset($_GET['date_from']) ? sanitize_text_field($_GET['date_from']) : date('Y-m-01');
-$date_to = isset($_GET['date_to']) ? sanitize_text_field($_GET['date_to']) : date('Y-m-t');
-$coach_id = isset($_GET['coach_id']) ? intval($_GET['coach_id']) : 0;
+$date_from   = isset($_GET['date_from']) ? sanitize_text_field($_GET['date_from']) : date('Y-m-01');
+$date_to     = isset($_GET['date_to']) ? sanitize_text_field($_GET['date_to']) : date('Y-m-d');
+$coach_id    = isset($_GET['coach_id']) ? intval($_GET['coach_id']) : 0;
 
-if ($membership_product_id && $wc_tables_ok) {
-    // Payment methods breakdown (WooCommerce only) — do NOT overwrite global totals from JGK payments
-    $payment_methods = $wpdb->get_results($wpdb->prepare(
-        "SELECT pm_payment.meta_value as payment_method, COUNT(*) as count, SUM(pm_total.meta_value) as amount\n        FROM {$wpdb->posts} p\n        INNER JOIN {$wpdb->postmeta} pm_payment ON p.ID = pm_payment.post_id AND pm_payment.meta_key = '_payment_method'\n        INNER JOIN {$wpdb->postmeta} pm_total ON p.ID = pm_total.post_id AND pm_total.meta_key = '_order_total'\n        INNER JOIN {$wpdb->prefix}woocommerce_order_items oi ON p.ID = oi.order_id\n        INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta oim ON oi.order_item_id = oim.order_item_id\n        WHERE p.post_type = 'shop_order'\n        AND p.post_status IN ('wc-completed', 'wc-pending', 'wc-processing', 'wc-on-hold', 'wc-failed', 'wc-cancelled', 'wc-refunded')\n        AND oim.meta_key = '_product_id'\n        AND oim.meta_value = %d\n        AND DATE(p.post_date) BETWEEN %s AND %s\n        GROUP BY pm_payment.meta_value",
-        $membership_product_id, $date_from, $date_to
-    ));
+// Custom tables
+$members_table  = $wpdb->prefix . 'jgk_members';
+$payments_table = $wpdb->prefix . 'jgk_payments';
 
-    foreach ($payment_methods as $method) {
-        $key = $method->payment_method ?: 'other';
+// Membership product id (legacy option or settings)
+$legacy_membership_id   = intval(get_option('jgk_membership_product_id', 0));
+$payment_settings       = get_option('jgk_payment_settings', array());
+$settings_membership_id = intval($payment_settings['membership_product_id'] ?? 0);
+$membership_product_id  = $legacy_membership_id > 0 ? $legacy_membership_id : $settings_membership_id;
+if ($membership_product_id <= 0) { 
+    $membership_product_id = null; 
+}
+
+// WooCommerce table availability (for breakdown only)
+$wc_tables_ok = (
+    $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $wpdb->posts)) === $wpdb->posts &&
+    $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $wpdb->postmeta)) === $wpdb->postmeta &&
+    $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $wpdb->prefix . 'woocommerce_order_items')) === ($wpdb->prefix . 'woocommerce_order_items') &&
+    $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $wpdb->prefix . 'woocommerce_order_itemmeta')) === ($wpdb->prefix . 'woocommerce_order_itemmeta')
+);
+
+// ------------------------------------------------------------------
+// Overview Stats (safe defaults if tables absent)
+// ------------------------------------------------------------------
+$overview_stats = array(
+    'total_members' => 0,
+    'active_members' => 0,
+    'monthly_revenue' => 0,
+    'total_revenue' => 0,
+    'total_coaches' => 0,
+    'active_coaches' => 0,
+    'total_tournaments' => 0,
+    'upcoming_tournaments' => 0,
+);
+
+if ($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $members_table)) === $members_table) {
+    $overview_stats['total_members']  = intval($wpdb->get_var("SELECT COUNT(*) FROM $members_table"));
+    $overview_stats['active_members'] = intval($wpdb->get_var("SELECT COUNT(*) FROM $members_table WHERE status='active'"));
+}
+
+if ($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $payments_table)) === $payments_table) {
+    $overview_stats['total_revenue']   = floatval($wpdb->get_var($wpdb->prepare("SELECT SUM(amount) FROM $payments_table WHERE status='completed'")) ?: 0);
+    $month_start = date('Y-m-01');
+    $overview_stats['monthly_revenue'] = floatval($wpdb->get_var($wpdb->prepare("SELECT SUM(amount) FROM $payments_table WHERE status='completed' AND DATE(payment_date) BETWEEN %s AND %s", $month_start, date('Y-m-d'))) ?: 0);
+}
+
+// Coaches (basic query via WP_User_Query if role exists)
+if (class_exists('WP_User_Query')) {
+    $coach_query = new WP_User_Query(array('role' => 'coach', 'fields' => array('ID')));
+    if (!is_wp_error($coach_query)) {
+        $overview_stats['total_coaches'] = count($coach_query->get_results());
+        $overview_stats['active_coaches'] = $overview_stats['total_coaches'];
+    }
+}
+
+// ------------------------------------------------------------------
+// Membership stats (placeholder / minimal)
+// ------------------------------------------------------------------
+$membership_stats = array(
+    'new_members' => 0,
+    'renewals' => 0,
+    'cancellations' => 0,
+    'net_growth' => 0,
+    'by_type' => array()
+);
+
+if ($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $members_table)) === $members_table) {
+    // Simple type aggregation if column membership_type exists
+    $maybe_col = $wpdb->get_results("SHOW COLUMNS FROM $members_table LIKE 'membership_type'");
+    if ($maybe_col) {
+        $rows = $wpdb->get_results("SELECT membership_type AS t, COUNT(*) active_count FROM $members_table WHERE status='active' GROUP BY membership_type");
+        foreach ($rows as $r) {
+            $membership_stats['by_type'][$r->t] = array(
+                'active' => intval($r->active_count),
+                'new' => 0,
+                'revenue' => 0,
+            );
+        }
+    }
+}
+
+// ------------------------------------------------------------------
+// Payment stats from custom payments table (authoritative totals)
+// ------------------------------------------------------------------
+$payment_stats = array(
+    'total_revenue' => 0,
+    'completed_payments' => 0,
+    'pending_payments' => 0,
+    'failed_payments' => 0,
+    'total_payments' => 0,
+    'by_method' => array()
+);
+
+if ($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $payments_table)) === $payments_table) {
+    $agg = $wpdb->get_row($wpdb->prepare("SELECT 
+        COUNT(*) total_payments,
+        SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) completed_payments,
+        SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) pending_payments,
+        SUM(CASE WHEN status='failed' THEN 1 ELSE 0 END) failed_payments,
+        SUM(CASE WHEN status='completed' THEN amount ELSE 0 END) total_revenue
+        FROM $payments_table
+        WHERE DATE(payment_date) BETWEEN %s AND %s", $date_from, $date_to));
+    
+    if ($agg) {
+        $payment_stats['total_payments']      = intval($agg->total_payments);
+        $payment_stats['completed_payments']  = intval($agg->completed_payments);
+        $payment_stats['pending_payments']    = intval($agg->pending_payments);
+        $payment_stats['failed_payments']     = intval($agg->failed_payments);
+        $payment_stats['total_revenue']       = floatval($agg->total_revenue);
+    }
+    
+    $methods = $wpdb->get_results($wpdb->prepare("SELECT payment_method, 
+        COUNT(*) cnt,
+        SUM(CASE WHEN status='completed' THEN amount ELSE 0 END) amt,
+        SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) completed
+        FROM $payments_table
+        WHERE DATE(payment_date) BETWEEN %s AND %s
+        GROUP BY payment_method", $date_from, $date_to));
+    
+    foreach ($methods as $m) {
+        $total = intval($m->cnt);
+        $completed = intval($m->completed);
+        $rate = $total ? ($completed / $total * 100) : 0;
+        $key = $m->payment_method ?: 'unknown';
         $payment_stats['by_method'][$key] = array(
-            'count' => intval($method->count),
-            'amount' => floatval($method->amount),
-            'success_rate' => 0.0,
+            'count' => $total,
+            'amount' => floatval($m->amt),
+            'success_rate' => $rate,
         );
     }
-
-    // Success rate (WooCommerce only)
-    $method_status = $wpdb->get_results($wpdb->prepare(
-        "SELECT pm_payment.meta_value as payment_method, p.post_status, COUNT(*) as cnt\n        FROM {$wpdb->posts} p\n        INNER JOIN {$wpdb->postmeta} pm_payment ON p.ID = pm_payment.post_id AND pm_payment.meta_key = '_payment_method'\n        INNER JOIN {$wpdb->prefix}woocommerce_order_items oi ON p.ID = oi.order_id\n        INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta oim ON oi.order_item_id = oim.order_item_id\n        WHERE p.post_type = 'shop_order'\n        AND p.post_status IN ('wc-completed', 'wc-pending', 'wc-processing', 'wc-on-hold', 'wc-failed', 'wc-cancelled', 'wc-refunded')\n        AND oim.meta_key = '_product_id'\n        AND oim.meta_value = %d\n        AND DATE(p.post_date) BETWEEN %s AND %s\n        GROUP BY pm_payment.meta_value, p.post_status",
-        $membership_product_id, $date_from, $date_to
-    ));
-
-    $status_by_method = array();
-    foreach ($method_status as $row) {
-        $m = $row->payment_method ?: 'other';
-        if (!isset($status_by_method[$m])) {
-            $status_by_method[$m] = array('total' => 0, 'completed' => 0);
-        }
-        $cnt = intval($row->cnt);
-        $status_by_method[$m]['total'] += $cnt;
-        if ($row->post_status === 'wc-completed') {
-            $status_by_method[$m]['completed'] += $cnt;
-        }
-    }
-    foreach ($status_by_method as $m => $vals) {
-        if ($vals['total'] > 0 && isset($payment_stats['by_method'][$m])) {
-            $payment_stats['by_method'][$m]['success_rate'] = round(($vals['completed'] / $vals['total']) * 100, 1);
-        }
-    }
 }
+
+// ------------------------------------------------------------------
+// WooCommerce payment method breakdown (additive, no overwrite of totals)
+// ------------------------------------------------------------------
 if ($membership_product_id && $wc_tables_ok) {
-    // Get completed orders with membership product
-    $completed_orders = $wpdb->get_results($wpdb->prepare("
-        SELECT p.ID, p.post_date, pm.meta_value as total
-        FROM {$wpdb->posts} p
-        INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = '_order_total'
-        INNER JOIN {$wpdb->prefix}woocommerce_order_items oi ON p.ID = oi.order_id
-        INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta oim ON oi.order_item_id = oim.order_item_id
-        WHERE p.post_type = 'shop_order'
-        AND p.post_status = 'wc-completed'
-        AND oim.meta_key = '_product_id'
-        AND oim.meta_value = %d
-        AND DATE(p.post_date) BETWEEN %s AND %s
-    ", $membership_product_id, $date_from, $date_to));
-
-    $payment_stats['completed_payments'] = count($completed_orders);
-    $payment_stats['total_revenue'] = array_sum(array_column($completed_orders, 'total'));
-
-    // Get pending orders
-    $pending_orders = $wpdb->get_results($wpdb->prepare("
-        SELECT p.ID, p.post_date, pm.meta_value as total
-        FROM {$wpdb->posts} p
-        INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = '_order_total'
-        INNER JOIN {$wpdb->prefix}woocommerce_order_items oi ON p.ID = oi.order_id
-        INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta oim ON oi.order_item_id = oim.order_item_id
-        WHERE p.post_type = 'shop_order'
-        AND p.post_status = 'wc-pending'
-        AND oim.meta_key = '_product_id'
-        AND oim.meta_value = %d
-        AND DATE(p.post_date) BETWEEN %s AND %s
-    ", $membership_product_id, $date_from, $date_to));
-
-    $payment_stats['pending_payments'] = count($pending_orders);
-
-    // Get failed orders
-    $failed_orders = $wpdb->get_results($wpdb->prepare("
-        SELECT p.ID, p.post_date, pm.meta_value as total
-        FROM {$wpdb->posts} p
-        INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = '_order_total'
-        INNER JOIN {$wpdb->prefix}woocommerce_order_items oi ON p.ID = oi.order_id
-        INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta oim ON oi.order_item_id = oim.order_item_id
-        WHERE p.post_type = 'shop_order'
-        AND p.post_status = 'wc-failed'
-        AND oim.meta_key = '_product_id'
-        AND oim.meta_value = %d
-        AND DATE(p.post_date) BETWEEN %s AND %s
-    ", $membership_product_id, $date_from, $date_to));
-
-    $payment_stats['failed_payments'] = count($failed_orders);
-
-    // Total payments (all statuses)
-    $all_orders = $wpdb->get_results($wpdb->prepare("
-        SELECT p.ID, p.post_date, pm.meta_value as total, p.post_status
-        FROM {$wpdb->posts} p
-        INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = '_order_total'
-        INNER JOIN {$wpdb->prefix}woocommerce_order_items oi ON p.ID = oi.order_id
-        INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta oim ON oi.order_item_id = oim.order_item_id
-        WHERE p.post_type = 'shop_order'
-        AND p.post_status IN ('wc-completed', 'wc-pending', 'wc-processing', 'wc-on-hold', 'wc-failed', 'wc-cancelled', 'wc-refunded')
-        AND oim.meta_key = '_product_id'
-        AND oim.meta_value = %d
-        AND DATE(p.post_date) BETWEEN %s AND %s
-    ", $membership_product_id, $date_from, $date_to));
-
-    $payment_stats['total_payments'] = count($all_orders);
-
-    // Get payment methods breakdown
-    $payment_methods = $wpdb->get_results($wpdb->prepare("
-        SELECT pm_payment.meta_value as payment_method, COUNT(*) as count, SUM(pm_total.meta_value) as amount
+    $woo_methods = $wpdb->get_results($wpdb->prepare("SELECT 
+        pm_payment.meta_value AS payment_method,
+        COUNT(*) AS total,
+        SUM(CASE WHEN p.post_status='wc-completed' THEN 1 ELSE 0 END) AS completed,
+        SUM(CASE WHEN p.post_status='wc-completed' THEN pm_total.meta_value ELSE 0 END) AS amount
         FROM {$wpdb->posts} p
         INNER JOIN {$wpdb->postmeta} pm_payment ON p.ID = pm_payment.post_id AND pm_payment.meta_key = '_payment_method'
-        INNER JOIN {$wpdb->postmeta} pm_total ON p.ID = pm_total.post_id AND pm_total.meta_key = '_order_total'
+        INNER JOIN {$wpdb->postmeta} pm_total   ON p.ID = pm_total.post_id AND pm_total.meta_key   = '_order_total'
         INNER JOIN {$wpdb->prefix}woocommerce_order_items oi ON p.ID = oi.order_id
         INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta oim ON oi.order_item_id = oim.order_item_id
-        WHERE p.post_type = 'shop_order'
-        AND p.post_status IN ('wc-completed', 'wc-pending', 'wc-processing', 'wc-on-hold', 'wc-failed')
-        AND oim.meta_key = '_product_id'
-        AND oim.meta_value = %d
-        AND DATE(p.post_date) BETWEEN %s AND %s
-        GROUP BY pm_payment.meta_value
-    ", $membership_product_id, $date_from, $date_to));
-
-    foreach ($payment_methods as $method) {
-        $key = $method->payment_method ?: 'other';
-        $payment_stats['by_method'][$key] = array(
-            'count' => intval($method->count),
-            'amount' => floatval($method->amount),
-            'success_rate' => 0.0,
-        );
-    }
-
-    // Compute success rate by method
-    $method_status = $wpdb->get_results($wpdb->prepare("\n        SELECT pm_payment.meta_value as payment_method, p.post_status, COUNT(*) as cnt\n        FROM {$wpdb->posts} p\n        INNER JOIN {$wpdb->postmeta} pm_payment ON p.ID = pm_payment.post_id AND pm_payment.meta_key = '_payment_method'\n        INNER JOIN {$wpdb->prefix}woocommerce_order_items oi ON p.ID = oi.order_id\n        INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta oim ON oi.order_item_id = oim.order_item_id\n        WHERE p.post_type = 'shop_order'\n        AND p.post_status IN ('wc-completed', 'wc-pending', 'wc-processing', 'wc-on-hold', 'wc-failed', 'wc-cancelled', 'wc-refunded')\n        AND oim.meta_key = '_product_id'\n        AND oim.meta_value = %d\n        AND DATE(p.post_date) BETWEEN %s AND %s\n        GROUP BY pm_payment.meta_value, p.post_status\n    ", $membership_product_id, $date_from, $date_to));
-
-    $tmp = array();
-    foreach ($method_status as $row) {
-        $m = $row->payment_method ?: 'other';
-        if (!isset($tmp[$m])) {
-            $tmp[$m] = array('total' => 0, 'completed' => 0);
-        }
-        $cnt = intval($row->cnt);
-        $tmp[$m]['total'] += $cnt;
-        if ($row->post_status === 'wc-completed') {
-            $tmp[$m]['completed'] += $cnt;
-        }
-    }
-    foreach ($tmp as $m => $vals) {
-        if ($vals['total'] > 0 && isset($payment_stats['by_method'][$m])) {
-            $payment_stats['by_method'][$m]['success_rate'] = round(($vals['completed'] / $vals['total']) * 100, 1);
+        WHERE p.post_type='shop_order'
+          AND p.post_status IN ('wc-completed','wc-pending','wc-processing','wc-on-hold','wc-failed')
+          AND oim.meta_key='_product_id'
+          AND oim.meta_value = %d
+          AND DATE(p.post_date) BETWEEN %s AND %s
+        GROUP BY pm_payment.meta_value", $membership_product_id, $date_from, $date_to));
+    
+    foreach ($woo_methods as $wm) {
+        $total = intval($wm->total);
+        $completed = intval($wm->completed);
+        $rate = $total ? ($completed / $total * 100) : 0;
+        $key = $wm->payment_method ?: 'unknown';
+        
+        if (!isset($payment_stats['by_method'][$key])) {
+            $payment_stats['by_method'][$key] = array(
+                'count' => $total,
+                'amount' => floatval($wm->amount),
+                'success_rate' => $rate,
+            );
+        } else {
+            // Merge (add counts/amount, recompute success rate naive)
+            $existing = $payment_stats['by_method'][$key];
+            $newCount = $existing['count'] + $total;
+            $newAmount = $existing['amount'] + floatval($wm->amount);
+            // Weighted success rate (by transactions)
+            $combinedCompleted = ($existing['success_rate'] / 100 * $existing['count']) + $completed;
+            $newRate = $newCount ? ($combinedCompleted / $newCount * 100) : 0;
+            $payment_stats['by_method'][$key] = array(
+                'count' => $newCount,
+                'amount' => $newAmount,
+                'success_rate' => $newRate,
+            );
         }
     }
 }
 
-// Get monthly data for charts (last 12 months)
+// ------------------------------------------------------------------
+// Monthly data placeholder for charts (last 12 months)
+// ------------------------------------------------------------------
 $monthly_data = array();
 for ($i = 11; $i >= 0; $i--) {
-    $month_start = date('Y-m-01', strtotime("-$i months"));
-    $month_end = date('Y-m-t', strtotime("-$i months"));
-    $month_name = date('M Y', strtotime("-$i months"));
-
-    $monthly_data[$month_name] = array(
-        'members' => $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM $members_table WHERE DATE(created_at) <= %s", $month_end
-        )),
-        'revenue' => $wpdb->get_var($wpdb->prepare(
-            "SELECT COALESCE(SUM(amount), 0) FROM $payments_table WHERE status = 'completed' AND DATE(payment_date) BETWEEN %s AND %s",
-            $month_start, $month_end
-        )),
-        'new_members' => $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM $members_table WHERE DATE(created_at) BETWEEN %s AND %s",
-            $month_start, $month_end
-        ))
+    $label = date('Y-m', strtotime("-{$i} months"));
+    $monthly_data[$label] = array(
+        'members' => 0,
+        'new_members' => 0,
+        'revenue' => 0,
     );
 }
 
-if ($coach_id) {
-    // Get coach performance manually (method doesn't exist)
+// Coaches list (simple) for filters when needed
+$coaches = array();
+if (class_exists('WP_User_Query')) {
+    $cq = new WP_User_Query(array('role' => 'coach'));
+    if (!is_wp_error($cq)) { 
+        $coaches = $cq->get_results(); 
+    }
+}
+
+// Coach performance (placeholder) if specific coach requested
+if ($report_type === 'coaches' && $coach_id) {
     $coach_performance = array(
-        'total_members' => $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM $members_table WHERE coach_id = %d",
-            $coach_id
-        )),
-        'active_members' => $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM $members_table WHERE coach_id = %d AND status = 'active'",
-            $coach_id
-        ))
+        'name' => get_user_by('id', $coach_id)->display_name ?? 'Coach',
+        'assigned_members' => 0,
+        'avg_rating' => 0,
+        'training_sessions' => 0,
+        'improvement_rate' => 0,
+        'recent_feedback' => array(),
+        'member_count' => 0,
+        'status' => 'active',
     );
 }
 ?>
 
 <div class="wrap jgk-admin-container">
-    <h1 class="wp-heading-inline">Reports & Analytics</h1>
+    <h1 class="wp-heading-inline">Reports &amp; Analytics</h1>
     <hr class="wp-header-end">
 
-    <!-- Report Filters -->
+    <!-- Filters -->
     <div class="jgk-report-filters">
-        <form method="get" style="display: flex; gap: 15px; align-items: center; margin: 20px 0;">
-            <input type="hidden" name="page" value="juniorgolfkenya-reports">
-            
+        <form method="get" style="display:flex;gap:15px;align-items:center;margin:20px 0;flex-wrap:wrap;">
+            <input type="hidden" name="page" value="juniorgolfkenya-reports" />
             <label>Report Type:</label>
             <select name="report_type" onchange="this.form.submit()">
-                <option value="overview" <?php selected($report_type, 'overview'); ?>>Overview</option>
-                <option value="membership" <?php selected($report_type, 'membership'); ?>>Membership</option>
-                <option value="payments" <?php selected($report_type, 'payments'); ?>>Payments</option>
-                <option value="coaches" <?php selected($report_type, 'coaches'); ?>>Coaches</option>
+                <option value="overview" <?php selected($report_type,'overview');?>>Overview</option>
+                <option value="membership" <?php selected($report_type,'membership');?>>Membership</option>
+                <option value="payments" <?php selected($report_type,'payments');?>>Payments</option>
+                <option value="coaches" <?php selected($report_type,'coaches');?>>Coaches</option>
             </select>
-            
             <label>From:</label>
-            <input type="date" name="date_from" value="<?php echo esc_attr($date_from); ?>">
-            
+            <input type="date" name="date_from" value="<?php echo esc_attr($date_from);?>" />
             <label>To:</label>
-            <input type="date" name="date_to" value="<?php echo esc_attr($date_to); ?>">
-            
-            <?php if ($report_type === 'coaches'): ?>
+            <input type="date" name="date_to" value="<?php echo esc_attr($date_to);?>" />
+            <?php if ($report_type==='coaches'): ?>
             <label>Coach:</label>
             <select name="coach_id">
                 <option value="">All Coaches</option>
-                <?php foreach ($coaches as $coach): ?>
-                <option value="<?php echo $coach->ID; ?>" <?php selected($coach_id, $coach->ID); ?>>
-                    <?php echo esc_html($coach->display_name); ?>
-                </option>
+                <?php foreach ($coaches as $c): ?>
+                    <option value="<?php echo $c->ID; ?>" <?php selected($coach_id,$c->ID);?>><?php echo esc_html($c->display_name);?></option>
                 <?php endforeach; ?>
             </select>
             <?php endif; ?>
-            
-            <input type="submit" class="button-primary" value="Generate Report">
-            <button type="button" class="button" onclick="exportReport()">Export PDF</button>
+            <input type="submit" class="button button-primary" value="Generate" />
         </form>
     </div>
 
-    <?php if ($report_type === 'overview'): ?>
+    <?php if ($report_type==='overview'): ?>
     <!-- Overview Report -->
     <div class="jgk-report-section">
         <h2>Organization Overview</h2>
@@ -363,7 +373,7 @@ if ($coach_id) {
                 <tbody>
                     <?php foreach ($membership_stats['by_type'] as $type => $stats): ?>
                     <tr>
-                        <td><?php echo ucfirst($type); ?></td>
+                        <td><?php echo esc_html(ucfirst($type)); ?></td>
                         <td><?php echo $stats['active']; ?></td>
                         <td><?php echo $stats['new']; ?></td>
                         <td>KSh <?php echo number_format($stats['revenue'], 2); ?></td>
@@ -414,7 +424,7 @@ if ($coach_id) {
                 <tbody>
                     <?php foreach ($payment_stats['by_method'] as $method => $stats): ?>
                     <tr>
-                        <td><?php echo ucfirst($method); ?></td>
+                        <td><?php echo esc_html(ucfirst($method)); ?></td>
                         <td><?php echo $stats['count']; ?></td>
                         <td>KSh <?php echo number_format($stats['amount'], 2); ?></td>
                         <td><?php echo number_format($stats['success_rate'], 1); ?>%</td>
@@ -425,7 +435,7 @@ if ($coach_id) {
         </div>
         
         <div class="jgk-payment-history">
-            <h3>Payment History</h3>
+            <h3>Recent Payments</h3>
             <table class="wp-list-table widefat">
                 <thead>
                     <tr>
@@ -439,99 +449,44 @@ if ($coach_id) {
                 </thead>
                 <tbody>
                     <?php
-                    // Get payment history from both WooCommerce orders and JGK payments table
-                    $payment_history = array();
+                    // Get recent payments from JGK payments table
+                    $recent_payments = array();
                     
-                    // Get WooCommerce orders
-                    if ($membership_product_id && $wc_tables_ok) {
-                        $orders = $wpdb->get_results($wpdb->prepare("
-                            SELECT 
-                                p.ID as order_id,
-                                p.post_date as date_created,
-                                CONCAT(u.display_name, ' (', m.membership_number, ')') as member_name,
-                                pm_total.meta_value as amount,
-                                pm_payment.meta_value as payment_method,
-                                CASE 
-                                    WHEN p.post_status = 'wc-completed' THEN 'completed'
-                                    WHEN p.post_status = 'wc-pending' THEN 'pending'
-                                    WHEN p.post_status = 'wc-processing' THEN 'processing'
-                                    WHEN p.post_status = 'wc-on-hold' THEN 'on-hold'
-                                    WHEN p.post_status = 'wc-failed' THEN 'failed'
-                                    ELSE 'unknown'
-                                END as status
-                            FROM {$wpdb->posts} p
-                            INNER JOIN {$wpdb->postmeta} pm_total ON p.ID = pm_total.post_id AND pm_total.meta_key = '_order_total'
-                            LEFT JOIN {$wpdb->postmeta} pm_payment ON p.ID = pm_payment.post_id AND pm_payment.meta_key = '_payment_method_title'
-                            LEFT JOIN {$wpdb->postmeta} pm_customer ON p.ID = pm_customer.post_id AND pm_customer.meta_key = '_customer_user'
-                            LEFT JOIN {$wpdb->users} u ON pm_customer.meta_value = u.ID
-                            LEFT JOIN {$members_table} m ON u.ID = m.user_id
-                            INNER JOIN {$wpdb->prefix}woocommerce_order_items oi ON p.ID = oi.order_id
-                            INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta oim ON oi.order_item_id = oim.order_item_id
-                            WHERE p.post_type = 'shop_order'
-                            AND p.post_status IN ('wc-completed', 'wc-pending', 'wc-processing', 'wc-on-hold', 'wc-failed')
-                            AND oim.meta_key = '_product_id'
-                            AND oim.meta_value = %d
-                            AND DATE(p.post_date) BETWEEN %s AND %s
-                            ORDER BY p.post_date DESC
-                            LIMIT 100
-                        ", $membership_product_id, $date_from, $date_to));
-                        
-                        foreach ($orders as $order) {
-                            $payment_history[] = array(
-                                'date' => $order->date_created,
-                                'member' => $order->member_name ?: 'Unknown',
-                                'order_id' => $order->order_id,
-                                'amount' => $order->amount,
-                                'payment_method' => $order->payment_method ?: 'Unknown',
-                                'status' => $order->status,
-                                'source' => 'woocommerce'
-                            );
-                        }
-                    }
-                    
-                    // Get payments from JGK payments table
                     if ($wpdb->get_var("SHOW TABLES LIKE '$payments_table'") == $payments_table) {
                         $jgk_payments = $wpdb->get_results($wpdb->prepare("
                             SELECT 
                                 p.payment_date as date_created,
-                                CONCAT(u.display_name, ' (', m.membership_number, ')') as member_name,
+                                CONCAT(m.first_name, ' ', m.last_name) as member_name,
                                 p.order_id,
                                 p.amount,
                                 p.payment_method,
                                 p.status
                             FROM {$payments_table} p
                             LEFT JOIN {$members_table} m ON p.member_id = m.id
-                            LEFT JOIN {$wpdb->users} u ON m.user_id = u.ID
                             WHERE DATE(p.payment_date) BETWEEN %s AND %s
                             ORDER BY p.payment_date DESC
-                            LIMIT 100
+                            LIMIT 50
                         ", $date_from, $date_to));
                         
                         foreach ($jgk_payments as $payment) {
-                            $payment_history[] = array(
+                            $recent_payments[] = array(
                                 'date' => $payment->date_created,
                                 'member' => $payment->member_name ?: 'Unknown',
                                 'order_id' => $payment->order_id ?: 'N/A',
                                 'amount' => $payment->amount,
                                 'payment_method' => $payment->payment_method,
                                 'status' => $payment->status,
-                                'source' => 'jgk'
                             );
                         }
                     }
                     
-                    // Sort combined payments by date (most recent first)
-                    usort($payment_history, function($a, $b) {
-                        return strtotime($b['date']) - strtotime($a['date']);
-                    });
-                    
                     // Display payments
-                    if (empty($payment_history)): ?>
+                    if (empty($recent_payments)): ?>
                     <tr>
                         <td colspan="6">No payments found for the selected period.</td>
                     </tr>
                     <?php else:
-                        foreach (array_slice($payment_history, 0, 50) as $payment): ?>
+                        foreach ($recent_payments as $payment): ?>
                     <tr>
                         <td><?php echo date('M j, Y H:i', strtotime($payment['date'])); ?></td>
                         <td><?php echo esc_html($payment['member']); ?></td>
@@ -580,6 +535,7 @@ if ($coach_id) {
                 </div>
             </div>
             
+            <?php if (!empty($coach_performance['recent_feedback'])): ?>
             <div class="jgk-coach-feedback">
                 <h4>Recent Feedback</h4>
                 <?php foreach ($coach_performance['recent_feedback'] as $feedback): ?>
@@ -596,6 +552,7 @@ if ($coach_id) {
                 </div>
                 <?php endforeach; ?>
             </div>
+            <?php endif; ?>
         </div>
         
         <?php else: ?>
@@ -616,22 +573,20 @@ if ($coach_id) {
                     <?php foreach ($coaches as $coach): ?>
                     <tr>
                         <td><?php echo esc_html($coach->display_name); ?></td>
-                        <td><?php echo $coach->member_count; ?></td>
+                        <td><?php echo $coach_performance['member_count'] ?? 0; ?></td>
                         <td>
-                            <?php if ($coach->avg_rating): ?>
-                            <?php echo number_format($coach->avg_rating, 1); ?>/5
+                            <?php if ($coach_performance['avg_rating'] ?? 0): ?>
+                            <?php echo number_format($coach_performance['avg_rating'], 1); ?>/5
                             <?php else: ?>
                             No ratings
                             <?php endif; ?>
                         </td>
-                        <td><?php echo $coach->training_sessions ?: 0; ?></td>
+                        <td><?php echo $coach_performance['training_sessions'] ?? 0; ?></td>
                         <td>
-                            <span class="jgk-status-<?php echo esc_attr($coach->status); ?>">
-                                <?php echo ucfirst($coach->status); ?>
-                            </span>
+                            <span class="jgk-status-active">Active</span>
                         </td>
                         <td>
-                            <a href="?page=juniorgolfkenya-reports&report_type=coaches&coach_id=<?php echo $coach->ID; ?>&date_from=<?php echo $date_from; ?>&date_to=<?php echo $date_to; ?>" class="button button-small">
+                            <a href="?page=juniorgolfkenya-reports&report_type=coaches&coach_id=<?php echo $coach->ID; ?>&date_from=<?php echo esc_attr($date_from); ?>&date_to=<?php echo esc_attr($date_to); ?>" class="button button-small">
                                 View Details
                             </a>
                         </td>
@@ -774,26 +729,31 @@ if ($coach_id) {
     color: #ffb900;
     margin-bottom: 10px;
 }
+
+.jgk-status-completed,
+.jgk-status-active {
+    color: #46b450;
+    font-weight: bold;
+}
+
+.jgk-status-pending {
+    color: #f39c12;
+    font-weight: bold;
+}
+
+.jgk-status-failed {
+    color: #e74c3c;
+    font-weight: bold;
+}
 </style>
 
 <script>
-function exportReport() {
-    // Generate PDF export
-    const reportType = '<?php echo $report_type; ?>';
-    const dateFrom = '<?php echo $date_from; ?>';
-    const dateTo = '<?php echo $date_to; ?>';
-    const coachId = <?php echo $coach_id ?: 0; ?>;
-    
-    const url = `<?php echo admin_url('admin-ajax.php'); ?>?action=jgk_export_report&report_type=${reportType}&date_from=${dateFrom}&date_to=${dateTo}&coach_id=${coachId}`;
-    window.open(url, '_blank');
-}
-
 // Initialize charts if overview report
 <?php if ($report_type === 'overview'): ?>
 document.addEventListener('DOMContentLoaded', function() {
     // Membership growth chart
     const membershipCtx = document.getElementById('membershipChart');
-    if (membershipCtx) {
+    if (membershipCtx && typeof Chart !== 'undefined') {
         new Chart(membershipCtx, {
             type: 'line',
             data: {
@@ -836,7 +796,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Revenue chart
     const revenueCtx = document.getElementById('revenueChart');
-    if (revenueCtx) {
+    if (revenueCtx && typeof Chart !== 'undefined') {
         new Chart(revenueCtx, {
             type: 'bar',
             data: {
@@ -876,22 +836,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Status distribution chart
     const statusCtx = document.getElementById('statusChart');
-    if (statusCtx) {
+    if (statusCtx && typeof Chart !== 'undefined') {
         const statusData = {
-            labels: ['Active', 'Pending', 'Approved', 'Expired', 'Suspended'],
+            labels: ['Active', 'Pending', 'Inactive'],
             datasets: [{
                 data: [
                     <?php echo $overview_stats['active_members']; ?>,
-                    <?php echo $overview_stats['pending_members'] ?? 0; ?>,
-                    <?php echo $overview_stats['approved_members'] ?? 0; ?>,
-                    <?php echo $overview_stats['expired_members'] ?? 0; ?>,
-                    <?php echo $overview_stats['suspended_members'] ?? 0; ?>
+                    <?php echo $overview_stats['total_members'] - $overview_stats['active_members']; ?>,
+                    0 // Placeholder for inactive
                 ],
                 backgroundColor: [
                     '#46b450',
                     '#f39c12',
-                    '#3498db',
-                    '#e74c3c',
                     '#95a5a6'
                 ],
                 borderWidth: 1
@@ -918,10 +874,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Payment methods chart
     const paymentMethodsCtx = document.getElementById('paymentMethodsChart');
-    if (paymentMethodsCtx) {
+    if (paymentMethodsCtx && typeof Chart !== 'undefined') {
         const methodLabels = <?php echo json_encode(array_keys($payment_stats['by_method'])); ?>;
-        const methodData = <?php echo json_encode(array_column($payment_stats['by_method'], 'amount')); ?>;
-
+        const methodData = <?php echo json_encode(array_column($payment_stats['by_method'], 'count')); ?>;
+        
         new Chart(paymentMethodsCtx, {
             type: 'pie',
             data: {
@@ -929,13 +885,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 datasets: [{
                     data: methodData,
                     backgroundColor: [
-                        '#3498db',
+                        '#2271b1',
+                        '#46b450',
+                        '#ffb900',
                         '#e74c3c',
-                        '#f39c12',
                         '#9b59b6',
-                        '#1abc9c'
-                    ],
-                    borderWidth: 1
+                        '#34495e'
+                    ]
                 }]
             },
             options: {
@@ -946,14 +902,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     },
                     title: {
                         display: true,
-                        text: 'Payment Methods Distribution'
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                return context.label + ': KSh ' + context.parsed.toLocaleString();
-                            }
-                        }
+                        text: 'Payment Method Distribution'
                     }
                 }
             }
@@ -961,43 +910,4 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 <?php endif; ?>
-
-// Handle PDF export
-document.getElementById('export-pdf-btn').addEventListener('click', function() {
-    const reportType = document.getElementById('report-type').value;
-    const startDate = document.getElementById('start-date').value;
-    const endDate = document.getElementById('end-date').value;
-
-    if (!startDate || !endDate) {
-        alert('Please select both start and end dates for the export.');
-        return;
-    }
-
-    // Create form to submit PDF export request
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = jgkAjax.ajaxurl;
-    form.target = '_blank'; // Open in new tab
-
-    // Add form fields
-    const fields = {
-        'action': 'jgk_export_reports_pdf',
-        'nonce': jgkAjax.reports_nonce,
-        'report_type': reportType,
-        'start_date': startDate,
-        'end_date': endDate
-    };
-
-    for (const [key, value] of Object.entries(fields)) {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = key;
-        input.value = value;
-        form.appendChild(input);
-    }
-
-    document.body.appendChild(form);
-    form.submit();
-    document.body.removeChild(form);
-});
 </script>
