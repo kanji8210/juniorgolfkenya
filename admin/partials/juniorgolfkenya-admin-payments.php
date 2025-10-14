@@ -37,15 +37,18 @@ if (isset($_POST['action'])) {
             $payment_id = intval($_POST['payment_id']);
             $status = sanitize_text_field($_POST['status']);
             $notes = sanitize_textarea_field($_POST['notes']);
-            $amount = isset($_POST['amount']) ? floatval($_POST['amount']) : null;
+            $amount_raw = isset($_POST['amount']) ? trim((string)$_POST['amount']) : null;
             $payment_type = isset($_POST['payment_type']) ? sanitize_text_field($_POST['payment_type']) : null;
 
             $update_data = array(
                 'status' => $status,
                 'notes' => $notes,
             );
-            if (!is_null($amount)) { $update_data['amount'] = $amount; }
-            if (!is_null($payment_type)) { $update_data['payment_type'] = $payment_type; }
+            // Only update amount if the field is provided AND non-empty AND numeric
+            if ($amount_raw !== null && $amount_raw !== '' && is_numeric($amount_raw)) {
+                $update_data['amount'] = (float)$amount_raw;
+            }
+            if (!is_null($payment_type) && $payment_type !== '') { $update_data['payment_type'] = $payment_type; }
 
             $result = JuniorGolfKenya_Database::update_payment($payment_id, $update_data);
             
@@ -232,7 +235,7 @@ $completed_amount = array_sum(array_map(function($p) { return $p->status === 'co
                                 View Order
                             </a>
                         <?php else: ?>
-                            <button class="button button-small" onclick="openUpdateModal(<?php echo $payment->id; ?>, '<?php echo esc_js($payment->status); ?>', '<?php echo esc_js($payment->notes); ?>', '<?php echo esc_js($payment->amount); ?>', '<?php echo esc_js($payment->payment_type); ?>')">
+                            <button class="button button-small" onclick="openUpdateModal(<?php echo $payment->id; ?>, '<?php echo esc_js($payment->status); ?>', '<?php echo esc_js($payment->notes); ?>', '<?php echo esc_js($payment->amount); ?>', '<?php echo esc_js($payment->payment_type); ?>', <?php echo (isset($payment->source) && $payment->source === 'woocommerce') ? 'true' : 'false'; ?>)">
                                 Update
                             </button>
                             <?php if ($payment->status === 'completed' && $payment->payment_method === 'online'): ?>
