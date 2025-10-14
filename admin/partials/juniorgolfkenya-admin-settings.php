@@ -43,6 +43,7 @@ if (isset($_POST['submit'])) {
     // Save payment settings
     $payment_settings = array(
         'enable_online_payments' => isset($_POST['enable_online_payments']),
+        'membership_product_id' => intval($_POST['membership_product_id'] ?? 0),
         'stripe_public_key' => sanitize_text_field($_POST['stripe_public_key']),
         'stripe_secret_key' => sanitize_text_field($_POST['stripe_secret_key']),
         'paypal_client_id' => sanitize_text_field($_POST['paypal_client_id']),
@@ -204,6 +205,13 @@ $general_settings = wp_parse_args($general_settings, $general_defaults);
                             <input type="checkbox" name="enable_online_payments" <?php checked(isset($payment_settings['enable_online_payments']) && $payment_settings['enable_online_payments']); ?>>
                             Enable online payment processing
                         </label>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">Membership Product ID</th>
+                    <td>
+                        <input type="number" name="membership_product_id" value="<?php echo esc_attr($payment_settings['membership_product_id'] ?? ''); ?>" class="regular-text" min="0">
+                        <p class="description">WooCommerce product ID for membership payments. Create a product in WooCommerce first, then enter its ID here.</p>
                     </td>
                 </tr>
             </table>

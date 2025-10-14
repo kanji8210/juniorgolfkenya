@@ -386,3 +386,40 @@ function jgk_handle_coach_request_form() {
         exit;
     }
 }
+
+/**
+ * Register AJAX handler for PDF export
+ */
+add_action('wp_ajax_jgk_export_reports_pdf', 'jgk_ajax_export_reports_pdf');
+
+function jgk_ajax_export_reports_pdf() {
+    // Verify nonce
+    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'jgk_reports_action')) {
+        wp_die('Security check failed');
+    }
+
+    // Check user capabilities
+    if (!current_user_can('view_reports')) {
+        wp_die('Insufficient permissions');
+    }
+
+    $report_type = sanitize_text_field($_POST['report_type']);
+    $start_date = sanitize_text_field($_POST['start_date']);
+    $end_date = sanitize_text_field($_POST['end_date']);
+
+    // Get admin instance to use PDF generation methods
+    $admin_instance = new JuniorGolfKenya_Admin('juniorgolfkenya', JUNIORGOLFKENYA_VERSION);
+
+    // Generate PDF content
+    $pdf_content = $admin_instance->generate_pdf_content($report_type, $start_date, $end_date);
+
+    // Set headers for PDF download
+    header('Content-Type: application/pdf');
+    header('Content-Disposition: attachment; filename="jgk-report-' . $report_type . '-' . date('Y-m-d') . '.pdf"');
+    header('Cache-Control: private, max-age=0, must-revalidate');
+    header('Pragma: public');
+
+    // Output PDF content
+    echo $pdf_content;
+    wp_die();
+}

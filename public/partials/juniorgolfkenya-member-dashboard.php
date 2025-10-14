@@ -100,18 +100,27 @@ $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id,
                 if (class_exists('WooCommerce')) {
                     $membership_product_id = get_option('jgk_membership_product_id');
                     if ($membership_product_id) {
+                        $product_url = get_permalink($membership_product_id);
                         $add_to_cart_url = wc_get_cart_url() . '?add-to-cart=' . $membership_product_id;
                         ?>
-                        <a href="<?php echo esc_url($add_to_cart_url); ?>" class="jgk-payment-cta-btn jgk-payment-mpesa">
+                        <a href="<?php echo esc_url($product_url); ?>" class="jgk-payment-cta-btn jgk-payment-mpesa">
                             <span class="dashicons dashicons-smartphone"></span>
                             Pay with M-Pesa
                         </a>
-                        <a href="<?php echo esc_url($add_to_cart_url); ?>" class="jgk-payment-cta-btn jgk-payment-elipa">
+                        <a href="<?php echo esc_url($product_url); ?>" class="jgk-payment-cta-btn jgk-payment-elipa">
                             <span class="dashicons dashicons-credit-card"></span>
                             Pay with eLipa
                         </a>
                         <?php
+                    } else {
+                        ?>
+                        <p class="jgk-payment-notice">Membership product not configured. Please contact administrator.</p>
+                        <?php
                     }
+                } else {
+                    ?>
+                    <p class="jgk-payment-notice">WooCommerce not installed or activated.</p>
+                    <?php
                 }
                 ?>
             </div>
@@ -172,11 +181,11 @@ $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id,
                     <div class="jgk-progress-fill" style="width: <?php echo $stats['profile_completion']; ?>%"></div>
                 </div>
             </div>
-        </div>
+        </div> 
 
         <div class="jgk-stat-card jgk-card-warning">
             <div class="jgk-stat-icon">
-                <span class="dashicons dashicons-flag"></span>
+                <span class="dashicons dashicons-admin-users"></span>
             </div>
             <div class="jgk-stat-content">
                 <h3><?php echo esc_html(jgk_get_prop($stats['member'], 'handicap_index')); ?></h3>
@@ -463,9 +472,13 @@ $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id,
                         Quick Links
                     </h3>
                 </div>
-                //link esit profile to user portal of current user
+                //link edit profile to user portal of current user
                 <div class="jgk-quick-links">
-                    <a href="#" class="jgk-quick-link">
+                    <?php 
+                    $portal_page_id = get_option('jgk_page_member_portal');
+                    $portal_url = $portal_page_id ? get_permalink($portal_page_id) : home_url('/member-portal');
+                    ?>
+                    <a href="<?php echo esc_url($portal_url . '#edit-profile'); ?>" class="jgk-quick-link">
                         <span class="dashicons dashicons-edit"></span>
                         Edit Profile
                     </a>
@@ -1240,6 +1253,9 @@ $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id,
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 8px;
     text-align: center;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 14px;
+    backdrop-filter: blur(10px);
 }
 
 .jgk-payment-note {
@@ -1369,7 +1385,7 @@ $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id,
     padding: 14px 20px;
     border: 2px solid rgba(255, 255, 255, 0.3);
     border-radius: 12px;
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.2);
     color: white;
     font-size: 14px;
     font-weight: 600;
@@ -1377,33 +1393,40 @@ $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id,
     transition: all 0.3s ease;
     backdrop-filter: blur(10px);
     min-width: 160px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .jgk-payment-cta-btn:hover {
-    background: rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.3);
     border-color: rgba(255, 255, 255, 0.5);
     transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+    color: white;
+    text-decoration: none;
 }
 
 .jgk-payment-mpesa {
     border-color: #00c853;
-    background: rgba(0, 200, 83, 0.2);
+    background: rgba(0, 200, 83, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 200, 83, 0.2);
 }
 
 .jgk-payment-mpesa:hover {
-    background: rgba(0, 200, 83, 0.3);
+    background: rgba(0, 200, 83, 0.4);
     border-color: #00c853;
+    box-shadow: 0 6px 20px rgba(0, 200, 83, 0.3);
 }
 
 .jgk-payment-elipa {
     border-color: #1976d2;
-    background: rgba(25, 118, 210, 0.2);
+    background: rgba(25, 118, 210, 0.3);
+    box-shadow: 0 4px 12px rgba(25, 118, 210, 0.2);
 }
 
 .jgk-payment-elipa:hover {
-    background: rgba(25, 118, 210, 0.3);
+    background: rgba(25, 118, 210, 0.4);
     border-color: #1976d2;
+    box-shadow: 0 6px 20px rgba(25, 118, 210, 0.3);
 }
 
 /* Responsive Payment Banner */

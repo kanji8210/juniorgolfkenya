@@ -96,6 +96,11 @@ class JuniorGolfKenya {
         require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-user-manager.php';
 
         /**
+         * WooCommerce integration
+         */
+        require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-woocommerce.php';
+
+        /**
          * ARMember data importer
          */
         require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-armember-importer.php';

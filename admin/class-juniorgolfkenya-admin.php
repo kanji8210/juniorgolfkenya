@@ -67,16 +67,277 @@ class JuniorGolfKenya_Admin {
         $screen = get_current_screen();
         error_log('JGK Enqueue Debug - Screen ID: ' . ($screen ? $screen->id : 'null'));
         error_log('JGK Enqueue Debug - Page: ' . (isset($_GET['page']) ? $_GET['page'] : 'null'));
-        
+
         wp_enqueue_script($this->plugin_name, JUNIORGOLFKENYA_PLUGIN_URL . 'admin/js/juniorgolfkenya-admin.js', array('jquery'), $this->version, false);
-        
+
+        // Load Chart.js only on reports page
+        if (isset($_GET['page']) && $_GET['page'] === 'juniorgolfkenya-reports') {
+            wp_enqueue_script('chart-js', 'https://cdn.jsdelivr.net/npm/chart.js', array(), '4.4.0', true);
+        }
+
         // Localize script with AJAX URL and nonces
         wp_localize_script($this->plugin_name, 'jgkAjax', array(
             'ajaxurl' => admin_url('admin-ajax.php'),
-            'members_nonce' => wp_create_nonce('jgk_members_action')
+            'members_nonce' => wp_create_nonce('jgk_members_action'),
+            'reports_nonce' => wp_create_nonce('jgk_reports_action')
         ));
-        
+
         error_log('JGK Enqueue Debug - Script enqueued and localized successfully');
+    }
+
+    /**
+     * Handle AJAX request for PDF export.
+     *
+     * @since    1.0.0
+     */
+    public function export_reports_pdf() {
+        // Verify nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'jgk_reports_action')) {
+            wp_die('Security check failed');
+        }
+
+        // Check user capabilities
+        if (!current_user_can('view_reports')) {
+            wp_die('Insufficient permissions');
+        }
+
+        $report_type = sanitize_text_field($_POST['report_type']);
+        $start_date = sanitize_text_field($_POST['start_date']);
+        $end_date = sanitize_text_field($_POST['end_date']);
+
+        // Generate PDF content
+        $pdf_content = $this->generate_pdf_content($report_type, $start_date, $end_date);
+
+        // Set headers for PDF download
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: attachment; filename="jgk-report-' . $report_type . '-' . date('Y-m-d') . '.pdf"');
+        header('Cache-Control: private, max-age=0, must-revalidate');
+        header('Pragma: public');
+
+        // Output PDF content
+        echo $pdf_content;
+        wp_die();
+    }
+
+    /**
+     * Generate PDF content for reports.
+     *
+     * @param string $report_type Type of report
+     * @param string $start_date Start date
+     * @param string $end_date End date
+     * @return string PDF content
+     */
+    private function generate_pdf_content($report_type, $start_date, $end_date) {
+        global $wpdb;
+
+        $content = "Junior Golf Kenya - " . ucfirst($report_type) . " Report\n";
+        $content .= "Generated on: " . date('Y-m-d H:i:s') . "\n";
+        $content .= "Period: " . $start_date . " to " . $end_date . "\n\n";
+
+        switch ($report_type) {
+            case 'overview':
+                // Get overview statistics
+                $overview_stats = $this->get_overview_stats($start_date, $end_date);
+                $content .= "OVERVIEW STATISTICS\n";
+                $content .= "==================\n\n";
+                $content .= "Total Members: " . $overview_stats['total_members'] . "\n";
+                $content .= "Active Members: " . $overview_stats['active_members'] . "\n";
+                $content .= "Total Revenue: KSh " . number_format($overview_stats['total_revenue']) . "\n";
+                $content .= "Total Payments: " . $overview_stats['total_payments'] . "\n\n";
+
+                // Monthly data
+                $monthly_data = $this->get_monthly_data($start_date, $end_date);
+                $content .= "MONTHLY BREAKDOWN\n";
+                $content .= "=================\n\n";
+                foreach ($monthly_data as $month => $data) {
+                    $content .= $month . ":\n";
+                    $content .= "  Members: " . $data['members'] . "\n";
+                    $content .= "  New Members: " . $data['new_members'] . "\n";
+                    $content .= "  Revenue: KSh " . number_format($data['revenue']) . "\n\n";
+                }
+                break;
+
+            case 'payments':
+                // Get payment statistics
+                $payment_stats = $this->get_payment_stats($start_date, $end_date);
+                $content .= "PAYMENT STATISTICS\n";
+                $content .= "==================\n\n";
+                $content .= "Total Payments: " . $payment_stats['total_payments'] . "\n";
+                $content .= "Total Revenue: KSh " . number_format($payment_stats['total_revenue']) . "\n";
+                $content .= "Average Payment: KSh " . number_format($payment_stats['average_payment']) . "\n\n";
+
+                $content .= "PAYMENT METHODS\n";
+                $content .= "===============\n\n";
+                foreach ($payment_stats['by_method'] as $method => $data) {
+                    $content .= $method . ": " . $data['count'] . " payments, KSh " . number_format($data['amount']) . "\n";
+                }
+                break;
+
+            case 'members':
+                // Get member statistics
+                $member_stats = $this->get_member_stats($start_date, $end_date);
+                $content .= "MEMBER STATISTICS\n";
+                $content .= "=================\n\n";
+                $content .= "Total Members: " . $member_stats['total_members'] . "\n";
+                $content .= "Active Members: " . $member_stats['active_members'] . "\n";
+                $content .= "New Members: " . $member_stats['new_members'] . "\n\n";
+
+                $content .= "MEMBERS BY STATUS\n";
+                $content .= "=================\n\n";
+                foreach ($member_stats['by_status'] as $status => $count) {
+                    $content .= ucfirst($status) . ": " . $count . "\n";
+                }
+                break;
+        }
+
+        return $content;
+    }
+
+    /**
+     * Get overview statistics for PDF.
+     */
+    private function get_overview_stats($start_date, $end_date) {
+        global $wpdb;
+
+        $stats = array(
+            'total_members' => 0,
+            'active_members' => 0,
+            'total_revenue' => 0,
+            'total_payments' => 0
+        );
+
+        // Total members
+        $stats['total_members'] = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}jgk_members");
+
+        // Active members
+        $stats['active_members'] = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}jgk_members WHERE status = 'active'");
+
+        // Total revenue and payments
+        $query = $wpdb->prepare(
+            "SELECT SUM(amount) as revenue, COUNT(*) as payments FROM {$wpdb->prefix}jgk_payments
+             WHERE payment_date BETWEEN %s AND %s",
+            $start_date, $end_date
+        );
+        $result = $wpdb->get_row($query);
+        $stats['total_revenue'] = $result->revenue ?: 0;
+        $stats['total_payments'] = $result->payments ?: 0;
+
+        return $stats;
+    }
+
+    /**
+     * Get monthly data for PDF.
+     */
+    private function get_monthly_data($start_date, $end_date) {
+        global $wpdb;
+
+        $monthly_data = array();
+
+        $query = $wpdb->prepare(
+            "SELECT
+                DATE_FORMAT(payment_date, '%Y-%m') as month,
+                COUNT(DISTINCT member_id) as members,
+                SUM(amount) as revenue
+             FROM {$wpdb->prefix}jgk_payments
+             WHERE payment_date BETWEEN %s AND %s
+             GROUP BY DATE_FORMAT(payment_date, '%Y-%m')
+             ORDER BY month",
+            $start_date, $end_date
+        );
+
+        $results = $wpdb->get_results($query);
+
+        foreach ($results as $row) {
+            $monthly_data[$row->month] = array(
+                'members' => $row->members,
+                'new_members' => 0, // Would need more complex query for new members
+                'revenue' => $row->revenue
+            );
+        }
+
+        return $monthly_data;
+    }
+
+    /**
+     * Get payment statistics for PDF.
+     */
+    private function get_payment_stats($start_date, $end_date) {
+        global $wpdb;
+
+        $stats = array(
+            'total_payments' => 0,
+            'total_revenue' => 0,
+            'average_payment' => 0,
+            'by_method' => array()
+        );
+
+        $query = $wpdb->prepare(
+            "SELECT
+                COUNT(*) as total_payments,
+                SUM(amount) as total_revenue,
+                AVG(amount) as average_payment
+             FROM {$wpdb->prefix}jgk_payments
+             WHERE payment_date BETWEEN %s AND %s",
+            $start_date, $end_date
+        );
+
+        $result = $wpdb->get_row($query);
+        $stats['total_payments'] = $result->total_payments ?: 0;
+        $stats['total_revenue'] = $result->total_revenue ?: 0;
+        $stats['average_payment'] = $result->average_payment ?: 0;
+
+        // Payment methods
+        $method_query = $wpdb->prepare(
+            "SELECT payment_method, COUNT(*) as count, SUM(amount) as amount
+             FROM {$wpdb->prefix}jgk_payments
+             WHERE payment_date BETWEEN %s AND %s
+             GROUP BY payment_method",
+            $start_date, $end_date
+        );
+
+        $method_results = $wpdb->get_results($method_query);
+        foreach ($method_results as $row) {
+            $stats['by_method'][$row->payment_method] = array(
+                'count' => $row->count,
+                'amount' => $row->amount
+            );
+        }
+
+        return $stats;
+    }
+
+    /**
+     * Get member statistics for PDF.
+     */
+    private function get_member_stats($start_date, $end_date) {
+        global $wpdb;
+
+        $stats = array(
+            'total_members' => 0,
+            'active_members' => 0,
+            'new_members' => 0,
+            'by_status' => array()
+        );
+
+        // Total members
+        $stats['total_members'] = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}jgk_members");
+
+        // Active members
+        $stats['active_members'] = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}jgk_members WHERE status = 'active'");
+
+        // New members in period
+        $stats['new_members'] = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}jgk_members WHERE DATE(created_at) BETWEEN %s AND %s",
+            $start_date, $end_date
+        ));
+
+        // Members by status
+        $status_results = $wpdb->get_results("SELECT status, COUNT(*) as count FROM {$wpdb->prefix}jgk_members GROUP BY status");
+        foreach ($status_results as $row) {
+            $stats['by_status'][$row->status] = $row->count;
+        }
+
+        return $stats;
     }
 
     /**

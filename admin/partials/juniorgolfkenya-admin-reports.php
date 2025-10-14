@@ -70,11 +70,25 @@ foreach ($types as $type) {
 
 $coaches = JuniorGolfKenya_Database::get_coaches();
 
-// Get payment stats manually (method doesn't exist)
-$payments_table = $wpdb->prefix . 'jgk_payments';
+// Get enhanced payment stats
 $payment_stats = array(
     'total_revenue' => $wpdb->get_var($wpdb->prepare(
         "SELECT COALESCE(SUM(amount), 0) FROM $payments_table WHERE status = 'completed' AND DATE(created_at) BETWEEN %s AND %s",
+        $date_from,
+        $date_to
+    )),
+    'completed_payments' => $wpdb->get_var($wpdb->prepare(
+        "SELECT COALESCE(SUM(amount), 0) FROM $payments_table WHERE status = 'completed' AND DATE(created_at) BETWEEN %s AND %s",
+        $date_from,
+        $date_to
+    )),
+    'pending_payments' => $wpdb->get_var($wpdb->prepare(
+        "SELECT COALESCE(SUM(amount), 0) FROM $payments_table WHERE status = 'pending' AND DATE(created_at) BETWEEN %s AND %s",
+        $date_from,
+        $date_to
+    )),
+    'failed_payments' => $wpdb->get_var($wpdb->prepare(
+        "SELECT COALESCE(SUM(amount), 0) FROM $payments_table WHERE status = 'failed' AND DATE(created_at) BETWEEN %s AND %s",
         $date_from,
         $date_to
     )),
@@ -82,8 +96,52 @@ $payment_stats = array(
         "SELECT COUNT(*) FROM $payments_table WHERE DATE(created_at) BETWEEN %s AND %s",
         $date_from,
         $date_to
-    ))
+    )),
+    'by_method' => array()
 );
+
+// Get payment methods breakdown
+$methods = $wpdb->get_results($wpdb->prepare("
+    SELECT payment_method, COUNT(*) as count, SUM(amount) as amount
+    FROM $payments_table
+    WHERE DATE(created_at) BETWEEN %s AND %s
+    GROUP BY payment_method
+", $date_from, $date_to));
+
+foreach ($methods as $method) {
+    $success_count = $wpdb->get_var($wpdb->prepare("
+        SELECT COUNT(*) FROM $payments_table
+        WHERE payment_method = %s AND status = 'completed' AND DATE(created_at) BETWEEN %s AND %s
+    ", $method->payment_method, $date_from, $date_to));
+
+    $payment_stats['by_method'][$method->payment_method] = array(
+        'count' => $method->count,
+        'amount' => $method->amount,
+        'success_rate' => $method->count > 0 ? ($success_count / $method->count) * 100 : 0
+    );
+}
+
+// Get monthly data for charts (last 12 months)
+$monthly_data = array();
+for ($i = 11; $i >= 0; $i--) {
+    $month_start = date('Y-m-01', strtotime("-$i months"));
+    $month_end = date('Y-m-t', strtotime("-$i months"));
+    $month_name = date('M Y', strtotime("-$i months"));
+
+    $monthly_data[$month_name] = array(
+        'members' => $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM $members_table WHERE DATE(created_at) <= %s", $month_end
+        )),
+        'revenue' => $wpdb->get_var($wpdb->prepare(
+            "SELECT COALESCE(SUM(amount), 0) FROM $payments_table WHERE status = 'completed' AND DATE(created_at) BETWEEN %s AND %s",
+            $month_start, $month_end
+        )),
+        'new_members' => $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM $members_table WHERE DATE(created_at) BETWEEN %s AND %s",
+            $month_start, $month_end
+        ))
+    );
+}
 
 if ($coach_id) {
     // Get coach performance manually (method doesn't exist)
@@ -185,12 +243,24 @@ if ($coach_id) {
         
         <div class="jgk-charts-grid">
             <div class="jgk-chart-container">
-                <h3>Membership Growth</h3>
-                <canvas id="membershipChart"></canvas>
+                <h3>Membership Growth (Last 12 Months)</h3>
+                <canvas id="membershipChart" width="400" height="200"></canvas>
             </div>
             <div class="jgk-chart-container">
-                <h3>Revenue Trends</h3>
-                <canvas id="revenueChart"></canvas>
+                <h3>Revenue Trends (Last 12 Months)</h3>
+                <canvas id="revenueChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+
+        <!-- Additional Charts -->
+        <div class="jgk-charts-grid">
+            <div class="jgk-chart-container">
+                <h3>Membership Status Distribution</h3>
+                <canvas id="statusChart" width="400" height="200"></canvas>
+            </div>
+            <div class="jgk-chart-container">
+                <h3>Payment Methods</h3>
+                <canvas id="paymentMethodsChart" width="400" height="200"></canvas>
             </div>
         </div>
     </div>
@@ -535,13 +605,213 @@ function exportReport() {
 // Initialize charts if overview report
 <?php if ($report_type === 'overview'): ?>
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize membership chart
-    const membershipCtx = document.getElementById('membershipChart').getContext('2d');
-    // Chart implementation would go here
-    
-    // Initialize revenue chart
-    const revenueCtx = document.getElementById('revenueChart').getContext('2d');
-    // Chart implementation would go here
+    // Membership growth chart
+    const membershipCtx = document.getElementById('membershipChart');
+    if (membershipCtx) {
+        new Chart(membershipCtx, {
+            type: 'line',
+            data: {
+                labels: <?php echo json_encode(array_keys($monthly_data)); ?>,
+                datasets: [{
+                    label: 'Total Members',
+                    data: <?php echo json_encode(array_column($monthly_data, 'members')); ?>,
+                    borderColor: '#2271b1',
+                    backgroundColor: 'rgba(34, 113, 177, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }, {
+                    label: 'New Members',
+                    data: <?php echo json_encode(array_column($monthly_data, 'new_members')); ?>,
+                    borderColor: '#46b450',
+                    backgroundColor: 'rgba(70, 180, 80, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    title: {
+                        display: true,
+                        text: 'Membership Growth Over Time'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+
+    // Revenue chart
+    const revenueCtx = document.getElementById('revenueChart');
+    if (revenueCtx) {
+        new Chart(revenueCtx, {
+            type: 'bar',
+            data: {
+                labels: <?php echo json_encode(array_keys($monthly_data)); ?>,
+                datasets: [{
+                    label: 'Monthly Revenue (KSh)',
+                    data: <?php echo json_encode(array_column($monthly_data, 'revenue')); ?>,
+                    backgroundColor: '#ffb900',
+                    borderColor: '#f39c12',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    title: {
+                        display: true,
+                        text: 'Revenue Trends'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return 'KSh ' + value.toLocaleString();
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Status distribution chart
+    const statusCtx = document.getElementById('statusChart');
+    if (statusCtx) {
+        const statusData = {
+            labels: ['Active', 'Pending', 'Approved', 'Expired', 'Suspended'],
+            datasets: [{
+                data: [
+                    <?php echo $overview_stats['active_members']; ?>,
+                    <?php echo $overview_stats['pending_members'] ?? 0; ?>,
+                    <?php echo $overview_stats['approved_members'] ?? 0; ?>,
+                    <?php echo $overview_stats['expired_members'] ?? 0; ?>,
+                    <?php echo $overview_stats['suspended_members'] ?? 0; ?>
+                ],
+                backgroundColor: [
+                    '#46b450',
+                    '#f39c12',
+                    '#3498db',
+                    '#e74c3c',
+                    '#95a5a6'
+                ],
+                borderWidth: 1
+            }]
+        };
+
+        new Chart(statusCtx, {
+            type: 'doughnut',
+            data: statusData,
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                    },
+                    title: {
+                        display: true,
+                        text: 'Membership Status Distribution'
+                    }
+                }
+            }
+        });
+    }
+
+    // Payment methods chart
+    const paymentMethodsCtx = document.getElementById('paymentMethodsChart');
+    if (paymentMethodsCtx) {
+        const methodLabels = <?php echo json_encode(array_keys($payment_stats['by_method'])); ?>;
+        const methodData = <?php echo json_encode(array_column($payment_stats['by_method'], 'amount')); ?>;
+
+        new Chart(paymentMethodsCtx, {
+            type: 'pie',
+            data: {
+                labels: methodLabels,
+                datasets: [{
+                    data: methodData,
+                    backgroundColor: [
+                        '#3498db',
+                        '#e74c3c',
+                        '#f39c12',
+                        '#9b59b6',
+                        '#1abc9c'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                    },
+                    title: {
+                        display: true,
+                        text: 'Payment Methods Distribution'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.label + ': KSh ' + context.parsed.toLocaleString();
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
 });
 <?php endif; ?>
+
+// Handle PDF export
+document.getElementById('export-pdf-btn').addEventListener('click', function() {
+    const reportType = document.getElementById('report-type').value;
+    const startDate = document.getElementById('start-date').value;
+    const endDate = document.getElementById('end-date').value;
+
+    if (!startDate || !endDate) {
+        alert('Please select both start and end dates for the export.');
+        return;
+    }
+
+    // Create form to submit PDF export request
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = jgkAjax.ajaxurl;
+    form.target = '_blank'; // Open in new tab
+
+    // Add form fields
+    const fields = {
+        'action': 'jgk_export_reports_pdf',
+        'nonce': jgkAjax.reports_nonce,
+        'report_type': reportType,
+        'start_date': startDate,
+        'end_date': endDate
+    };
+
+    for (const [key, value] of Object.entries(fields)) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = value;
+        form.appendChild(input);
+    }
+
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+});
 </script>

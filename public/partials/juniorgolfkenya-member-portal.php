@@ -327,6 +327,8 @@ if (!empty($member->coach_id)) {
         <?php 
         $dashboard_page_id = get_option('jgk_page_member_dashboard');
         $dashboard_url = $dashboard_page_id ? get_permalink($dashboard_page_id) : home_url('/member-dashboard');
+        $portal_page_id = get_option('jgk_page_member_portal');
+        $portal_url = $portal_page_id ? get_permalink($portal_page_id) : home_url('/member-portal');
         ?>
         <a href="<?php echo esc_url($dashboard_url); ?>" class="jgk-access-card jgk-card-primary">
             <div class="jgk-card-icon">
@@ -352,7 +354,7 @@ if (!empty($member->coach_id)) {
             <p>View your achievements and awards</p>
         </a>
 
-        <a href="<?php echo esc_url($dashboard_url . '#edit-profile'); ?>" class="jgk-access-card jgk-card-info">
+        <a href="<?php echo esc_url($portal_url . '#edit-profile'); ?>" class="jgk-access-card jgk-card-info">
             <div class="jgk-card-icon">
                 <span class="dashicons dashicons-admin-users"></span>
             </div>
@@ -425,7 +427,7 @@ if (!empty($member->coach_id)) {
     </div>
 
     <!-- Profile Update Section -->
-    <div class="jgk-card">
+    <div id="edit-profile" class="jgk-card">
         <h3>Update Your Information</h3>
         
         <form method="post" class="jgk-form">
