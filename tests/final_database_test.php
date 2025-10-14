@@ -47,7 +47,7 @@ if ($member_id) {
 // Test 2: Payment recording
 if ($member_id) {
     echo "Test 2: Recording payment...\n";
-    $payment_id = JuniorGolfKenya_Database::record_payment($member_id, 50.00, 'mpesa');
+    $payment_id = JuniorGolfKenya_Database::record_manual_payment($member_id, 50.00, 'membership', 'mpesa');
     
     if ($payment_id) {
         echo "  ✅ Payment recorded successfully (ID: $payment_id)\n\n";

@@ -291,6 +291,64 @@ $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id,
                                 echo 'Current User ID: ' . get_current_user_id() . '<br>';
                                 echo 'Member Status: ' . $stats['member']->status . '<br>';
                                 echo 'Cart URL: ' . wc_get_cart_url() . '<br>';
+
+                                // Enhanced debug: Show recent WooCommerce orders for membership product
+                                if (class_exists('WooCommerce') && get_option('jgk_membership_product_id')) {
+                                    global $wpdb;
+                                    $membership_product_id = get_option('jgk_membership_product_id');
+                                    $user_id = get_current_user_id();
+
+                                    // Get recent orders containing the membership product
+                                    $recent_orders = $wpdb->get_results($wpdb->prepare("
+                                        SELECT o.ID, o.post_date, o.post_status, oi.order_item_name
+                                        FROM {$wpdb->posts} o
+                                        INNER JOIN {$wpdb->prefix}woocommerce_order_items oi ON o.ID = oi.order_id
+                                        INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta oim ON oi.order_item_id = oim.order_item_id
+                                        WHERE o.post_type = 'shop_order'
+                                        AND o.post_author = %d
+                                        AND oim.meta_key = '_product_id'
+                                        AND oim.meta_value = %d
+                                        ORDER BY o.post_date DESC
+                                        LIMIT 3
+                                    ", $user_id, $membership_product_id));
+
+                                    if (!empty($recent_orders)) {
+                                        echo '<br><strong>Recent Membership Orders:</strong><br>';
+                                        foreach ($recent_orders as $order) {
+                                            $order_obj = wc_get_order($order->ID);
+                                            $payment_method = $order_obj->get_payment_method_title();
+                                            $status = $order_obj->get_status();
+                                            echo "Order #{$order->ID} ({$order->post_date}): {$status} - {$payment_method}<br>";
+                                        }
+                                    } else {
+                                        echo '<br><strong>Recent Membership Orders:</strong> None found<br>';
+                                    }
+
+                                    // Check for iPay/eLipa payment processing
+                                    $ipay_logs = $wpdb->get_results($wpdb->prepare("
+                                        SELECT meta_value, meta_key
+                                        FROM {$wpdb->postmeta}
+                                        WHERE post_id IN (
+                                            SELECT ID FROM {$wpdb->posts}
+                                            WHERE post_type = 'shop_order'
+                                            AND post_author = %d
+                                        )
+                                        AND meta_key LIKE %s
+                                        ORDER BY meta_id DESC
+                                        LIMIT 5
+                                    ", $user_id, 'jgk_ipay_%'));
+
+                                    if (!empty($ipay_logs)) {
+                                        echo '<br><strong>iPay/eLipa Processing:</strong><br>';
+                                        foreach ($ipay_logs as $log) {
+                                            $key = str_replace('jgk_ipay_', '', $log->meta_key);
+                                            echo "{$key}: {$log->meta_value}<br>";
+                                        }
+                                    } else {
+                                        echo '<br><strong>iPay/eLipa Processing:</strong> No recent activity<br>';
+                                    }
+                                }
+
                                 echo '</div>';
                             }
 
@@ -370,6 +428,90 @@ $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id,
                                 <?php
                             }
                             ?>
+
+                            <?php if (WP_DEBUG && class_exists('WooCommerce')): ?>
+                            <div class="jgk-debug-info" style="background: #e9ecef; padding: 15px; margin-top: 15px; border-radius: 5px; font-size: 12px; border-left: 4px solid #007cba;">
+                                <strong>🔍 Payment Verification Debug:</strong><br><br>
+
+                                <?php
+                                $membership_product_id = get_option('jgk_membership_product_id');
+                                $user_id = get_current_user_id();
+                                global $wpdb;
+
+                                // Check membership payment verification
+                                $member_payments = $wpdb->get_results($wpdb->prepare("
+                                    SELECT p.*, m.first_name, m.last_name, m.status as member_status
+                                    FROM {$wpdb->prefix}jgk_payments p
+                                    LEFT JOIN {$wpdb->prefix}jgk_members m ON p.member_id = m.id
+                                    WHERE p.member_id = %d
+                                    ORDER BY p.created_at DESC
+                                    LIMIT 3
+                                ", $user_id));
+
+                                echo '<strong>Manual Payments:</strong><br>';
+                                if (!empty($member_payments)) {
+                                    foreach ($member_payments as $payment) {
+                                        echo "• Payment #{$payment->id}: KSh {$payment->amount} ({$payment->payment_method}) - {$payment->status}<br>";
+                                    }
+                                } else {
+                                    echo '• No manual payments found<br>';
+                                }
+
+                                echo '<br><strong>WooCommerce Orders:</strong><br>';
+                                if ($membership_product_id) {
+                                    $wc_orders = $wpdb->get_results($wpdb->prepare("
+                                        SELECT o.ID, o.post_date, o.post_status, pm.meta_value as total
+                                        FROM {$wpdb->posts} o
+                                        INNER JOIN {$wpdb->postmeta} pm ON o.ID = pm.post_id AND pm.meta_key = '_order_total'
+                                        INNER JOIN {$wpdb->prefix}woocommerce_order_items oi ON o.ID = oi.order_id
+                                        INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta oim ON oi.order_item_id = oim.order_item_id
+                                        WHERE o.post_type = 'shop_order'
+                                        AND o.post_author = %d
+                                        AND oim.meta_key = '_product_id'
+                                        AND oim.meta_value = %d
+                                        ORDER BY o.post_date DESC
+                                        LIMIT 3
+                                    ", $user_id, $membership_product_id));
+
+                                    if (!empty($wc_orders)) {
+                                        foreach ($wc_orders as $order) {
+                                            $order_obj = wc_get_order($order->ID);
+                                            $payment_method = $order_obj->get_payment_method_title();
+                                            echo "• Order #{$order->ID}: KSh {$order->total} ({$payment_method}) - {$order->post_status}<br>";
+                                        }
+                                    } else {
+                                        echo '• No WooCommerce orders found for membership product<br>';
+                                    }
+                                } else {
+                                    echo '• Membership product not configured<br>';
+                                }
+
+                                // Check for payment processing errors
+                                echo '<br><strong>Payment Processing Status:</strong><br>';
+                                $error_logs = get_transient('jgk_payment_errors_' . $user_id);
+                                if ($error_logs) {
+                                    echo '• Recent errors: ' . implode(', ', $error_logs) . '<br>';
+                                } else {
+                                    echo '• No recent payment errors<br>';
+                                }
+
+                                // Check iPay/eLipa processing status
+                                $ipay_status = get_transient('jgk_ipay_status_' . $user_id);
+                                if ($ipay_status) {
+                                    echo '• iPay/eLipa Status: ' . $ipay_status . '<br>';
+                                } else {
+                                    echo '• No active iPay/eLipa processing<br>';
+                                }
+
+                                echo '<br><strong>System Configuration:</strong><br>';
+                                echo '• Membership Product ID: ' . ($membership_product_id ?: 'Not set') . '<br>';
+                                echo '• WooCommerce Active: Yes<br>';
+                                echo '• Debug Mode: Enabled<br>';
+                                echo '• Current Time: ' . current_time('mysql') . '<br>';
+                                ?>
+                            </div>
+                            <?php endif; ?>
+
                         </div>
                         <div class="jgk-payment-note">
                             <small>

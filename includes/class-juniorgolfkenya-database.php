@@ -356,49 +356,147 @@ class JuniorGolfKenya_Database {
      */
     public static function get_payments($status_filter = 'all', $type_filter = 'all', $date_from = '', $date_to = '') {
         global $wpdb;
-        
+
         $payments_table = $wpdb->prefix . 'jgk_payments';
         $members_table = $wpdb->prefix . 'jgk_members';
         $users_table = $wpdb->users;
-        
+
+        // Get manually recorded payments
+        $manual_payments = array();
+
         $query = "
-            SELECT p.*, 
-                   CONCAT(u.display_name, ' (', m.membership_number, ')') as member_name
+            SELECT p.*,
+                   CONCAT(u.display_name, ' (', m.membership_number, ')') as member_name,
+                   'manual' as source
             FROM $payments_table p
             LEFT JOIN $members_table m ON p.member_id = m.id
             LEFT JOIN $users_table u ON m.user_id = u.ID
             WHERE 1=1
         ";
-        
+
         $params = array();
-        
+
         if ($status_filter !== 'all') {
             $query .= " AND p.status = %s";
             $params[] = $status_filter;
         }
-        
+
         if ($type_filter !== 'all') {
             $query .= " AND p.payment_type = %s";
             $params[] = $type_filter;
         }
-        
+
         if ($date_from) {
             $query .= " AND DATE(p.created_at) >= %s";
             $params[] = $date_from;
         }
-        
+
         if ($date_to) {
             $query .= " AND DATE(p.created_at) <= %s";
             $params[] = $date_to;
         }
-        
+
         $query .= " ORDER BY p.created_at DESC";
-        
+
         if (!empty($params)) {
-            return $wpdb->get_results($wpdb->prepare($query, $params));
+            $manual_payments = $wpdb->get_results($wpdb->prepare($query, $params));
+        } else {
+            $manual_payments = $wpdb->get_results($query);
         }
-        
-        return $wpdb->get_results($query);
+
+        // Get WooCommerce payments for membership product
+        $woocommerce_payments = array();
+        $membership_product_id = get_option('jgk_membership_product_id', 0);
+
+        if ($membership_product_id) {
+            error_log("JGK PAYMENT DEBUG: Getting WooCommerce payments for membership product ID: {$membership_product_id}");
+
+            $wc_query = "
+                SELECT
+                    o.ID as id,
+                    o.ID as order_id,
+                    o.post_date as created_at,
+                    om_total.meta_value as amount,
+                    'membership' as payment_type,
+                    COALESCE(om_payment.meta_value, 'woocommerce') as payment_method,
+                    CASE
+                        WHEN o.post_status = 'wc-completed' THEN 'completed'
+                        WHEN o.post_status = 'wc-processing' THEN 'processing'
+                        WHEN o.post_status = 'wc-pending' THEN 'pending'
+                        WHEN o.post_status = 'wc-on-hold' THEN 'on_hold'
+                        WHEN o.post_status = 'wc-cancelled' THEN 'cancelled'
+                        WHEN o.post_status = 'wc-refunded' THEN 'refunded'
+                        WHEN o.post_status = 'wc-failed' THEN 'failed'
+                        ELSE 'unknown'
+                    END as status,
+                    CONCAT(u.display_name, ' (', m.membership_number, ')') as member_name,
+                    'woocommerce' as source,
+                    om_transaction.meta_value as transaction_id,
+                    CONCAT('WooCommerce Order #', o.ID) as notes
+                FROM {$wpdb->posts} o
+                INNER JOIN {$wpdb->postmeta} om_customer ON o.ID = om_customer.post_id AND om_customer.meta_key = '_customer_user'
+                INNER JOIN {$wpdb->postmeta} om_total ON o.ID = om_total.post_id AND om_total.meta_key = '_order_total'
+                LEFT JOIN {$wpdb->postmeta} om_payment ON o.ID = om_payment.post_id AND om_payment.meta_key = '_payment_method'
+                LEFT JOIN {$wpdb->postmeta} om_transaction ON o.ID = om_transaction.post_id AND om_transaction.meta_key = '_transaction_id'
+                INNER JOIN {$wpdb->prefix}woocommerce_order_items oi ON o.ID = oi.order_id
+                INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta oim ON oi.order_item_id = oim.order_item_id AND oim.meta_key = '_product_id' AND oim.meta_value = %s
+                LEFT JOIN $members_table m ON om_customer.meta_value = m.user_id
+                LEFT JOIN $users_table u ON m.user_id = u.ID
+                WHERE o.post_type = 'shop_order'
+                AND o.post_status IN ('wc-completed', 'wc-processing', 'wc-pending', 'wc-on-hold', 'wc-cancelled', 'wc-refunded', 'wc-failed')
+            ";
+
+            $wc_params = array($membership_product_id);
+
+            // Add date filters for WooCommerce payments
+            if ($date_from) {
+                $wc_query .= " AND DATE(o.post_date) >= %s";
+                $wc_params[] = $date_from;
+            }
+
+            if ($date_to) {
+                $wc_query .= " AND DATE(o.post_date) <= %s";
+                $wc_params[] = $date_to;
+            }
+
+            // Add status filter for WooCommerce payments
+            if ($status_filter !== 'all') {
+                $status_map = array(
+                    'completed' => 'wc-completed',
+                    'processing' => 'wc-processing',
+                    'pending' => 'wc-pending',
+                    'on_hold' => 'wc-on-hold',
+                    'cancelled' => 'wc-cancelled',
+                    'refunded' => 'wc-refunded',
+                    'failed' => 'wc-failed'
+                );
+
+                if (isset($status_map[$status_filter])) {
+                    $wc_query .= " AND o.post_status = %s";
+                    $wc_params[] = $status_map[$status_filter];
+                }
+            }
+
+            $wc_query .= " ORDER BY o.post_date DESC";
+
+            $woocommerce_payments = $wpdb->get_results($wpdb->prepare($wc_query, $wc_params));
+
+            error_log("JGK PAYMENT DEBUG: Found " . count($woocommerce_payments) . " WooCommerce payments");
+        }
+
+        // Combine and sort all payments
+        $all_payments = array_merge($manual_payments, $woocommerce_payments);
+
+        // Sort by date (newest first)
+        usort($all_payments, function($a, $b) {
+            $date_a = isset($a->created_at) ? strtotime($a->created_at) : 0;
+            $date_b = isset($b->created_at) ? strtotime($b->created_at) : 0;
+            return $date_b - $date_a;
+        });
+
+        error_log("JGK PAYMENT DEBUG: Total payments returned: " . count($all_payments));
+
+        return $all_payments;
     }
 
     /**
@@ -413,9 +511,36 @@ class JuniorGolfKenya_Database {
         global $wpdb;
         
         $table = $wpdb->prefix . 'jgk_payments';
-        $data['updated_at'] = current_time('mysql');
         
-        return $wpdb->update($table, $data, array('id' => $payment_id)) !== false;
+        // Fetch payment to check source (manual vs WooCommerce)
+        $payment = $wpdb->get_row($wpdb->prepare("SELECT id, order_id FROM {$table} WHERE id = %d", $payment_id));
+        if (!$payment) {
+            return false;
+        }
+
+        // Whitelist allowed fields
+        $allowed = array('amount','payment_type','payment_method','status','notes','payment_date');
+        $update = array();
+        foreach ($allowed as $key) {
+            if (array_key_exists($key, $data)) {
+                $update[$key] = $data[$key];
+            }
+        }
+
+        // If WooCommerce payment (has order_id), restrict editable fields
+        if (!empty($payment->order_id)) {
+            // Only allow status (non-conflicting) and notes for WC entries
+            $wc_allowed = array('status','notes');
+            $update = array_intersect_key($update, array_flip($wc_allowed));
+        }
+
+        if (empty($update)) {
+            return true; // nothing to update
+        }
+
+        $update['updated_at'] = current_time('mysql');
+        
+        return $wpdb->update($table, $update, array('id' => $payment_id)) !== false;
     }
 
     /**
@@ -591,36 +716,95 @@ class JuniorGolfKenya_Database {
      * @param    string    $transaction_id  Transaction ID (optional)
      * @return   bool|int                   Insert ID on success, false on failure
      */
-    public static function record_payment($member_id, $order_id, $amount, $payment_method, $status = 'completed', $transaction_id = '') {
+    public static function record_payment($member_id, $order_id = null, $amount = 0, $payment_method = '', $status = 'completed', $transaction_id = '', $args = array()) {
         global $wpdb;
-        
+
         $table = $wpdb->prefix . 'jgk_payments';
-        
+
         // Check if payments table exists
         if ($wpdb->get_var("SHOW TABLES LIKE '$table'") != $table) {
             return false;
         }
-        
+
+        $defaults = array(
+            'payment_type' => 'membership',
+            'payment_gateway' => 'manual',
+            'membership_id' => null,
+            'currency' => get_option('jgk_currency', 'KES'),
+            'notes' => '',
+            'payment_date' => current_time('mysql')
+        );
+
+        $args = wp_parse_args($args, $defaults);
+
         $payment_data = array(
-            'member_id' => $member_id,
-            'order_id' => $order_id,
-            'amount' => $amount,
-            'payment_method' => $payment_method,
-            'status' => $status,
-            'transaction_id' => $transaction_id,
-            'created_at' => current_time('mysql')
+            'member_id' => intval($member_id)
         );
-        
-        $result = $wpdb->insert(
-            $table,
-            $payment_data,
-            array('%d', '%d', '%f', '%s', '%s', '%s', '%s')
-        );
-        
+        $formats = array('%d');
+
+        if (!is_null($order_id)) {
+            $payment_data['order_id'] = intval($order_id);
+            $formats[] = '%d';
+        }
+
+        if (!empty($args['membership_id'])) {
+            $payment_data['membership_id'] = intval($args['membership_id']);
+            $formats[] = '%d';
+        }
+
+        $payment_data['amount'] = floatval($amount);
+        $formats[] = '%f';
+
+        $payment_data['payment_type'] = $args['payment_type'];
+        $formats[] = '%s';
+
+        $payment_data['currency'] = $args['currency'];
+        $formats[] = '%s';
+
+        $payment_data['payment_method'] = $payment_method;
+        $formats[] = '%s';
+
+        $payment_data['payment_gateway'] = $args['payment_gateway'];
+        $formats[] = '%s';
+
+        $payment_data['transaction_id'] = $transaction_id;
+        $formats[] = '%s';
+
+        $payment_data['status'] = $status;
+        $formats[] = '%s';
+
+        $payment_data['payment_date'] = $args['payment_date'];
+        $formats[] = '%s';
+
+        $payment_data['notes'] = $args['notes'];
+        $formats[] = '%s';
+
+        $payment_data['created_at'] = current_time('mysql');
+        $formats[] = '%s';
+
+        $result = $wpdb->insert($table, $payment_data, $formats);
+
         if ($result !== false) {
             return $wpdb->insert_id;
         }
-        
+
         return false;
+    }
+
+    public static function record_manual_payment($member_id, $amount, $payment_type, $payment_method, $notes = '', $status = 'completed') {
+        return self::record_payment(
+            $member_id,
+            null,
+            $amount,
+            $payment_method,
+            $status,
+            '',
+            array(
+                'payment_type' => $payment_type,
+                'payment_gateway' => 'manual',
+                'notes' => $notes,
+                'payment_date' => current_time('mysql')
+            )
+        );
     }
 }

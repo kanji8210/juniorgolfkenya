@@ -37,11 +37,17 @@ if (isset($_POST['action'])) {
             $payment_id = intval($_POST['payment_id']);
             $status = sanitize_text_field($_POST['status']);
             $notes = sanitize_textarea_field($_POST['notes']);
-            
-            $result = JuniorGolfKenya_Database::update_payment($payment_id, array(
+            $amount = isset($_POST['amount']) ? floatval($_POST['amount']) : null;
+            $payment_type = isset($_POST['payment_type']) ? sanitize_text_field($_POST['payment_type']) : null;
+
+            $update_data = array(
                 'status' => $status,
-                'notes' => $notes
-            ));
+                'notes' => $notes,
+            );
+            if (!is_null($amount)) { $update_data['amount'] = $amount; }
+            if (!is_null($payment_type)) { $update_data['payment_type'] = $payment_type; }
+
+            $result = JuniorGolfKenya_Database::update_payment($payment_id, $update_data);
             
             if ($result) {
                 $message = 'Payment updated successfully!';
@@ -59,7 +65,7 @@ if (isset($_POST['action'])) {
             $payment_method = sanitize_text_field($_POST['payment_method']);
             $notes = sanitize_textarea_field($_POST['notes']);
             
-            $result = JuniorGolfKenya_Database::record_payment($member_id, $amount, $payment_type, $payment_method, $notes);
+            $result = JuniorGolfKenya_Database::record_manual_payment($member_id, $amount, $payment_type, $payment_method, $notes);
             
             if ($result) {
                 $message = 'Payment recorded successfully!';
@@ -174,34 +180,66 @@ $completed_amount = array_sum(array_map(function($p) { return $p->status === 'co
                 <?php else: ?>
                 <?php foreach ($payments as $payment): ?>
                 <tr>
-                    <td><strong>#<?php echo $payment->id; ?></strong></td>
-                    <td><?php echo esc_html($payment->member_name); ?></td>
+                    <td>
+                        <strong>
+                            <?php if (isset($payment->source) && $payment->source === 'woocommerce'): ?>
+                                #WC-<?php echo $payment->id; ?>
+                            <?php else: ?>
+                                #<?php echo $payment->id; ?>
+                            <?php endif; ?>
+                        </strong>
+                        <?php if (isset($payment->source) && $payment->source === 'woocommerce'): ?>
+                            <br><small style="color: #666;">WooCommerce</small>
+                        <?php else: ?>
+                            <br><small style="color: #666;">Manual</small>
+                        <?php endif; ?>
+                    </td>
+                    <td><?php echo esc_html($payment->member_name ?: 'Unknown Member'); ?></td>
                     <td><strong>KSh <?php echo number_format($payment->amount, 2); ?></strong></td>
                     <td><?php echo ucfirst($payment->payment_type); ?></td>
                     <td><?php echo ucfirst($payment->payment_method); ?></td>
                     <td>
                         <span class="jgk-status-<?php echo esc_attr($payment->status); ?>">
-                            <?php echo ucfirst($payment->status); ?>
+                            <?php echo ucfirst(str_replace('_', ' ', $payment->status)); ?>
                         </span>
                     </td>
-                    <td><?php echo date('M j, Y', strtotime($payment->created_at)); ?></td>
                     <td>
-                        <?php if ($payment->notes): ?>
-                        <span title="<?php echo esc_attr($payment->notes); ?>">
-                            <?php echo esc_html(strlen($payment->notes) > 30 ? substr($payment->notes, 0, 30) . '...' : $payment->notes); ?>
-                        </span>
+                        <?php
+                        $date_field = isset($payment->source) && $payment->source === 'woocommerce' ? 'post_date' : 'created_at';
+                        $date_value = isset($payment->$date_field) ? $payment->$date_field : $payment->created_at;
+                        echo date('M j, Y', strtotime($date_value));
+                        ?>
+                    </td>
+                    <td>
+                        <?php if (!empty($payment->notes) || !empty($payment->transaction_id)): ?>
+                            <div style="font-size: 11px;">
+                                <?php if (!empty($payment->transaction_id)): ?>
+                                    <strong>TXN:</strong> <?php echo esc_html($payment->transaction_id); ?><br>
+                                <?php endif; ?>
+                                <?php if (!empty($payment->notes)): ?>
+                                    <span title="<?php echo esc_attr($payment->notes); ?>">
+                                        <?php echo esc_html(strlen($payment->notes) > 30 ? substr($payment->notes, 0, 30) . '...' : $payment->notes); ?>
+                                    </span>
+                                <?php endif; ?>
+                            </div>
                         <?php else: ?>
-                        <em>No notes</em>
+                            <em>No details</em>
                         <?php endif; ?>
                     </td>
                     <td>
-                        <button class="button button-small" onclick="openUpdateModal(<?php echo $payment->id; ?>, '<?php echo esc_js($payment->status); ?>', '<?php echo esc_js($payment->notes); ?>')">
-                            Update
-                        </button>
-                        <?php if ($payment->status === 'completed' && $payment->payment_method === 'online'): ?>
-                        <button class="button button-small" onclick="generateReceipt(<?php echo $payment->id; ?>)">
-                            Receipt
-                        </button>
+                        <?php if (isset($payment->source) && $payment->source === 'woocommerce'): ?>
+                            <a href="<?php echo admin_url('post.php?post=' . $payment->id . '&action=edit'); ?>" class="button button-small" target="_blank">
+                                View Order
+                            </a>
+                        <?php else: ?>
+                            <button class="button button-small" onclick="openUpdateModal(<?php echo $payment->id; ?>, '<?php echo esc_js($payment->status); ?>', '<?php echo esc_js($payment->notes); ?>', '<?php echo esc_js($payment->amount); ?>', '<?php echo esc_js($payment->payment_type); ?>')">
+                                Update
+                            </button>
+                            <?php if ($payment->status === 'completed' && $payment->payment_method === 'online'): ?>
+                            <button class="button button-small" onclick="generateReceipt(<?php echo $payment->id; ?>)">
+                                Receipt
+                            </button>
+                            <?php endif; ?>
                         <?php endif; ?>
                     </td>
                 </tr>
@@ -288,7 +326,24 @@ $completed_amount = array_sum(array_map(function($p) { return $p->status === 'co
                 <?php wp_nonce_field('jgk_payment_action'); ?>
                 <input type="hidden" name="action" value="update_payment">
                 <input type="hidden" name="payment_id" id="update-payment-id">
+                <input type="hidden" id="update-original-amount" value="">
                 
+                <div class="jgk-form-field">
+                    <label for="update_amount">Amount (KSh):</label>
+                    <input type="number" id="update_amount" name="amount" step="0.01" min="0">
+                    <small style="color:#b32d2e;display:block;margin-top:6px;">Warning: Changing the amount will affect reports and totals.</small>
+                </div>
+
+                <div class="jgk-form-field">
+                    <label for="update_payment_type">Payment Type:</label>
+                    <select id="update_payment_type" name="payment_type">
+                        <option value="membership">Membership Fee</option>
+                        <option value="tournament">Tournament Fee</option>
+                        <option value="training">Training Fee</option>
+                        <option value="certification">Certification Fee</option>
+                    </select>
+                </div>
+
                 <div class="jgk-form-field">
                     <label for="update_status">Status:</label>
                     <select id="update_status" name="status" required>
@@ -356,10 +411,15 @@ function closeRecordModal() {
     document.getElementById('record-form').reset();
 }
 
-function openUpdateModal(paymentId, status, notes) {
+function openUpdateModal(paymentId, status, notes, amount, paymentType) {
     document.getElementById('update-payment-id').value = paymentId;
     document.getElementById('update_status').value = status;
     document.getElementById('update_notes').value = notes || '';
+    document.getElementById('update_amount').value = amount || '';
+    document.getElementById('update-original-amount').value = amount || '';
+    if (paymentType) {
+        document.getElementById('update_payment_type').value = paymentType;
+    }
     document.getElementById('update-modal').style.display = 'block';
 }
 
@@ -386,4 +446,16 @@ window.onclick = function(event) {
         closeUpdateModal();
     }
 }
+
+// Confirm if amount changed
+document.getElementById('update-form').addEventListener('submit', function(e) {
+    var original = parseFloat(document.getElementById('update-original-amount').value || '0');
+    var current = parseFloat(document.getElementById('update_amount').value || '0');
+    if (!isNaN(original) && !isNaN(current) && current !== original) {
+        var ok = confirm('Changing the amount will update financial totals and reports. Do you want to proceed?');
+        if (!ok) {
+            e.preventDefault();
+        }
+    }
+});
 </script>

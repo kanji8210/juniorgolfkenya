@@ -140,6 +140,46 @@ class JuniorGolfKenya_Activator {
             $wpdb->query("ALTER TABLE {$members_table} ADD INDEX is_public (is_public)");
             error_log('JGK Activation: Added index on is_public column');
         }
+
+        // Ensure payments table has required columns
+        $payments_table = $wpdb->prefix . 'jgk_payments';
+        $payments_exists = $wpdb->get_var("SHOW TABLES LIKE '{$payments_table}'");
+
+        if ($payments_exists === $payments_table) {
+            $payment_columns = $wpdb->get_results("SHOW COLUMNS FROM {$payments_table}");
+            $payment_column_names = array();
+            foreach ($payment_columns as $column) {
+                $payment_column_names[] = $column->Field;
+            }
+
+            if (!in_array('order_id', $payment_column_names)) {
+                $wpdb->query("ALTER TABLE {$payments_table} ADD COLUMN order_id bigint(20) UNSIGNED NULL AFTER member_id");
+                $wpdb->query("ALTER TABLE {$payments_table} ADD INDEX order_id (order_id)");
+                error_log('JGK Activation: Added order_id column to payments table');
+            }
+
+            if (!in_array('payment_type', $payment_column_names)) {
+                $wpdb->query("ALTER TABLE {$payments_table} ADD COLUMN payment_type varchar(32) NOT NULL DEFAULT 'membership' AFTER amount");
+                $wpdb->query("ALTER TABLE {$payments_table} ADD INDEX payment_type (payment_type)");
+                $wpdb->query("UPDATE {$payments_table} SET payment_type = CASE WHEN order_id IS NULL OR order_id = 0 THEN 'manual' ELSE 'membership' END");
+                error_log('JGK Activation: Added payment_type column to payments table');
+            }
+
+            if (!in_array('payment_gateway', $payment_column_names)) {
+                $wpdb->query("ALTER TABLE {$payments_table} ADD COLUMN payment_gateway varchar(50) DEFAULT 'manual' AFTER payment_method");
+                error_log('JGK Activation: Added payment_gateway column to payments table');
+            }
+
+            if (!in_array('notes', $payment_column_names)) {
+                $wpdb->query("ALTER TABLE {$payments_table} ADD COLUMN notes text AFTER updated_at");
+                error_log('JGK Activation: Added notes column to payments table');
+            }
+
+            if (!in_array('payment_date', $payment_column_names)) {
+                $wpdb->query("ALTER TABLE {$payments_table} ADD COLUMN payment_date datetime NULL AFTER status");
+                error_log('JGK Activation: Added payment_date column to payments table');
+            }
+        }
     }
 
     /**
@@ -202,9 +242,10 @@ class JuniorGolfKenya_Activator {
             order_id bigint(20) UNSIGNED,
             transaction_id varchar(100),
             amount decimal(10,2) NOT NULL,
+            payment_type varchar(32) DEFAULT 'membership',
             currency varchar(3) DEFAULT 'KES',
             payment_method varchar(50),
-            payment_gateway varchar(50),
+            payment_gateway varchar(50) DEFAULT 'manual',
             status varchar(32) DEFAULT 'pending',
             payment_date datetime DEFAULT CURRENT_TIMESTAMP,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
@@ -217,6 +258,11 @@ class JuniorGolfKenya_Activator {
             KEY status (status),
             KEY payment_date (payment_date)
         ) $charset_collate;";
+
+        // Membership subscriptions table
+        $table_memberships = $wpdb->prefix . 'jgk_memberships';
+        $sql_memberships = "CREATE TABLE $table_memberships (
+            id mediumint(9) NOT NULL AUTO_INCREMENT,
             member_id mediumint(9) NOT NULL,
             plan_id mediumint(9) NOT NULL,
             status varchar(20) DEFAULT 'active',
@@ -253,21 +299,27 @@ class JuniorGolfKenya_Activator {
         $sql_payments = "CREATE TABLE $table_payments (
             id mediumint(9) NOT NULL AUTO_INCREMENT,
             member_id mediumint(9) NOT NULL,
+            order_id bigint(20) UNSIGNED,
             membership_id mediumint(9),
-            amount decimal(10,2) NOT NULL,
-            currency varchar(3) DEFAULT 'USD',
-            payment_method varchar(50),
-            payment_gateway varchar(50),
             transaction_id varchar(100),
-            status varchar(20) DEFAULT 'pending',
-            payment_date datetime,
+            amount decimal(10,2) NOT NULL,
+            payment_type varchar(32) DEFAULT 'membership',
+            currency varchar(3) DEFAULT 'KES',
+            payment_method varchar(50),
+            payment_gateway varchar(50) DEFAULT 'manual',
+            status varchar(32) DEFAULT 'pending',
+            payment_date datetime DEFAULT CURRENT_TIMESTAMP,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            notes text,
             PRIMARY KEY  (id),
             KEY member_id (member_id),
+            KEY order_id (order_id),
             KEY membership_id (membership_id),
             KEY status (status),
-            KEY transaction_id (transaction_id)
+            KEY transaction_id (transaction_id),
+            KEY payment_date (payment_date),
+            KEY payment_type (payment_type)
         ) $charset_collate;";
 
         // Competition entries table
