@@ -173,8 +173,6 @@ if ($membership_product_id) {
         );
     }
 }
-        'success_rate' => $method->count > 0 ? ($success_count / $method->count) * 100 : 0
-    );
 }
 
 // Get monthly data for charts (last 12 months)
@@ -188,10 +186,18 @@ for ($i = 11; $i >= 0; $i--) {
         'members' => $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM $members_table WHERE DATE(created_at) <= %s", $month_end
         )),
-        'revenue' => $wpdb->get_var($wpdb->prepare(
-            "SELECT COALESCE(SUM(amount), 0) FROM $payments_table WHERE status = 'completed' AND DATE(created_at) BETWEEN %s AND %s",
-            $month_start, $month_end
-        )),
+        'revenue' => $membership_product_id ? $wpdb->get_var($wpdb->prepare("
+            SELECT COALESCE(SUM(pm.meta_value), 0)
+            FROM {$wpdb->posts} p
+            INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = '_order_total'
+            INNER JOIN {$wpdb->prefix}woocommerce_order_items oi ON p.ID = oi.order_id
+            INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta oim ON oi.order_item_id = oim.order_item_id
+            WHERE p.post_type = 'shop_order'
+            AND p.post_status = 'wc-completed'
+            AND oim.meta_key = '_product_id'
+            AND oim.meta_value = %d
+            AND DATE(p.post_date) BETWEEN %s AND %s
+        ", $membership_product_id, $month_start, $month_end)) : 0,
         'new_members' => $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM $members_table WHERE DATE(created_at) BETWEEN %s AND %s",
             $month_start, $month_end

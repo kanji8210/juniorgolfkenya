@@ -402,39 +402,6 @@ class JuniorGolfKenya_Database {
     }
 
     /**
-     * Record new payment
-     *
-     * @since    1.0.0
-     * @param    int       $member_id       Member ID
-     * @param    float     $amount          Payment amount
-     * @param    string    $payment_method  Payment method
-     * @return   int|false
-     */
-    public static function record_payment($member_id, $amount, $payment_method = '') {
-        global $wpdb;
-        
-        $table = $wpdb->prefix . 'jgk_payments';
-        
-        $data = array(
-            'member_id' => $member_id,
-            'amount' => $amount,
-            'payment_method' => $payment_method,
-            'status' => 'completed',
-            'payment_date' => current_time('mysql'),
-            'created_at' => current_time('mysql'),
-            'updated_at' => current_time('mysql')
-        );
-        
-        $result = $wpdb->insert($table, $data);
-        
-        if ($result === false) {
-            return false;
-        }
-        
-        return $wpdb->insert_id;
-    }
-
-    /**
      * Update payment
      *
      * @since    1.0.0
