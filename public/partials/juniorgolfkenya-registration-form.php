@@ -292,7 +292,7 @@ if (isset($_POST['jgk_register_member'])) {
             </div>
         </div>
     <?php else: ?>
-        <!-- Registration Form -->
+        <!-- Registration Form with Steps -->
         <div class="jgk-form-header">
             <h2>Member Registration</h2>
             <p>Join Junior Golf Kenya and become part of our golfing community.</p>
@@ -312,61 +312,75 @@ if (isset($_POST['jgk_register_member'])) {
             </div>
         <?php endif; ?>
 
-        <form method="post" class="jgk-member-form">
+        <!-- Progress Steps -->
+        <div class="jgk-progress-steps">
+            <div class="jgk-step active" data-step="1">
+                <div class="jgk-step-number">1</div>
+                <div class="jgk-step-label">Personal Info</div>
+            </div>
+            <div class="jgk-step" data-step="2">
+                <div class="jgk-step-number">2</div>
+                <div class="jgk-step-label">Membership</div>
+            </div>
+            <div class="jgk-step" data-step="3">
+                <div class="jgk-step-number">3</div>
+                <div class="jgk-step-label">Parent Info</div>
+            </div>
+            <div class="jgk-step" data-step="4">
+                <div class="jgk-step-number">4</div>
+                <div class="jgk-step-label">Emergency</div>
+            </div>
+            <div class="jgk-step" data-step="5">
+                <div class="jgk-step-number">5</div>
+                <div class="jgk-step-label">Consent</div>
+            </div>
+        </div>
+
+        <!-- Debug Console -->
+        <div class="jgk-debug-console" style="display: none; background: #f3f4f6; padding: 15px; margin: 15px 40px; border-radius: 8px; border-left: 4px solid #3b82f6; font-family: monospace; font-size: 12px;">
+            <strong>Debug Console:</strong>
+            <div id="debug-output" style="margin-top: 8px; max-height: 200px; overflow-y: auto;"></div>
+        </div>
+
+        <form method="post" class="jgk-member-form" id="jgk-registration-form">
             <?php wp_nonce_field('jgk_member_registration', 'jgk_register_nonce'); ?>
 
-            <!-- Personal Information -->
-            <div class="jgk-form-section">
-                <h3><span class="dashicons dashicons-admin-users"></span> Personal Information</h3>
-                
-                <div class="jgk-form-row">
-                    <div class="jgk-form-field">
+            <!-- Step 1: Personal Information -->
+            <div class="jgk-form-step active" data-step="1">
+                <div class="jgk-step-header">
+                    <h3>Personal Information</h3>
+                    <p>Tell us about the junior golfer</p>
+                </div>
+
+                <div class="jgk-form-grid">
+                    <div class="jgk-form-group">
                         <label for="first_name">First Name *</label>
                         <input type="text" id="first_name" name="first_name" value="<?php echo esc_attr($_POST['first_name'] ?? ''); ?>" required>
                     </div>
-                    <div class="jgk-form-field">
+                    <div class="jgk-form-group">
                         <label for="last_name">Last Name *</label>
                         <input type="text" id="last_name" name="last_name" value="<?php echo esc_attr($_POST['last_name'] ?? ''); ?>" required>
                     </div>
-                </div>
-
-                <div class="jgk-form-row">
-                    <div class="jgk-form-field">
+                    <div class="jgk-form-group">
                         <label for="email">Email Address *</label>
                         <input type="email" id="email" name="email" value="<?php echo esc_attr($_POST['email'] ?? ''); ?>" required>
-                        <small>This will be used for your login credentials</small>
+                        <small>This will be used for login</small>
                     </div>
-                    <div class="jgk-form-field">
+                    <div class="jgk-form-group">
                         <label for="phone">Phone Number</label>
                         <input type="tel" id="phone" name="phone" value="<?php echo esc_attr($_POST['phone'] ?? ''); ?>" placeholder="+254...">
                     </div>
-                </div>
-
-                <div class="jgk-form-row">
-                    <div class="jgk-form-field">
-                        <label for="password">Password *</label>
-                        <input type="password" id="password" name="password" required minlength="8">
-                        <small>Minimum 8 characters</small>
-                    </div>
-                    <div class="jgk-form-field">
-                        <label for="confirm_password">Confirm Password *</label>
-                        <input type="password" id="confirm_password" name="confirm_password" required minlength="8">
-                        <small>Re-enter your password</small>
-                    </div>
-                </div>
-
-                <div class="jgk-form-row">
-                    <div class="jgk-form-field">
-                        <label for="date_of_birth">Date of birth *</label>
+                    <div class="jgk-form-group">
+                        <label for="date_of_birth">Date of Birth *</label>
                         <input type="date" id="date_of_birth" name="date_of_birth" 
                                value="<?php echo esc_attr($_POST['date_of_birth'] ?? ''); ?>" 
                                required 
                                max="<?php echo date('Y-m-d', strtotime('-2 years')); ?>"
                                min="<?php echo date('Y-m-d', strtotime('-18 years')); ?>">
-                        <small style="color: #666;">The child must be between 2 and 17 years old</small>
+                        <small style="color: #666;">Must be between 2 and 17 years old</small>
                         <div id="age-validation-message" style="margin-top: 10px;"></div>
                     </div>
-                    <div class="jgk-form-field">
+                    <div class="jgk-form-group">
                         <label for="gender">Gender</label>
                         <select id="gender" name="gender">
                             <option value="">Select Gender</option>
@@ -378,81 +392,94 @@ if (isset($_POST['jgk_register_member'])) {
                     </div>
                 </div>
 
-                <div class="jgk-form-row">
-                    <div class="jgk-form-field jgk-form-field-full">
+                <div class="jgk-textarea-section">
+                    <div class="jgk-form-group full-width">
                         <label for="address">Address</label>
-                        <textarea id="address" name="address" rows="3"><?php echo esc_textarea($_POST['address'] ?? ''); ?></textarea>
+                        <textarea id="address" name="address" rows="3" placeholder="Enter complete address"><?php echo esc_textarea($_POST['address'] ?? ''); ?></textarea>
                     </div>
+                </div>
+
+                <div class="jgk-step-actions">
+                    <button type="button" class="jgk-btn jgk-btn-next" data-next="2">Next</button>
                 </div>
             </div>
 
-            <!-- Membership Details -->
-            <div class="jgk-form-section jgk-membership-section">
-                <h3><span class="dashicons dashicons-id-alt"></span> Membership Details</h3>
-                
-                <div class="jgk-form-row">
-                    <div class="jgk-form-field jgk-form-field-full">
-                        <div class="jgk-membership-info">
-                            <h4>Junior Golf Kenya Membership</h4>
-                            <p>Join Kenya's premier junior golf development program. Our membership includes access to coaching, tournaments, and exclusive training facilities.</p>
-                            <span class="jgk-membership-price">KES 5,000 / Year</span>
-                        </div>
-                    </div>
+            <!-- Step 2: Membership Details -->
+            <div class="jgk-form-step" data-step="2">
+                <div class="jgk-step-header">
+                    <h3>Membership Details</h3>
+                    <p>Golf experience and membership information</p>
                 </div>
-                
-                <div class="jgk-form-row">
+
+                <div class="jgk-membership-card">
+                    <div class="jgk-membership-header">
+                        <h4>Junior Golf Kenya Membership</h4>
+                        <span class="jgk-membership-price">KES 5,000 / Year</span>
+                    </div>
+                    <p>Join Kenya's premier junior golf development program with access to coaching, tournaments, and exclusive training facilities.</p>
+                </div>
+
+                <div class="jgk-form-grid">
+                    <div class="jgk-form-group">
                         <label for="club_affiliation">Club Affiliation</label>
                         <input type="text" id="club_affiliation" name="club_affiliation" value="<?php echo esc_attr($_POST['club_affiliation'] ?? ''); ?>" placeholder="Your golf club (if any)">
                     </div>
+                    <div class="jgk-form-group">
+                        <label for="handicap">Golf Handicap</label>
+                        <input type="number" id="handicap" name="handicap" step="0.1" min="0" max="54" value="<?php echo esc_attr($_POST['handicap'] ?? ''); ?>" placeholder="e.g., 18.5">
+                        <small>Leave blank if no handicap</small>
+                    </div>
                 </div>
 
-                <div class="jgk-form-row">
-                    <div class="jgk-form-field">
-                        <label for="handicap">Golf Handicap (Optional)</label>
-                        <input type="number" id="handicap" name="handicap" step="0.1" min="0" max="54" value="<?php echo esc_attr($_POST['handicap'] ?? ''); ?>" placeholder="e.g., 18.5">
-                        <small>Leave blank if you don't have a handicap yet</small>
-                    </div>
-                    <div class="jgk-form-field">
+                <div class="jgk-textarea-section">
+                    <div class="jgk-form-group full-width">
                         <label for="medical_conditions">Medical Conditions</label>
-                        <textarea id="medical_conditions" name="medical_conditions" rows="2" placeholder="Any medical conditions we should be aware of..."><?php echo esc_textarea($_POST['medical_conditions'] ?? ''); ?></textarea>
+                        <textarea id="medical_conditions" name="medical_conditions" rows="3" placeholder="Any medical conditions we should be aware of..."><?php echo esc_textarea($_POST['medical_conditions'] ?? ''); ?></textarea>
                     </div>
+                </div>
+
+                <div class="jgk-step-actions">
+                    <button type="button" class="jgk-btn jgk-btn-prev" data-prev="1">Previous</button>
+                    <button type="button" class="jgk-btn jgk-btn-next" data-next="3">Next</button>
                 </div>
             </div>
 
-            <!-- Parent/Guardian Information (for minors) -->
-            <div class="jgk-form-section" id="parent-section" style="display: block;">
-                <h3><span class="dashicons dashicons-groups"></span> Parent/Guardian Information</h3>
-                <p class="jgk-section-description" style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; color: #856404; margin: 10px 0 20px 0; border-radius: 4px;">
-                    <strong>⚠️ Required</strong> - Parent or legal guardian information is required for all junior members.
-                </p>
-                
-                <div class="jgk-form-row">
-                    <div class="jgk-form-field">
-                        <label for="parent_first_name">Parent/Guardian First Name *</label>
-                        <input type="text" id="parent_first_name" name="parent_first_name" value="<?php echo esc_attr($_POST['parent_first_name'] ?? ''); ?>" required>
-                    </div>
-                    <div class="jgk-form-field">
-                        <label for="parent_last_name">Parent/Guardian Last Name *</label>
-                        <input type="text" id="parent_last_name" name="parent_last_name" value="<?php echo esc_attr($_POST['parent_last_name'] ?? ''); ?>" required>
+            <!-- Step 3: Parent/Guardian Information -->
+            <div class="jgk-form-step" data-step="3">
+                <div class="jgk-step-header">
+                    <h3>Parent/Guardian Information</h3>
+                    <p>Required for all junior members under 18</p>
+                </div>
+
+                <div class="jgk-alert-box">
+                    <span class="dashicons dashicons-info"></span>
+                    <div>
+                        <strong>Required Information</strong>
+                        <p>Parent or legal guardian information is mandatory for all junior members.</p>
                     </div>
                 </div>
 
-                <div class="jgk-form-row">
-                    <div class="jgk-form-field">
-                        <label for="parent_email">Parent/Guardian Email *</label>
+                <div class="jgk-form-grid">
+                    <div class="jgk-form-group">
+                        <label for="parent_first_name">First Name *</label>
+                        <input type="text" id="parent_first_name" name="parent_first_name" value="<?php echo esc_attr($_POST['parent_first_name'] ?? ''); ?>" required>
+                    </div>
+                    <div class="jgk-form-group">
+                        <label for="parent_last_name">Last Name *</label>
+                        <input type="text" id="parent_last_name" name="parent_last_name" value="<?php echo esc_attr($_POST['parent_last_name'] ?? ''); ?>" required>
+                    </div>
+                    <div class="jgk-form-group">
+                        <label for="parent_email">Email *</label>
                         <input type="email" id="parent_email" name="parent_email" value="<?php echo esc_attr($_POST['parent_email'] ?? ''); ?>">
                         <small>At least email OR phone required</small>
                     </div>
-                    <div class="jgk-form-field">
-                        <label for="parent_phone">Parent/Guardian Phone *</label>
+                    <div class="jgk-form-group">
+                        <label for="parent_phone">Phone *</label>
                         <input type="tel" id="parent_phone" name="parent_phone" value="<?php echo esc_attr($_POST['parent_phone'] ?? ''); ?>" placeholder="+254...">
                         <small>At least email OR phone required</small>
                     </div>
-                </div>
-
-                <div class="jgk-form-row">
-                    <div class="jgk-form-field">
-                        <label for="parent_relationship">Relationship *</label>
+                    <div class="jgk-form-group full-width">
+                        <label for="parent_relationship">Relationship to Child *</label>
                         <select id="parent_relationship" name="parent_relationship" required>
                             <option value="">Select Relationship</option>
                             <option value="mother" <?php selected($_POST['parent_relationship'] ?? '', 'mother'); ?>>Mother</option>
@@ -462,94 +489,501 @@ if (isset($_POST['jgk_register_member'])) {
                         </select>
                     </div>
                 </div>
+
+                <div class="jgk-step-actions">
+                    <button type="button" class="jgk-btn jgk-btn-prev" data-prev="2">Previous</button>
+                    <button type="button" class="jgk-btn jgk-btn-next" data-next="4">Next</button>
+                </div>
             </div>
 
-            <!-- Emergency Contact -->
-            <div class="jgk-form-section">
-                <h3><span class="dashicons dashicons-sos"></span> Emergency Contact</h3>
-                
-                <div class="jgk-form-row">
-                    <div class="jgk-form-field">
+            <!-- Step 4: Emergency Contact -->
+            <div class="jgk-form-step" data-step="4">
+                <div class="jgk-step-header">
+                    <h3>Emergency Contact</h3>
+                    <p>Contact information for emergencies</p>
+                </div>
+
+                <div class="jgk-form-grid">
+                    <div class="jgk-form-group">
                         <label for="emergency_contact_name">Emergency Contact Name</label>
                         <input type="text" id="emergency_contact_name" name="emergency_contact_name" value="<?php echo esc_attr($_POST['emergency_contact_name'] ?? ''); ?>">
                     </div>
-                    <div class="jgk-form-field">
+                    <div class="jgk-form-group">
                         <label for="emergency_contact_phone">Emergency Contact Phone</label>
                         <input type="tel" id="emergency_contact_phone" name="emergency_contact_phone" value="<?php echo esc_attr($_POST['emergency_contact_phone'] ?? ''); ?>" placeholder="+254...">
                     </div>
                 </div>
-            </div>
 
-            <!-- Consent & Agreements -->
-            <div class="jgk-form-section">
-                <h3><span class="dashicons dashicons-yes"></span> Consent & Agreements</h3>
-                
-                <div class="jgk-form-checkbox">
-                    <label>
-                        <input type="checkbox" name="consent_photography" value="1" <?php checked(isset($_POST['consent_photography'])); ?>>
-                        <span>I consent to photography and use of images for promotional purposes</span>
-                    </label>
-                </div>
-
-                <div class="jgk-form-checkbox">
-                    <label>
-                        <input type="checkbox" name="parental_consent" value="1" <?php checked(isset($_POST['parental_consent'])); ?>>
-                        <span>I give parental consent for my child under 18 to participate in the Junior Golf Kenya program</span>
-                    </label>
-                </div>
-
-                <div class="jgk-form-checkbox">
-                    <label>
-                        <input type="checkbox" name="terms_conditions" required>
-                        <span>I agree to the <a href="#" target="_blank">Terms & Conditions</a> and <a href="#" target="_blank">Privacy Policy</a> *</span>
-                    </label>
+                <div class="jgk-step-actions">
+                    <button type="button" class="jgk-btn jgk-btn-prev" data-prev="3">Previous</button>
+                    <button type="button" class="jgk-btn jgk-btn-next" data-next="5">Next</button>
                 </div>
             </div>
 
-            <!-- Submit Button -->
-            <div class="jgk-form-submit">
-                <button type="submit" name="jgk_register_member" class="jgk-btn jgk-btn-primary jgk-btn-large">
-                    <span class="dashicons dashicons-yes"></span>
-                    Complete Registration
-                </button>
-                <p class="jgk-form-note">
-                    <span class="dashicons dashicons-info"></span>
-                    Your registration will be reviewed by our team and you'll receive a confirmation email once approved.
-                </p>
+            <!-- Step 5: Consent & Agreements -->
+            <div class="jgk-form-step" data-step="5">
+                <div class="jgk-step-header">
+                    <h3>Consent & Agreements</h3>
+                    <p>Review and accept the terms</p>
+                </div>
+
+                <div class="jgk-form-grid">
+                    <div class="jgk-form-group full-width">
+                        <label for="password">Create Password *</label>
+                        <input type="password" id="password" name="password" required minlength="8">
+                        <small>Minimum 8 characters</small>
+                    </div>
+                    <div class="jgk-form-group full-width">
+                        <label for="confirm_password">Confirm Password *</label>
+                        <input type="password" id="confirm_password" name="confirm_password" required minlength="8">
+                        <small>Re-enter your password</small>
+                    </div>
+                </div>
+
+                <div class="jgk-consent-section">
+                    <div class="jgk-consent-item">
+                        <input type="checkbox" id="consent_photography" name="consent_photography" value="1" <?php checked(isset($_POST['consent_photography'])); ?>>
+                        <label for="consent_photography">
+                            <span class="jgk-consent-title">Photography Consent</span>
+                            <span class="jgk-consent-desc">I consent to photography and use of images for promotional purposes</span>
+                        </label>
+                    </div>
+
+                    <div class="jgk-consent-item">
+                        <input type="checkbox" id="parental_consent" name="parental_consent" value="1" <?php checked(isset($_POST['parental_consent'])); ?>>
+                        <label for="parental_consent">
+                            <span class="jgk-consent-title">Parental Consent</span>
+                            <span class="jgk-consent-desc">I give parental consent for my child under 18 to participate in the Junior Golf Kenya program</span>
+                        </label>
+                    </div>
+
+                    <div class="jgk-consent-item required">
+                        <input type="checkbox" id="terms_conditions" name="terms_conditions" required>
+                        <label for="terms_conditions">
+                            <span class="jgk-consent-title">Terms & Conditions *</span>
+                            <span class="jgk-consent-desc">I agree to the <a href="#" target="_blank">Terms & Conditions</a> and <a href="#" target="_blank">Privacy Policy</a></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="jgk-step-actions">
+                    <button type="button" class="jgk-btn jgk-btn-prev" data-prev="4">Previous</button>
+                    <button type="submit" name="jgk_register_member" class="jgk-btn jgk-btn-primary jgk-btn-complete">
+                        <span class="dashicons dashicons-yes"></span>
+                        Complete Registration
+                    </button>
+                </div>
             </div>
         </form>
+
+        <!-- Debug Toggle -->
+        <div style="text-align: center; margin-top: 20px;">
+            <button type="button" id="debug-toggle" class="jgk-btn jgk-btn-secondary" style="font-size: 12px; padding: 8px 16px;">
+                🐛 Toggle Debug Console
+            </button>
+        </div>
     <?php endif; ?>
 </div>
 
 <style>
-/* Minimalist Modern Registration Form */
+/* Modern Registration Form with Steps */
 .jgk-registration-form {
     max-width: 800px;
     margin: 40px auto;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    overflow: hidden;
 }
 
 /* Form Header */
 .jgk-form-header {
     text-align: center;
-    padding: 60px 40px;
-    background: #ffffff;
-    border-bottom: 1px solid #e5e7eb;
+    padding: 40px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
 }
 
 .jgk-form-header h2 {
     margin: 0 0 12px 0;
     font-size: 28px;
     font-weight: 600;
-    color: #111827;
     letter-spacing: -0.025em;
 }
 
 .jgk-form-header p {
     margin: 0;
     font-size: 16px;
-    color: #6b7280;
+    opacity: 0.9;
     line-height: 1.5;
+}
+
+/* Progress Steps */
+.jgk-progress-steps {
+    display: flex;
+    justify-content: space-between;
+    padding: 30px 40px 20px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.jgk-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    position: relative;
+}
+
+.jgk-step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 20px;
+    left: 60%;
+    right: -40%;
+    height: 2px;
+    background: #e2e8f0;
+    z-index: 1;
+}
+
+.jgk-step.active:not(:last-child)::after {
+    background: #3b82f6;
+}
+
+.jgk-step-number {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #e2e8f0;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    margin-bottom: 8px;
+    position: relative;
+    z-index: 2;
+    transition: all 0.3s ease;
+}
+
+.jgk-step.active .jgk-step-number {
+    background: #3b82f6;
+    color: white;
+    box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
+}
+
+.jgk-step-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #64748b;
+    text-align: center;
+}
+
+.jgk-step.active .jgk-step-label {
+    color: #3b82f6;
+    font-weight: 600;
+}
+
+/* Form Steps */
+.jgk-form-step {
+    display: none;
+    padding: 40px;
+}
+
+.jgk-form-step.active {
+    display: block;
+}
+
+.jgk-step-header {
+    text-align: center;
+    margin-bottom: 32px;
+}
+
+.jgk-step-header h3 {
+    margin: 0 0 8px 0;
+    font-size: 24px;
+    font-weight: 600;
+    color: #1e293b;
+    letter-spacing: -0.025em;
+}
+
+.jgk-step-header p {
+    margin: 0;
+    color: #64748b;
+    font-size: 16px;
+}
+
+/* Form Grid */
+.jgk-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+    margin-bottom: 24px;
+}
+
+.jgk-form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.jgk-form-group.full-width {
+    grid-column: 1 / -1;
+}
+
+.jgk-form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+    letter-spacing: -0.01em;
+}
+
+.jgk-form-group input,
+.jgk-form-group select,
+.jgk-form-group textarea {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 16px;
+    font-family: inherit;
+    background: #ffffff;
+    color: #1e293b;
+    transition: all 0.2s ease;
+}
+
+.jgk-form-group textarea {
+    border-radius: 5px;
+    resize: vertical;
+    min-height: 80px;
+}
+
+.jgk-form-group input:focus,
+.jgk-form-group select:focus,
+.jgk-form-group textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.jgk-form-group input:hover,
+.jgk-form-group select:hover,
+.jgk-form-group textarea:hover {
+    border-color: #9ca3af;
+}
+
+.jgk-form-group small {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #6b7280;
+    line-height: 1.4;
+}
+
+/* Textarea Section */
+.jgk-textarea-section {
+    margin-bottom: 24px;
+}
+
+/* Membership Card */
+.jgk-membership-card {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border: 1px solid #bae6fd;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 32px;
+    text-align: center;
+}
+
+.jgk-membership-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.jgk-membership-header h4 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #0369a1;
+}
+
+.jgk-membership-price {
+    background: #0ea5e9;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.jgk-membership-card p {
+    margin: 0;
+    color: #475569;
+    line-height: 1.6;
+}
+
+/* Alert Box */
+.jgk-alert-box {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px;
+    background: #fffbeb;
+    border: 1px solid #fcd34d;
+    border-radius: 8px;
+    margin-bottom: 24px;
+}
+
+.jgk-alert-box .dashicons {
+    color: #d97706;
+    font-size: 20px;
+    margin-top: 2px;
+}
+
+.jgk-alert-box strong {
+    display: block;
+    margin-bottom: 4px;
+    color: #92400e;
+    font-weight: 600;
+}
+
+.jgk-alert-box p {
+    margin: 0;
+    color: #92400e;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+/* Consent Section */
+.jgk-consent-section {
+    margin: 32px 0;
+}
+
+.jgk-consent-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 20px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    transition: all 0.2s ease;
+}
+
+.jgk-consent-item:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+.jgk-consent-item.required {
+    border-color: #3b82f6;
+    background: #f0f9ff;
+}
+
+.jgk-consent-item input[type="checkbox"] {
+    margin-top: 2px;
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: #3b82f6;
+}
+
+.jgk-consent-item label {
+    cursor: pointer;
+    margin: 0;
+    flex: 1;
+}
+
+.jgk-consent-title {
+    display: block;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 4px;
+}
+
+.jgk-consent-desc {
+    display: block;
+    font-size: 14px;
+    color: #64748b;
+    line-height: 1.5;
+}
+
+.jgk-consent-desc a {
+    color: #3b82f6;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.jgk-consent-desc a:hover {
+    text-decoration: underline;
+}
+
+/* Step Actions */
+.jgk-step-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 32px;
+    border-top: 1px solid #e2e8f0;
+}
+
+/* Buttons */
+.jgk-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    font-family: inherit;
+}
+
+.jgk-btn-prev {
+    background: #6b7280;
+    color: white;
+}
+
+.jgk-btn-prev:hover {
+    background: #4b5563;
+    transform: translateY(-1px);
+}
+
+.jgk-btn-next {
+    background: #3b82f6;
+    color: white;
+}
+
+.jgk-btn-next:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.jgk-btn-complete {
+    background: #10b981;
+    color: white;
+    padding: 14px 32px;
+}
+
+.jgk-btn-complete:hover {
+    background: #059669;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.jgk-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
 }
 
 /* Error Messages */
@@ -557,12 +991,12 @@ if (isset($_POST['jgk_register_member'])) {
     display: flex;
     align-items: flex-start;
     gap: 12px;
-    padding: 16px 20px;
+    padding: 20px;
     background: #fef2f2;
     color: #dc2626;
     border: 1px solid #fecaca;
     border-radius: 8px;
-    margin: 24px 0;
+    margin: 20px 40px;
 }
 
 .jgk-form-errors .dashicons {
@@ -587,245 +1021,15 @@ if (isset($_POST['jgk_register_member'])) {
     line-height: 1.4;
 }
 
-/* Form Container */
-.jgk-member-form {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    overflow: hidden;
-}
-
-/* Form Sections */
-.jgk-form-section {
-    padding: 48px 40px;
-    border-bottom: 1px solid #f3f4f6;
-}
-
-.jgk-form-section:last-of-type {
-    border-bottom: none;
-}
-
-.jgk-form-section h3 {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: 0 0 32px 0;
-    font-size: 18px;
-    font-weight: 600;
-    color: #111827;
-    letter-spacing: -0.025em;
-}
-
-.jgk-form-section h3 .dashicons {
-    font-size: 20px;
-    color: #3b82f6;
-}
-
-.jgk-section-description {
-    margin: -16px 0 32px 0;
-    padding: 16px 20px;
-    background: #fefce8;
-    border: 1px solid #fde047;
-    border-radius: 8px;
-    color: #a16207;
-    font-size: 14px;
-    line-height: 1.5;
-}
-
-/* Membership Details Section */
-.jgk-membership-section {
-    padding: 48px 40px;
-    background: #f9fafb;
-    border-bottom: 1px solid #f3f4f6;
-}
-
-/* Shorten handicap and medical condition inputs */
-.jgk-membership-section .jgk-form-field input[type="number"],
-.jgk-membership-section .jgk-form-field textarea {
-    max-width: 200px;
-}
-
-/* Form Rows */
-.jgk-form-row {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 24px;
-    margin-bottom: 24px;
-}
-
-.jgk-form-row:last-child {
-    margin-bottom: 0;
-}
-
-/* Form Fields */
-.jgk-form-field {
-    display: flex;
-    flex-direction: column;
-    position: relative;
-}
-
-.jgk-form-field-full {
-    grid-column: 1 / -1;
-}
-
-.jgk-form-field label {
-    display: block;
-    margin-bottom: 8px;
-    font-size: 14px;
-    font-weight: 500;
-    color: #374151;
-    letter-spacing: -0.01em;
-}
-
-.jgk-form-field input[type="text"],
-.jgk-form-field input[type="email"],
-.jgk-form-field input[type="tel"],
-.jgk-form-field input[type="date"],
-.jgk-form-field input[type="number"],
-.jgk-form-field input[type="password"],
-.jgk-form-field select,
-.jgk-form-field textarea {
-    width: 100%;
-    padding: 12px 16px;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    font-size: 16px;
-    font-family: inherit;
-    background: #ffffff;
-    color: #111827;
-    transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.jgk-form-field input:focus,
-.jgk-form-field select:focus,
-.jgk-form-field textarea:focus {
-    outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.jgk-form-field input:hover,
-.jgk-form-field select:hover,
-.jgk-form-field textarea:hover {
-    border-color: #b8c6db;
-}
-
-.jgk-form-field small {
-    margin-top: 6px;
-    font-size: 12px;
-    color: #6b7280;
-    line-height: 1.4;
-}
-
-/* Checkboxes */
-.jgk-form-checkbox {
-    margin-bottom: 16px;
-    padding: 16px 20px;
-    background: #f9fafb;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-}
-
-.jgk-form-checkbox label {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    cursor: pointer;
-    font-size: 14px;
-    color: #374151;
-    line-height: 1.5;
-    margin: 0;
-}
-
-.jgk-form-checkbox input[type="checkbox"] {
-    margin-top: 2px;
-    width: 16px;
-    height: 16px;
-    cursor: pointer;
-    accent-color: #3b82f6;
-}
-
-.jgk-form-checkbox a {
-    color: #3b82f6;
-    text-decoration: none;
-    font-weight: 500;
-}
-
-.jgk-form-checkbox a:hover {
-    text-decoration: underline;
-}
-
-/* Submit Section */
-.jgk-form-submit {
-    padding: 48px 40px;
-    text-align: center;
-    background: #f9fafb;
-    border-top: 1px solid #e5e7eb;
-}
-
-.jgk-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 14px 32px;
-    border: none;
-    border-radius: 8px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    text-decoration: none;
-}
-
-.jgk-btn-primary {
-    background: #3b82f6;
-    color: white;
-}
-
-.jgk-btn-primary:hover {
-    background: #2563eb;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-}
-
-.jgk-btn-secondary {
-    background: #6b7280;
-    color: white;
-}
-
-.jgk-btn-secondary:hover {
-    background: #4b5563;
-}
-
-.jgk-btn-large {
-    padding: 16px 40px;
-    font-size: 16px;
-}
-
-.jgk-form-note {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    margin: 16px 0 0 0;
-    font-size: 14px;
-    color: #6b7280;
-    padding: 12px 16px;
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-}
-
 /* Success Message */
 .jgk-registration-success {
     background: #ffffff;
-    border: 1px solid #e5e7eb;
     border-radius: 12px;
     padding: 64px 40px;
     text-align: center;
     margin: 40px auto;
     max-width: 800px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 .jgk-success-icon {
@@ -883,77 +1087,34 @@ if (isset($_POST['jgk_register_member'])) {
     flex-wrap: wrap;
 }
 
-/* Error Message */
-.jgk-registration-error {
-    background: #ffffff;
-    border: 1px solid #ef4444;
-    border-radius: 12px;
-    padding: 32px 40px;
-    text-align: center;
-    margin: 40px auto;
-    max-width: 800px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.jgk-error-icon {
-    width: 64px;
-    height: 64px;
-    margin: 0 auto 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #ef4444;
-    border-radius: 50%;
+.jgk-btn-primary {
+    background: #3b82f6;
     color: white;
-    font-size: 32px;
 }
 
-.jgk-registration-error h2 {
-    margin: 0 0 16px 0;
-    font-size: 24px;
-    font-weight: 600;
-    color: #111827;
+.jgk-btn-primary:hover {
+    background: #2563eb;
 }
 
-.jgk-registration-error > p {
-    margin: 0 0 24px 0;
+.jgk-btn-secondary {
+    background: #6b7280;
+    color: white;
+}
+
+.jgk-btn-secondary:hover {
+    background: #4b5563;
+}
+
+.jgk-btn-large {
+    padding: 16px 32px;
     font-size: 16px;
-    color: #6b7280;
-    line-height: 1.6;
 }
 
-.jgk-error-details {
-    max-width: 600px;
-    margin: 0 auto 24px;
-    padding: 20px;
-    background: #fef2f2;
-    border: 1px solid #fecaca;
-    border-radius: 8px;
-    text-align: left;
-}
-
-.jgk-error-details p {
-    margin: 0 0 12px 0;
-    font-size: 14px;
-    color: #dc2626;
-    line-height: 1.6;
-}
-
-.jgk-error-details p:last-child {
-    margin-bottom: 0;
-}
-
-.jgk-error-actions {
-    display: flex;
-    gap: 12px;
-    justify-content: center;
-    flex-wrap: wrap;
-}
-
-/* Responsive */
+/* Responsive Design */
 @media (max-width: 768px) {
     .jgk-registration-form {
         margin: 20px 10px;
+        border-radius: 8px;
     }
     
     .jgk-form-header {
@@ -964,198 +1125,416 @@ if (isset($_POST['jgk_register_member'])) {
         font-size: 24px;
     }
     
-    .jgk-form-section {
+    .jgk-progress-steps {
+        padding: 20px 15px 15px;
+    }
+    
+    .jgk-step:not(:last-child)::after {
+        display: none;
+    }
+    
+    .jgk-step-number {
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+    }
+    
+    .jgk-step-label {
+        font-size: 10px;
+    }
+    
+    .jgk-form-step {
         padding: 20px 15px;
     }
     
-    .jgk-form-row {
+    .jgk-form-grid {
         grid-template-columns: 1fr;
-        gap: 0;
+        gap: 16px;
     }
     
-    .jgk-form-field {
-        margin-bottom: 20px;
+    .jgk-step-actions {
+        flex-direction: column;
+        gap: 12px;
     }
     
-    .jgk-form-submit {
-        padding: 20px 15px;
-    }
-    
-    .jgk-btn-large {
+    .jgk-btn {
         width: 100%;
-        padding: 15px 30px;
-        font-size: 16px;
+        justify-content: center;
+    }
+    
+    .jgk-form-errors {
+        margin: 15px;
+        padding: 15px;
     }
     
     .jgk-registration-success {
         padding: 40px 20px;
-    }
-    
-    .jgk-registration-success h2 {
-        font-size: 24px;
-    }
-    
-    .jgk-registration-error {
-        padding: 32px 20px;
-    }
-    
-    .jgk-registration-error h2 {
-        font-size: 24px;
+        margin: 20px 10px;
     }
 }
 
-/* Show/hide parent section based on membership type */
-#parent-section {
-    display: block; /* Toujours visible pour les juniors */
-}
-
-#parent-section.show {
-    display: block;
-}
-
-/* Membership Info Card */
-.jgk-membership-info {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    padding: 32px;
-    text-align: center;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.jgk-membership-info h4 {
-    margin: 0 0 16px 0;
-    font-size: 20px;
+/* Password Strength Indicator */
+.password-strength {
+    margin-top: 6px;
+    font-size: 12px;
     font-weight: 600;
-    color: #111827;
 }
 
-.jgk-membership-info p {
-    margin: 0 0 20px 0;
-    font-size: 15px;
-    color: #6b7280;
-    line-height: 1.6;
+/* Field Error Styling */
+.field-error {
+    color: #dc2626 !important;
+    font-size: 12px;
+    margin-top: 4px;
+    font-weight: 500;
 }
 
-.jgk-membership-info .jgk-membership-price {
-    display: inline-block;
-    padding: 12px 24px;
-    background: #3b82f6;
-    color: white;
-    border-radius: 8px;
-    font-size: 16px;
-    font-weight: 600;
+/* Debug Console */
+.jgk-debug-console {
+    transition: all 0.3s ease;
+}
+
+.jgk-debug-console.show {
+    display: block !important;
 }
 </style>
 
 <script>
-// Validation d'âge en temps réel (2-17 ans)
-document.getElementById('date_of_birth')?.addEventListener('change', function() {
-    const dob = new Date(this.value);
-    const today = new Date();
-    let age = today.getFullYear() - dob.getFullYear();
-    const monthDiff = today.getMonth() - dob.getMonth();
+// Debug logging function
+function debugLog(message, type = 'info') {
+    const debugOutput = document.getElementById('debug-output');
+    const debugConsole = document.querySelector('.jgk-debug-console');
     
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
-        age--;
-    }
-    
-    const messageDiv = document.getElementById('age-validation-message');
-    
-    if (!messageDiv) return;
-    
-    if (age < 2) {
-        messageDiv.style.background = '#f8d7da';
-        messageDiv.style.color = '#721c24';
-        messageDiv.style.padding = '10px';
-        messageDiv.style.borderRadius = '5px';
-        messageDiv.style.border = '1px solid #f5c6cb';
-        messageDiv.innerHTML = '❌ The child must be at least 2 years old to register.';
-        this.setCustomValidity('Âge minimum : 2 ans');
-    } else if (age >= 18) {
-        messageDiv.style.background = '#f8d7da';
-        messageDiv.style.color = '#721c24';
-        messageDiv.style.padding = '10px';
-        messageDiv.style.borderRadius = '5px';
-        messageDiv.style.border = '1px solid #f5c6cb';
-        messageDiv.innerHTML = '❌ This program is reserved for juniors under 18 years old.';
-        this.setCustomValidity('Âge maximum : 17 ans');
-    } else {
-        messageDiv.style.background = '#d4edda';
-        messageDiv.style.color = '#155724';
-        messageDiv.style.padding = '10px';
-        messageDiv.style.borderRadius = '5px';
-        messageDiv.style.border = '1px solid #c3e6cb';
-        messageDiv.innerHTML = `✅ Valid age: ${age} years old`;
-        this.setCustomValidity('');
-    }
-});
-
-// Trigger validation on page load if date is already filled
-document.addEventListener('DOMContentLoaded', function() {
-    const dobField = document.getElementById('date_of_birth');
-    if (dobField && dobField.value) {
-        dobField.dispatchEvent(new Event('change'));
-    }
-    
-    // Parent section toujours visible (programme juniors uniquement)
-    const parentSection = document.getElementById('parent-section');
-    if (parentSection) {
-        parentSection.style.display = 'block';
-    }
-});
-
-// Password match validation
-const password = document.getElementById('password');
-const confirmPassword = document.getElementById('confirm_password');
-
-function validatePassword() {
-    if (password.value !== confirmPassword.value) {
-        confirmPassword.setCustomValidity('Passwords do not match');
-    } else {
-        confirmPassword.setCustomValidity('');
+    if (debugOutput && debugConsole) {
+        const timestamp = new Date().toLocaleTimeString();
+        const color = type === 'error' ? '#dc2626' : type === 'success' ? '#10b981' : '#3b82f6';
+        const logEntry = document.createElement('div');
+        logEntry.style.color = color;
+        logEntry.style.marginBottom = '4px';
+        logEntry.innerHTML = `<strong>[${timestamp}]</strong> ${message}`;
+        debugOutput.appendChild(logEntry);
+        debugOutput.scrollTop = debugOutput.scrollHeight;
+        
+        console.log(`[JGK Debug] ${message}`);
     }
 }
 
-password?.addEventListener('change', validatePassword);
-confirmPassword?.addEventListener('keyup', validatePassword);
+// Multi-step form functionality
+document.addEventListener('DOMContentLoaded', function() {
+    debugLog('Form initialized - DOM loaded successfully', 'success');
+    
+    const form = document.getElementById('jgk-registration-form');
+    const steps = document.querySelectorAll('.jgk-form-step');
+    const progressSteps = document.querySelectorAll('.jgk-step');
+    const nextButtons = document.querySelectorAll('.jgk-btn-next');
+    const prevButtons = document.querySelectorAll('.jgk-btn-prev');
+    const debugToggle = document.getElementById('debug-toggle');
 
-// Password strength indicator
-password?.addEventListener('input', function() {
-    const value = this.value;
-    const strength = {
-        0: 'Very Weak',
-        1: 'Weak',
-        2: 'Fair',
-        3: 'Good',
-        4: 'Strong'
-    };
-    
-    let score = 0;
-    
-    if (value.length >= 8) score++;
-    if (value.length >= 12) score++;
-    if (/[a-z]/.test(value) && /[A-Z]/.test(value)) score++;
-    if (/\d/.test(value)) score++;
-    if (/[^a-zA-Z\d]/.test(value)) score++;
-    
-    const strengthText = strength[Math.min(score, 4)];
-    const colors = ['#d63638', '#d63638', '#f0b849', '#46b450', '#46b450'];
-    
-    // Remove existing indicator
-    let indicator = this.parentElement.querySelector('.password-strength');
-    if (indicator) {
-        indicator.remove();
+    // Debug toggle functionality
+    if (debugToggle) {
+        debugToggle.addEventListener('click', function() {
+            const debugConsole = document.querySelector('.jgk-debug-console');
+            if (debugConsole) {
+                debugConsole.style.display = debugConsole.style.display === 'none' ? 'block' : 'none';
+                debugLog('Debug console toggled: ' + (debugConsole.style.display === 'none' ? 'hidden' : 'visible'));
+            }
+        });
     }
-    
-    // Add new indicator if there's a password
-    if (value.length > 0) {
-        indicator = document.createElement('small');
-        indicator.className = 'password-strength';
-        indicator.style.color = colors[Math.min(score, 4)];
-        indicator.style.fontWeight = 'bold';
-        indicator.textContent = 'Password Strength: ' + strengthText;
-        this.parentElement.appendChild(indicator);
+
+    // Initialize first step
+    showStep(1);
+    debugLog('Step 1 activated', 'info');
+
+    // Next button click handlers
+    nextButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            debugLog('Next button clicked for step: ' + this.dataset.next, 'info');
+            const currentStep = getCurrentStep();
+            const nextStep = parseInt(this.dataset.next);
+            
+            debugLog(`Validating step ${currentStep} before moving to step ${nextStep}`, 'info');
+            
+            if (validateStep(currentStep)) {
+                debugLog(`Step ${currentStep} validation passed`, 'success');
+                showStep(nextStep);
+                updateProgress(nextStep);
+                debugLog(`Moved to step ${nextStep}`, 'success');
+            } else {
+                debugLog(`Step ${currentStep} validation failed - cannot proceed`, 'error');
+            }
+        });
+    });
+
+    // Previous button click handlers
+    prevButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            debugLog('Previous button clicked for step: ' + this.dataset.prev, 'info');
+            const prevStep = parseInt(this.dataset.prev);
+            showStep(prevStep);
+            updateProgress(prevStep);
+            debugLog(`Moved back to step ${prevStep}`, 'info');
+        });
+    });
+
+    function getCurrentStep() {
+        const currentStepElement = document.querySelector('.jgk-form-step.active');
+        if (currentStepElement) {
+            return parseInt(currentStepElement.dataset.step);
+        }
+        debugLog('Could not find current step element', 'error');
+        return 1;
     }
+
+    function showStep(stepNumber) {
+        debugLog(`Attempting to show step ${stepNumber}`, 'info');
+        
+        // Hide all steps
+        steps.forEach(step => {
+            step.classList.remove('active');
+            debugLog(`Hiding step ${step.dataset.step}`, 'info');
+        });
+        
+        // Show current step
+        const currentStep = document.querySelector(`.jgk-form-step[data-step="${stepNumber}"]`);
+        if (currentStep) {
+            currentStep.classList.add('active');
+            debugLog(`Showing step ${stepNumber}`, 'success');
+        } else {
+            debugLog(`Step ${stepNumber} element not found!`, 'error');
+        }
+    }
+
+    function updateProgress(stepNumber) {
+        debugLog(`Updating progress to step ${stepNumber}`, 'info');
+        progressSteps.forEach(step => {
+            const stepNum = parseInt(step.dataset.step);
+            if (stepNum <= stepNumber) {
+                step.classList.add('active');
+                debugLog(`Progress step ${stepNum} marked as active`, 'info');
+            } else {
+                step.classList.remove('active');
+                debugLog(`Progress step ${stepNum} marked as inactive`, 'info');
+            }
+        });
+    }
+
+    function validateStep(stepNumber) {
+        debugLog(`Starting validation for step ${stepNumber}`, 'info');
+        const currentStep = document.querySelector(`.jgk-form-step[data-step="${stepNumber}"]`);
+        const requiredFields = currentStep.querySelectorAll('[required]');
+        let isValid = true;
+        let validationErrors = [];
+
+        debugLog(`Found ${requiredFields.length} required fields in step ${stepNumber}`, 'info');
+
+        requiredFields.forEach(field => {
+            if (!field.value.trim()) {
+                isValid = false;
+                validationErrors.push(`Field '${field.name}' is required`);
+                field.style.borderColor = '#ef4444';
+                
+                // Add error message
+                if (!field.parentNode.querySelector('.field-error')) {
+                    const errorMsg = document.createElement('small');
+                    errorMsg.className = 'field-error';
+                    errorMsg.style.color = '#ef4444';
+                    errorMsg.textContent = 'This field is required';
+                    field.parentNode.appendChild(errorMsg);
+                    debugLog(`Added error message for field: ${field.name}`, 'error');
+                }
+            } else {
+                field.style.borderColor = '#d1d5db';
+                const errorMsg = field.parentNode.querySelector('.field-error');
+                if (errorMsg) {
+                    errorMsg.remove();
+                    debugLog(`Removed error message for field: ${field.name}`, 'info');
+                }
+            }
+        });
+
+        // Special validation for step 1 (age)
+        if (stepNumber === 1) {
+            debugLog('Running special validation for step 1 (age)', 'info');
+            const dobField = document.getElementById('date_of_birth');
+            if (dobField && dobField.value) {
+                const ageValid = validateAge(dobField.value);
+                if (!ageValid) {
+                    isValid = false;
+                    validationErrors.push('Age validation failed');
+                }
+            }
+        }
+
+        // Special validation for step 3 (parent contact)
+        if (stepNumber === 3) {
+            debugLog('Running special validation for step 3 (parent contact)', 'info');
+            const parentEmail = document.getElementById('parent_email');
+            const parentPhone = document.getElementById('parent_phone');
+            
+            if ((!parentEmail.value.trim() && !parentPhone.value.trim())) {
+                isValid = false;
+                validationErrors.push('At least one parent contact method is required');
+                const errorMsg = document.createElement('small');
+                errorMsg.className = 'field-error';
+                errorMsg.style.color = '#ef4444';
+                errorMsg.textContent = 'At least one parent contact method is required';
+                
+                if (parentEmail.value.trim()) {
+                    parentPhone.parentNode.appendChild(errorMsg.cloneNode(true));
+                } else if (parentPhone.value.trim()) {
+                    parentEmail.parentNode.appendChild(errorMsg.cloneNode(true));
+                } else {
+                    parentEmail.parentNode.appendChild(errorMsg.cloneNode(true));
+                    parentPhone.parentNode.appendChild(errorMsg.cloneNode(true));
+                }
+                debugLog('Parent contact validation failed', 'error');
+            } else {
+                debugLog('Parent contact validation passed', 'success');
+            }
+        }
+
+        if (!isValid) {
+            debugLog(`Step ${stepNumber} validation failed with errors: ${validationErrors.join(', ')}`, 'error');
+            // Scroll to first error
+            const firstError = currentStep.querySelector('[required]:invalid') || currentStep.querySelector('.field-error');
+            if (firstError) {
+                firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                debugLog('Scrolled to first validation error', 'info');
+            }
+        } else {
+            debugLog(`Step ${stepNumber} validation passed successfully`, 'success');
+        }
+
+        return isValid;
+    }
+
+    // Age validation
+    function validateAge(dob) {
+        debugLog(`Validating age for DOB: ${dob}`, 'info');
+        const birthDate = new Date(dob);
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+        }
+        
+        const messageDiv = document.getElementById('age-validation-message');
+        if (!messageDiv) {
+            debugLog('Age validation message div not found', 'error');
+            return false;
+        }
+        
+        if (age < 2) {
+            messageDiv.style.background = '#fef2f2';
+            messageDiv.style.color = '#dc2626';
+            messageDiv.style.padding = '12px';
+            messageDiv.style.borderRadius = '8px';
+            messageDiv.style.border = '1px solid #fecaca';
+            messageDiv.innerHTML = '❌ The child must be at least 2 years old to register.';
+            debugLog('Age validation failed: under 2 years', 'error');
+            return false;
+        } else if (age >= 18) {
+            messageDiv.style.background = '#fef2f2';
+            messageDiv.style.color = '#dc2626';
+            messageDiv.style.padding = '12px';
+            messageDiv.style.borderRadius = '8px';
+            messageDiv.style.border = '1px solid #fecaca';
+            messageDiv.innerHTML = '❌ This program is reserved for juniors under 18 years old.';
+            debugLog('Age validation failed: 18 years or older', 'error');
+            return false;
+        } else {
+            messageDiv.style.background = '#f0fdf4';
+            messageDiv.style.color = '#166534';
+            messageDiv.style.padding = '12px';
+            messageDiv.style.borderRadius = '8px';
+            messageDiv.style.border = '1px solid #bbf7d0';
+            messageDiv.innerHTML = `✅ Valid age: ${age} years old`;
+            debugLog(`Age validation passed: ${age} years old`, 'success');
+            return true;
+        }
+    }
+
+    // Real-time age validation
+    const dobField = document.getElementById('date_of_birth');
+    if (dobField) {
+        dobField.addEventListener('change', function() {
+            debugLog('Date of birth changed: ' + this.value, 'info');
+            validateAge(this.value);
+        });
+    }
+
+    // Password match validation
+    const password = document.getElementById('password');
+    const confirmPassword = document.getElementById('confirm_password');
+
+    function validatePassword() {
+        if (password.value !== confirmPassword.value) {
+            confirmPassword.setCustomValidity('Passwords do not match');
+            debugLog('Password validation failed: passwords do not match', 'error');
+        } else {
+            confirmPassword.setCustomValidity('');
+            debugLog('Password validation passed', 'success');
+        }
+    }
+
+    if (password && confirmPassword) {
+        password.addEventListener('change', validatePassword);
+        confirmPassword.addEventListener('keyup', validatePassword);
+    }
+
+    // Password strength indicator
+    if (password) {
+        password.addEventListener('input', function() {
+            const value = this.value;
+            const strength = {
+                0: 'Very Weak',
+                1: 'Weak',
+                2: 'Fair',
+                3: 'Good',
+                4: 'Strong'
+            };
+            
+            let score = 0;
+            
+            if (value.length >= 8) score++;
+            if (value.length >= 12) score++;
+            if (/[a-z]/.test(value) && /[A-Z]/.test(value)) score++;
+            if (/\d/.test(value)) score++;
+            if (/[^a-zA-Z\d]/.test(value)) score++;
+            
+            const strengthText = strength[Math.min(score, 4)];
+            const colors = ['#dc2626', '#dc2626', '#f59e0b', '#10b981', '#10b981'];
+            
+            // Remove existing indicator
+            let indicator = this.parentElement.querySelector('.password-strength');
+            if (indicator) {
+                indicator.remove();
+            }
+            
+            // Add new indicator if there's a password
+            if (value.length > 0) {
+                indicator = document.createElement('small');
+                indicator.className = 'password-strength';
+                indicator.style.color = colors[Math.min(score, 4)];
+                indicator.style.fontWeight = 'bold';
+                indicator.textContent = 'Password Strength: ' + strengthText;
+                this.parentElement.appendChild(indicator);
+                debugLog(`Password strength: ${strengthText} (score: ${score})`, 'info');
+            }
+        });
+    }
+
+    // Trigger validation on page load if fields are pre-filled
+    if (dobField && dobField.value) {
+        debugLog('Triggering age validation for pre-filled DOB', 'info');
+        validateAge(dobField.value);
+    }
+
+    // Log initial state
+    debugLog('Form initialization complete', 'success');
+    debugLog('Next buttons found: ' + nextButtons.length, 'info');
+    debugLog('Previous buttons found: ' + prevButtons.length, 'info');
+    debugLog('Form steps found: ' + steps.length, 'info');
 });
 </script>

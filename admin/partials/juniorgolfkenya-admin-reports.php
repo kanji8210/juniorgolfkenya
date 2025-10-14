@@ -58,7 +58,7 @@ if ($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $members_table)) === $m
 }
 
 if ($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $payments_table)) === $payments_table) {
-    $overview_stats['total_revenue']   = floatval($wpdb->get_var($wpdb->prepare("SELECT SUM(amount) FROM $payments_table WHERE status='completed'")) ?: 0);
+    $overview_stats['total_revenue']   = floatval($wpdb->get_var("SELECT SUM(amount) FROM $payments_table WHERE status='completed'") ?: 0);
     $month_start = date('Y-m-01');
     $overview_stats['monthly_revenue'] = floatval($wpdb->get_var($wpdb->prepare("SELECT SUM(amount) FROM $payments_table WHERE status='completed' AND DATE(payment_date) BETWEEN %s AND %s", $month_start, date('Y-m-d'))) ?: 0);
 }
