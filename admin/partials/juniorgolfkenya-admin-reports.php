@@ -173,7 +173,6 @@ if ($membership_product_id) {
         );
     }
 }
-}
 
 // Get monthly data for charts (last 12 months)
 $monthly_data = array();
