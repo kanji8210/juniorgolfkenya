@@ -288,34 +288,6 @@ if ($search) {
     $total_members = JuniorGolfKenya_Database::get_members_count($status_filter);
 }
 
-// Debug information
-error_log("JGK Debug: Page: $page, Per Page: $per_page, Status Filter: '$status_filter', Search: '$search'");
-error_log("JGK Debug: Members count: " . (is_array($members) ? count($members) : 'Not an array'));
-error_log("JGK Debug: Total members: $total_members");
-if (is_array($members) && count($members) > 0) {
-    error_log("JGK Debug: First member ID: " . $members[0]->id);
-} elseif (is_array($members)) {
-    error_log("JGK Debug: Members array is empty");
-} else {
-    error_log("JGK Debug: Members is not an array: " . gettype($members));
-}
-
-// Additional debug: Check raw database count
-global $wpdb;
-$raw_count = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}jgk_members");
-$table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$wpdb->prefix}jgk_members'");
-error_log("JGK Debug: Raw database count: $raw_count");
-error_log("JGK Debug: Table exists: " . ($table_exists ? 'Yes' : 'No'));
-
-// Check table structure
-if ($table_exists) {
-    $columns = $wpdb->get_results("DESCRIBE {$wpdb->prefix}jgk_members");
-    error_log("JGK Debug: Table columns: " . count($columns));
-    foreach ($columns as $column) {
-        error_log("JGK Debug: Column {$column->Field}: {$column->Type}");
-    }
-}
-
 $total_pages = ceil($total_members / $per_page);
 
 // Get statistics
