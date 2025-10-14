@@ -363,7 +363,7 @@ if (isset($_POST['jgk_register_member'])) {
                                required 
                                max="<?php echo date('Y-m-d', strtotime('-2 years')); ?>"
                                min="<?php echo date('Y-m-d', strtotime('-18 years')); ?>">
-                        <small style="color: #666;">L'enfant doit avoir entre 2 et 17 ans</small>
+                        <small style="color: #666;">The child must be between 2 and 17 years old</small>
                         <div id="age-validation-message" style="margin-top: 10px;"></div>
                     </div>
                     <div class="jgk-form-field">
@@ -387,23 +387,15 @@ if (isset($_POST['jgk_register_member'])) {
             </div>
 
             <!-- Membership Details -->
-            <div class="jgk-form-section">
+            <div class="jgk-form-section jgk-membership-section">
                 <h3><span class="dashicons dashicons-id-alt"></span> Membership Details</h3>
                 
                 <div class="jgk-form-row">
                     <div class="jgk-form-field jgk-form-field-full">
-                        <div class="jgk-membership-info" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 12px; text-align: center;">
-                            <h4 style="margin: 0 0 12px 0; font-size: 22px; font-weight: 600;">⛳ Junior Golf Kenya Program</h4>
-                            <p style="margin: 0 0 15px 0; font-size: 16px; opacity: 0.95; line-height: 1.6;">
-                                Programme de développement pour jeunes golfeurs<br>
-                                <strong style="font-size: 18px;">Âge requis : 2 à 17 ans</strong>
-                            </p>
-                            <div style="background: rgba(255,255,255,0.2); padding: 12px 20px; border-radius: 8px; display: inline-block;">
-                                <p style="margin: 0; font-size: 18px; font-weight: 600;">
-                                    Cotisation annuelle : KSh 5,000
-                                </p>
-                            </div>
-                            <input type="hidden" name="membership_type" value="junior">
+                        <div class="jgk-membership-info">
+                            <h4>Junior Golf Kenya Membership</h4>
+                            <p>Join Kenya's premier junior golf development program. Our membership includes access to coaching, tournaments, and exclusive training facilities.</p>
+                            <span class="jgk-membership-price">KES 5,000 / Year</span>
                         </div>
                     </div>
                 </div>
@@ -431,7 +423,7 @@ if (isset($_POST['jgk_register_member'])) {
             <div class="jgk-form-section" id="parent-section" style="display: block;">
                 <h3><span class="dashicons dashicons-groups"></span> Parent/Guardian Information</h3>
                 <p class="jgk-section-description" style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; color: #856404; margin: 10px 0 20px 0; border-radius: 4px;">
-                    <strong>⚠️ Obligatoire</strong> - Les informations du parent ou tuteur légal sont requises pour tous les membres juniors.
+                    <strong>⚠️ Required</strong> - Parent or legal guardian information is required for all junior members.
                 </p>
                 
                 <div class="jgk-form-row">
@@ -449,12 +441,12 @@ if (isset($_POST['jgk_register_member'])) {
                     <div class="jgk-form-field">
                         <label for="parent_email">Parent/Guardian Email *</label>
                         <input type="email" id="parent_email" name="parent_email" value="<?php echo esc_attr($_POST['parent_email'] ?? ''); ?>">
-                        <small>Au moins email OU téléphone requis</small>
+                        <small>At least email OR phone required</small>
                     </div>
                     <div class="jgk-form-field">
                         <label for="parent_phone">Parent/Guardian Phone *</label>
                         <input type="tel" id="parent_phone" name="parent_phone" value="<?php echo esc_attr($_POST['parent_phone'] ?? ''); ?>" placeholder="+254...">
-                        <small>Au moins email OU téléphone requis</small>
+                        <small>At least email OR phone required</small>
                     </div>
                 </div>
 
@@ -502,7 +494,7 @@ if (isset($_POST['jgk_register_member'])) {
                 <div class="jgk-form-checkbox">
                     <label>
                         <input type="checkbox" name="parental_consent" value="1" <?php checked(isset($_POST['parental_consent'])); ?>>
-                        <span>Parental consent (for members under 18)</span>
+                        <span>I give parental consent for my child under 18 to participate in the Junior Golf Kenya program</span>
                     </label>
                 </div>
 
@@ -530,75 +522,83 @@ if (isset($_POST['jgk_register_member'])) {
 </div>
 
 <style>
-/* Registration Form Styles */
+/* Minimalist Modern Registration Form */
 .jgk-registration-form {
-    max-width: 900px;
+    max-width: 800px;
     margin: 40px auto;
-    padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 /* Form Header */
 .jgk-form-header {
     text-align: center;
-    padding: 40px 30px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border-radius: 15px 15px 0 0;
+    padding: 60px 40px;
+    background: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
 }
 
 .jgk-form-header h2 {
-    margin: 0 0 10px 0;
-    font-size: 32px;
-    font-weight: 700;
+    margin: 0 0 12px 0;
+    font-size: 28px;
+    font-weight: 600;
+    color: #111827;
+    letter-spacing: -0.025em;
 }
 
 .jgk-form-header p {
     margin: 0;
     font-size: 16px;
-    opacity: 0.95;
+    color: #6b7280;
+    line-height: 1.5;
 }
 
 /* Error Messages */
 .jgk-form-errors {
     display: flex;
     align-items: flex-start;
-    gap: 15px;
-    padding: 20px;
-    background: #fee;
-    color: #c33;
-    border-left: 4px solid #c33;
-    margin: 20px 0;
+    gap: 12px;
+    padding: 16px 20px;
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    margin: 24px 0;
 }
 
 .jgk-form-errors .dashicons {
-    font-size: 24px;
+    font-size: 20px;
     margin-top: 2px;
+    color: #dc2626;
 }
 
 .jgk-form-errors strong {
     display: block;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
+    font-weight: 600;
 }
 
 .jgk-form-errors ul {
     margin: 0;
-    padding-left: 20px;
+    padding-left: 16px;
 }
 
 .jgk-form-errors li {
-    margin-bottom: 5px;
+    margin-bottom: 4px;
+    line-height: 1.4;
+}
+
+/* Form Container */
+.jgk-member-form {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    overflow: hidden;
 }
 
 /* Form Sections */
-.jgk-member-form {
-    background: white;
-    box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
-}
-
 .jgk-form-section {
-    padding: 30px;
-    border-bottom: 2px solid #f0f0f0;
+    padding: 48px 40px;
+    border-bottom: 1px solid #f3f4f6;
 }
 
 .jgk-form-section:last-of-type {
@@ -608,31 +608,49 @@ if (isset($_POST['jgk_register_member'])) {
 .jgk-form-section h3 {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin: 0 0 20px 0;
-    color: #2c3e50;
-    font-size: 20px;
+    gap: 8px;
+    margin: 0 0 32px 0;
+    font-size: 18px;
     font-weight: 600;
+    color: #111827;
+    letter-spacing: -0.025em;
 }
 
 .jgk-form-section h3 .dashicons {
-    font-size: 24px;
-    color: #667eea;
+    font-size: 20px;
+    color: #3b82f6;
 }
 
 .jgk-section-description {
-    margin: -10px 0 20px 0;
-    color: #7f8c8d;
+    margin: -16px 0 32px 0;
+    padding: 16px 20px;
+    background: #fefce8;
+    border: 1px solid #fde047;
+    border-radius: 8px;
+    color: #a16207;
     font-size: 14px;
-    font-style: italic;
+    line-height: 1.5;
+}
+
+/* Membership Details Section */
+.jgk-membership-section {
+    padding: 48px 40px;
+    background: #f9fafb;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+/* Shorten handicap and medical condition inputs */
+.jgk-membership-section .jgk-form-field input[type="number"],
+.jgk-membership-section .jgk-form-field textarea {
+    max-width: 200px;
 }
 
 /* Form Rows */
 .jgk-form-row {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 20px;
-    margin-bottom: 20px;
+    gap: 24px;
+    margin-bottom: 24px;
 }
 
 .jgk-form-row:last-child {
@@ -643,6 +661,7 @@ if (isset($_POST['jgk_register_member'])) {
 .jgk-form-field {
     display: flex;
     flex-direction: column;
+    position: relative;
 }
 
 .jgk-form-field-full {
@@ -652,9 +671,10 @@ if (isset($_POST['jgk_register_member'])) {
 .jgk-form-field label {
     display: block;
     margin-bottom: 8px;
-    font-weight: 600;
-    color: #2c3e50;
     font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+    letter-spacing: -0.01em;
 }
 
 .jgk-form-field input[type="text"],
@@ -662,102 +682,124 @@ if (isset($_POST['jgk_register_member'])) {
 .jgk-form-field input[type="tel"],
 .jgk-form-field input[type="date"],
 .jgk-form-field input[type="number"],
+.jgk-form-field input[type="password"],
 .jgk-form-field select,
 .jgk-form-field textarea {
     width: 100%;
-    padding: 12px 15px;
-    border: 2px solid #e0e0e0;
+    padding: 12px 16px;
+    border: 1px solid #d1d5db;
     border-radius: 8px;
-    font-size: 15px;
+    font-size: 16px;
     font-family: inherit;
-    transition: border-color 0.3s;
+    background: #ffffff;
+    color: #111827;
+    transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .jgk-form-field input:focus,
 .jgk-form-field select:focus,
 .jgk-form-field textarea:focus {
     outline: none;
-    border-color: #667eea;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.jgk-form-field input:hover,
+.jgk-form-field select:hover,
+.jgk-form-field textarea:hover {
+    border-color: #b8c6db;
 }
 
 .jgk-form-field small {
-    display: block;
-    margin-top: 5px;
-    color: #7f8c8d;
-    font-size: 13px;
+    margin-top: 6px;
+    font-size: 12px;
+    color: #6b7280;
+    line-height: 1.4;
 }
 
 /* Checkboxes */
 .jgk-form-checkbox {
-    margin-bottom: 15px;
+    margin-bottom: 16px;
+    padding: 16px 20px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
 }
 
 .jgk-form-checkbox label {
     display: flex;
     align-items: flex-start;
-    gap: 10px;
+    gap: 12px;
     cursor: pointer;
-    color: #2c3e50;
+    font-size: 14px;
+    color: #374151;
+    line-height: 1.5;
+    margin: 0;
 }
 
 .jgk-form-checkbox input[type="checkbox"] {
-    margin-top: 3px;
-    width: 18px;
-    height: 18px;
+    margin-top: 2px;
+    width: 16px;
+    height: 16px;
     cursor: pointer;
+    accent-color: #3b82f6;
 }
 
 .jgk-form-checkbox a {
-    color: #667eea;
+    color: #3b82f6;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.jgk-form-checkbox a:hover {
     text-decoration: underline;
 }
 
 /* Submit Section */
 .jgk-form-submit {
-    padding: 30px;
+    padding: 48px 40px;
     text-align: center;
-    background: #f8f9fa;
-    border-radius: 0 0 15px 15px;
+    background: #f9fafb;
+    border-top: 1px solid #e5e7eb;
 }
 
 .jgk-btn {
     display: inline-flex;
     align-items: center;
-    gap: 10px;
-    padding: 15px 30px;
+    gap: 8px;
+    padding: 14px 32px;
     border: none;
     border-radius: 8px;
     font-size: 16px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.3s;
+    transition: all 0.2s;
     text-decoration: none;
 }
 
 .jgk-btn-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #3b82f6;
     color: white;
 }
 
 .jgk-btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+    background: #2563eb;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
 .jgk-btn-secondary {
-    background: #6c757d;
+    background: #6b7280;
     color: white;
 }
 
 .jgk-btn-secondary:hover {
-    background: #5a6268;
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(108, 117, 125, 0.3);
+    background: #4b5563;
 }
 
 .jgk-btn-large {
-    padding: 18px 40px;
-    font-size: 18px;
+    padding: 16px 40px;
+    font-size: 16px;
 }
 
 .jgk-form-note {
@@ -765,58 +807,68 @@ if (isset($_POST['jgk_register_member'])) {
     align-items: center;
     justify-content: center;
     gap: 8px;
-    margin: 15px 0 0 0;
-    color: #7f8c8d;
+    margin: 16px 0 0 0;
     font-size: 14px;
+    color: #6b7280;
+    padding: 12px 16px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
 }
 
 /* Success Message */
 .jgk-registration-success {
-    background: white;
-    padding: 60px 40px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 64px 40px;
     text-align: center;
-    border-radius: 15px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    margin: 40px auto;
+    max-width: 800px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .jgk-success-icon {
-    width: 100px;
-    height: 100px;
-    margin: 0 auto 30px;
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 24px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    background: #10b981;
     border-radius: 50%;
     color: white;
-    font-size: 50px;
+    font-size: 40px;
 }
 
 .jgk-registration-success h2 {
-    margin: 0 0 15px 0;
-    color: #2c3e50;
-    font-size: 32px;
+    margin: 0 0 16px 0;
+    font-size: 24px;
+    font-weight: 600;
+    color: #111827;
 }
 
 .jgk-registration-success > p {
-    margin: 0 0 30px 0;
-    color: #7f8c8d;
-    font-size: 18px;
+    margin: 0 0 32px 0;
+    font-size: 16px;
+    color: #6b7280;
+    line-height: 1.6;
 }
 
 .jgk-success-details {
     max-width: 600px;
-    margin: 0 auto 40px;
-    padding: 25px;
-    background: #f8f9fa;
-    border-radius: 10px;
+    margin: 0 auto 32px;
+    padding: 24px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
     text-align: left;
 }
 
 .jgk-success-details p {
-    margin: 0 0 15px 0;
-    color: #2c3e50;
-    font-size: 15px;
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    color: #374151;
     line-height: 1.6;
 }
 
@@ -825,9 +877,75 @@ if (isset($_POST['jgk_register_member'])) {
 }
 
 .jgk-success-actions {
-    margin-top: 30px;
     display: flex;
-    gap: 15px;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+/* Error Message */
+.jgk-registration-error {
+    background: #ffffff;
+    border: 1px solid #ef4444;
+    border-radius: 12px;
+    padding: 32px 40px;
+    text-align: center;
+    margin: 40px auto;
+    max-width: 800px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.jgk-error-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #ef4444;
+    border-radius: 50%;
+    color: white;
+    font-size: 32px;
+}
+
+.jgk-registration-error h2 {
+    margin: 0 0 16px 0;
+    font-size: 24px;
+    font-weight: 600;
+    color: #111827;
+}
+
+.jgk-registration-error > p {
+    margin: 0 0 24px 0;
+    font-size: 16px;
+    color: #6b7280;
+    line-height: 1.6;
+}
+
+.jgk-error-details {
+    max-width: 600px;
+    margin: 0 auto 24px;
+    padding: 20px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    text-align: left;
+}
+
+.jgk-error-details p {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    color: #dc2626;
+    line-height: 1.6;
+}
+
+.jgk-error-details p:last-child {
+    margin-bottom: 0;
+}
+
+.jgk-error-actions {
+    display: flex;
+    gap: 12px;
     justify-content: center;
     flex-wrap: wrap;
 }
@@ -876,6 +994,14 @@ if (isset($_POST['jgk_register_member'])) {
     .jgk-registration-success h2 {
         font-size: 24px;
     }
+    
+    .jgk-registration-error {
+        padding: 32px 20px;
+    }
+    
+    .jgk-registration-error h2 {
+        font-size: 24px;
+    }
 }
 
 /* Show/hide parent section based on membership type */
@@ -885,6 +1011,40 @@ if (isset($_POST['jgk_register_member'])) {
 
 #parent-section.show {
     display: block;
+}
+
+/* Membership Info Card */
+.jgk-membership-info {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 32px;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.jgk-membership-info h4 {
+    margin: 0 0 16px 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: #111827;
+}
+
+.jgk-membership-info p {
+    margin: 0 0 20px 0;
+    font-size: 15px;
+    color: #6b7280;
+    line-height: 1.6;
+}
+
+.jgk-membership-info .jgk-membership-price {
+    display: inline-block;
+    padding: 12px 24px;
+    background: #3b82f6;
+    color: white;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
 }
 </style>
 
@@ -910,7 +1070,7 @@ document.getElementById('date_of_birth')?.addEventListener('change', function() 
         messageDiv.style.padding = '10px';
         messageDiv.style.borderRadius = '5px';
         messageDiv.style.border = '1px solid #f5c6cb';
-        messageDiv.innerHTML = '❌ L\'enfant doit avoir au moins 2 ans pour s\'inscrire.';
+        messageDiv.innerHTML = '❌ The child must be at least 2 years old to register.';
         this.setCustomValidity('Âge minimum : 2 ans');
     } else if (age >= 18) {
         messageDiv.style.background = '#f8d7da';
@@ -918,7 +1078,7 @@ document.getElementById('date_of_birth')?.addEventListener('change', function() 
         messageDiv.style.padding = '10px';
         messageDiv.style.borderRadius = '5px';
         messageDiv.style.border = '1px solid #f5c6cb';
-        messageDiv.innerHTML = '❌ Ce programme est réservé aux juniors de moins de 18 ans.';
+        messageDiv.innerHTML = '❌ This program is reserved for juniors under 18 years old.';
         this.setCustomValidity('Âge maximum : 17 ans');
     } else {
         messageDiv.style.background = '#d4edda';
@@ -926,7 +1086,7 @@ document.getElementById('date_of_birth')?.addEventListener('change', function() 
         messageDiv.style.padding = '10px';
         messageDiv.style.borderRadius = '5px';
         messageDiv.style.border = '1px solid #c3e6cb';
-        messageDiv.innerHTML = `✅ Âge valide : ${age} ans`;
+        messageDiv.innerHTML = `✅ Valid age: ${age} years old`;
         this.setCustomValidity('');
     }
 });

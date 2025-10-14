@@ -80,6 +80,65 @@ $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id,
         </div>
     </div>
 
+    <!-- Payment Banner for Approved Members -->
+    <?php if ($stats['member']->status === 'approved'): ?>
+    <div class="jgk-payment-banner">
+        <div class="jgk-payment-banner-content">
+            <div class="jgk-payment-banner-icon">
+                <span class="dashicons dashicons-money-alt"></span>
+            </div>
+            <div class="jgk-payment-banner-text">
+                <h3>🎉 Your Membership is Approved!</h3>
+                <p>Complete your payment to activate your membership and start enjoying all the benefits.</p>
+                <div class="jgk-payment-banner-amount">
+                    <span class="jgk-amount-highlight">KES 5,000</span>
+                    <span class="jgk-period-highlight">/ Year</span>
+                </div>
+            </div>
+            <div class="jgk-payment-banner-actions">
+                <?php
+                if (class_exists('WooCommerce')) {
+                    $membership_product_id = get_option('jgk_membership_product_id');
+                    if ($membership_product_id) {
+                        $add_to_cart_url = wc_get_cart_url() . '?add-to-cart=' . $membership_product_id;
+                        ?>
+                        <a href="<?php echo esc_url($add_to_cart_url); ?>" class="jgk-payment-cta-btn jgk-payment-mpesa">
+                            <span class="dashicons dashicons-smartphone"></span>
+                            Pay with M-Pesa
+                        </a>
+                        <a href="<?php echo esc_url($add_to_cart_url); ?>" class="jgk-payment-cta-btn jgk-payment-elipa">
+                            <span class="dashicons dashicons-credit-card"></span>
+                            Pay with eLipa
+                        </a>
+                        <?php
+                    }
+                }
+                ?>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <!-- Success Banner for Active Members -->
+    <?php if ($stats['member']->status === 'active'): ?>
+    <div class="jgk-success-banner">
+        <div class="jgk-success-banner-content">
+            <div class="jgk-success-banner-icon">
+                <span class="dashicons dashicons-yes-alt"></span>
+            </div>
+            <div class="jgk-success-banner-text">
+                <h3>🎉 Welcome to Junior Golf Kenya!</h3>
+                <p>Your membership is now fully active. You can start enjoying all the benefits of being a Junior Golf Kenya member.</p>
+                <div class="jgk-success-features">
+                    <span class="jgk-feature-tag">✓ Professional Coaching</span>
+                    <span class="jgk-feature-tag">✓ Tournament Access</span>
+                    <span class="jgk-feature-tag">✓ Training Facilities</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <!-- Statistics Cards -->
     <div class="jgk-stats-grid">
         <div class="jgk-stat-card jgk-card-primary">
@@ -176,6 +235,90 @@ $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id,
                     </div>
                 </div>
             </div>
+
+            <!-- Membership Payment Section (for approved members) -->
+            <?php if ($stats['member']->status === 'approved'): ?>
+            <div class="jgk-dashboard-section">
+                <div class="jgk-section-header">
+                    <h2>
+                        <span class="dashicons dashicons-money-alt"></span>
+                        Membership Payment
+                    </h2>
+                </div>
+                <div class="jgk-payment-card">
+                    <div class="jgk-payment-info">
+                        <h3>Complete Your Membership</h3>
+                        <p>Your membership application has been approved! Please complete your payment to activate your membership.</p>
+                        <div class="jgk-payment-amount">
+                            <span class="jgk-amount">KES 5,000</span>
+                            <span class="jgk-period">/ Year</span>
+                        </div>
+                        <p class="jgk-payment-description">
+                            Annual membership fee includes access to coaching, tournaments, and exclusive training facilities.
+                        </p>
+                    </div>
+                    <div class="jgk-payment-methods">
+                        <h4>Choose Payment Method</h4>
+                        <div class="jgk-payment-buttons">
+                            <?php
+                            // Check if WooCommerce is active
+                            if (class_exists('WooCommerce')) {
+                                // Get or create membership product
+                                $membership_product_id = get_option('jgk_membership_product_id');
+                                if (!$membership_product_id) {
+                                    // Create product if it doesn't exist
+                                    $product = new WC_Product_Simple();
+                                    $product->set_name('Junior Golf Kenya Annual Membership');
+                                    $product->set_regular_price(5000);
+                                    $product->set_description('Annual membership fee for Junior Golf Kenya');
+                                    $product->set_short_description('Complete your membership payment');
+                                    $product->set_sku('JGK-MEMBERSHIP-2025');
+                                    $product->set_virtual(true);
+                                    $product->set_downloadable(false);
+                                    $product->set_stock_status('instock');
+                                    $product->set_catalog_visibility('hidden');
+                                    $product->save();
+                                    
+                                    $membership_product_id = $product->get_id();
+                                    update_option('jgk_membership_product_id', $membership_product_id);
+                                }
+                                
+                                $product = wc_get_product($membership_product_id);
+                                if ($product) {
+                                    $add_to_cart_url = wc_get_cart_url() . '?add-to-cart=' . $membership_product_id;
+                                    ?>
+                                    <a href="<?php echo esc_url($add_to_cart_url); ?>" class="jgk-payment-btn jgk-payment-mpesa">
+                                        <span class="dashicons dashicons-smartphone"></span>
+                                        Pay with M-Pesa
+                                    </a>
+                                    <a href="<?php echo esc_url($add_to_cart_url); ?>" class="jgk-payment-btn jgk-payment-elipa">
+                                        <span class="dashicons dashicons-credit-card"></span>
+                                        Pay with eLipa
+                                    </a>
+                                    <?php
+                                }
+                            } else {
+                                // Fallback if WooCommerce is not active
+                                ?>
+                                <div class="jgk-payment-notice">
+                                    <p><strong>Payment system is being configured.</strong></p>
+                                    <p>Please contact the administrator to complete your payment.</p>
+                                    <p><em>Phone: +254 XXX XXX XXX</em></p>
+                                </div>
+                                <?php
+                            }
+                            ?>
+                        </div>
+                        <div class="jgk-payment-note">
+                            <small>
+                                <span class="dashicons dashicons-info"></span>
+                                Payments are processed securely through our payment gateway. You will receive a confirmation email once payment is completed.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
 
             <!-- Your Coaches -->
             <div class="jgk-dashboard-section">
@@ -320,6 +463,7 @@ $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id,
                         Quick Links
                     </h3>
                 </div>
+                //link esit profile to user portal of current user
                 <div class="jgk-quick-links">
                     <a href="#" class="jgk-quick-link">
                         <span class="dashicons dashicons-edit"></span>
@@ -452,6 +596,10 @@ $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id,
 
 .jgk-badge-active {
     background: #28a745;
+}
+
+.jgk-badge-approved {
+    background: #17a2b8;
 }
 
 .jgk-badge-pending {
@@ -977,6 +1125,376 @@ $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id,
     
     .jgk-parents-grid {
         grid-template-columns: 1fr;
+    }
+}
+
+/* Payment Section */
+.jgk-payment-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 16px;
+    padding: 32px;
+    color: white;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+}
+
+.jgk-payment-info h3 {
+    margin: 0 0 16px 0;
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.jgk-payment-info > p {
+    margin: 0 0 24px 0;
+    font-size: 16px;
+    line-height: 1.6;
+    opacity: 0.9;
+}
+
+.jgk-payment-amount {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.jgk-amount {
+    font-size: 32px;
+    font-weight: 700;
+    color: #ffd700;
+}
+
+.jgk-period {
+    font-size: 18px;
+    font-weight: 500;
+    opacity: 0.8;
+}
+
+.jgk-payment-description {
+    font-size: 14px;
+    opacity: 0.8;
+    line-height: 1.5;
+}
+
+.jgk-payment-methods h4 {
+    margin: 0 0 20px 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.jgk-payment-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.jgk-payment-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 16px 24px;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    font-size: 16px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+}
+
+.jgk-payment-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+.jgk-payment-mpesa {
+    border-color: #00c853;
+    background: rgba(0, 200, 83, 0.1);
+}
+
+.jgk-payment-mpesa:hover {
+    background: rgba(0, 200, 83, 0.2);
+    border-color: #00c853;
+}
+
+.jgk-payment-elipa {
+    border-color: #1976d2;
+    background: rgba(25, 118, 210, 0.1);
+}
+
+.jgk-payment-elipa:hover {
+    background: rgba(25, 118, 210, 0.2);
+    border-color: #1976d2;
+}
+
+.jgk-payment-notice {
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    text-align: center;
+}
+
+.jgk-payment-note {
+    margin-top: 20px;
+    padding: 16px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+}
+
+.jgk-payment-note small {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 12px;
+    line-height: 1.5;
+    opacity: 0.8;
+}
+
+/* Responsive Payment */
+@media (max-width: 768px) {
+    .jgk-payment-card {
+        grid-template-columns: 1fr;
+        gap: 24px;
+        padding: 24px;
+    }
+    
+    .jgk-payment-info h3 {
+        font-size: 20px;
+    }
+    
+    .jgk-amount {
+        font-size: 28px;
+    }
+    
+    .jgk-payment-buttons {
+        flex-direction: row;
+        gap: 8px;
+    }
+    
+    .jgk-payment-btn {
+        flex: 1;
+        padding: 12px 16px;
+        font-size: 14px;
+    }
+}
+
+/* Payment Banner */
+.jgk-payment-banner {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    border-radius: 16px;
+    margin: 30px 0;
+    box-shadow: 0 10px 30px rgba(16, 185, 129, 0.3);
+    overflow: hidden;
+    animation: paymentPulse 3s ease-in-out infinite;
+}
+
+@keyframes paymentPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+}
+
+.jgk-payment-banner-content {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 24px;
+    align-items: center;
+    padding: 32px 40px;
+}
+
+.jgk-payment-banner-icon {
+    width: 80px;
+    height: 80px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    color: white;
+    backdrop-filter: blur(10px);
+}
+
+.jgk-payment-banner-text h3 {
+    margin: 0 0 8px 0;
+    font-size: 24px;
+    font-weight: 700;
+    color: white;
+}
+
+.jgk-payment-banner-text p {
+    margin: 0 0 16px 0;
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.9);
+    line-height: 1.5;
+}
+
+.jgk-payment-banner-amount {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.jgk-amount-highlight {
+    font-size: 32px;
+    font-weight: 700;
+    color: #ffd700;
+}
+
+.jgk-period-highlight {
+    font-size: 18px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.jgk-payment-banner-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.jgk-payment-cta-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 20px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    min-width: 160px;
+}
+
+.jgk-payment-cta-btn:hover {
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+.jgk-payment-mpesa {
+    border-color: #00c853;
+    background: rgba(0, 200, 83, 0.2);
+}
+
+.jgk-payment-mpesa:hover {
+    background: rgba(0, 200, 83, 0.3);
+    border-color: #00c853;
+}
+
+.jgk-payment-elipa {
+    border-color: #1976d2;
+    background: rgba(25, 118, 210, 0.2);
+}
+
+.jgk-payment-elipa:hover {
+    background: rgba(25, 118, 210, 0.3);
+    border-color: #1976d2;
+}
+
+/* Responsive Payment Banner */
+@media (max-width: 768px) {
+    .jgk-payment-banner-content {
+        grid-template-columns: 1fr;
+        text-align: center;
+        gap: 20px;
+    }
+    
+    .jgk-payment-banner-actions {
+        flex-direction: row;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    
+    .jgk-payment-cta-btn {
+        min-width: 140px;
+    }
+}
+
+/* Success Banner */
+.jgk-success-banner {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    border-radius: 16px;
+    margin: 30px 0;
+    box-shadow: 0 10px 30px rgba(16, 185, 129, 0.3);
+    overflow: hidden;
+}
+
+.jgk-success-banner-content {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 24px;
+    align-items: center;
+    padding: 32px 40px;
+}
+
+.jgk-success-banner-icon {
+    width: 80px;
+    height: 80px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    color: white;
+    backdrop-filter: blur(10px);
+}
+
+.jgk-success-banner-text h3 {
+    margin: 0 0 8px 0;
+    font-size: 24px;
+    font-weight: 700;
+    color: white;
+}
+
+.jgk-success-banner-text p {
+    margin: 0 0 16px 0;
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.9);
+    line-height: 1.5;
+}
+
+.jgk-success-features {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.jgk-feature-tag {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    backdrop-filter: blur(10px);
+}
+
+/* Responsive Success Banner */
+@media (max-width: 768px) {
+    .jgk-success-banner-content {
+        grid-template-columns: 1fr;
+        text-align: center;
+        gap: 20px;
+    }
+    
+    .jgk-success-features {
+        justify-content: center;
     }
 }
 </style>

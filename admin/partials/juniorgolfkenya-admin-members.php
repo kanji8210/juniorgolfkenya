@@ -672,6 +672,7 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
                 <select name="status">
                     <option value="">All Statuses</option>
                     <option value="active" <?php selected($status_filter, 'active'); ?>>Active</option>
+                    <option value="approved" <?php selected($status_filter, 'approved'); ?>>Approved</option>
                     <option value="pending" <?php selected($status_filter, 'pending'); ?>>Pending Approval</option>
                     <option value="expired" <?php selected($status_filter, 'expired'); ?>>Expired</option>
                     <option value="suspended" <?php selected($status_filter, 'suspended'); ?>>Suspended</option>
@@ -783,6 +784,7 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
                                 <select name="new_status" onchange="if(confirm('Are you sure you want to change this member\'s status?')) { this.form.submit(); }" style="font-size: 11px; padding: 2px 4px;">
                                     <option value="">Change Status</option>
                                     <option value="active" <?php selected($member->status, 'active'); ?>>Active</option>
+                                    <option value="approved" <?php selected($member->status, 'approved'); ?>>Approved</option>
                                     <option value="pending" <?php selected($member->status, 'pending'); ?>>Pending</option>
                                     <option value="suspended" <?php selected($member->status, 'suspended'); ?>>Suspended</option>
                                     <option value="expired" <?php selected($member->status, 'expired'); ?>>Expired</option>
@@ -949,6 +951,7 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
 .jgk-button-approve { background: #00a32a; color: white; border-color: #00a32a; }
 
 .jgk-status-active { color: #00a32a; font-weight: bold; }
+.jgk-status-approved { color: #17a2b8; font-weight: bold; }
 .jgk-status-pending { color: #b32d2e; font-weight: bold; }
 .jgk-status-expired { color: #d63638; font-weight: bold; }
 .jgk-status-suspended { color: #dba617; font-weight: bold; }

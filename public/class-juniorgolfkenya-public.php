@@ -675,4 +675,178 @@ class JuniorGolfKenya_Public {
         include JUNIORGOLFKENYA_PLUGIN_PATH . 'public/partials/juniorgolfkenya-coach-request-form.php';
         return ob_get_clean();
     }
+
+    /**
+     * Initialize WooCommerce integration for membership payments.
+     *
+     * @since    1.0.0
+     */
+    public function init_woocommerce_integration() {
+        if (class_exists('WooCommerce')) {
+            // Hook into WooCommerce order status completed
+            add_action('woocommerce_order_status_completed', array($this, 'handle_membership_payment_completion'), 10, 1);
+            
+            // Create membership product if it doesn't exist
+            add_action('init', array($this, 'ensure_membership_product_exists'));
+        }
+    }
+
+    /**
+     * Ensure the membership product exists in WooCommerce.
+     *
+     * @since    1.0.0
+     */
+    public function ensure_membership_product_exists() {
+        if (!class_exists('WooCommerce')) {
+            return;
+        }
+
+        $product_id = get_option('jgk_membership_product_id');
+        
+        if (!$product_id || !wc_get_product($product_id)) {
+            // Create the membership product
+            $product = new WC_Product_Simple();
+            $product->set_name('Junior Golf Kenya Annual Membership');
+            $product->set_regular_price(5000);
+            $product->set_description('Annual membership fee for Junior Golf Kenya - includes access to coaching, tournaments, and exclusive training facilities.');
+            $product->set_short_description('Complete your Junior Golf Kenya membership payment');
+            $product->set_sku('JGK-MEMBERSHIP-' . date('Y'));
+            $product->set_virtual(true);
+            $product->set_downloadable(false);
+            $product->set_stock_status('instock');
+            $product->set_catalog_visibility('hidden');
+            $product->set_tax_status('none');
+            
+            // Set categories if needed
+            $product->save();
+            
+            $product_id = $product->get_id();
+            update_option('jgk_membership_product_id', $product_id);
+            
+            // Log product creation
+            error_log('JGK: Created membership product with ID: ' . $product_id);
+        }
+    }
+
+    /**
+     * Handle membership payment completion.
+     *
+     * @since    1.0.0
+     * @param    int    $order_id    WooCommerce order ID
+     */
+    public function handle_membership_payment_completion($order_id) {
+        $order = wc_get_order($order_id);
+        if (!$order) {
+            return;
+        }
+
+        // Check if this order contains the membership product
+        $membership_product_id = get_option('jgk_membership_product_id');
+        $has_membership_product = false;
+        
+        foreach ($order->get_items() as $item) {
+            if ($item->get_product_id() == $membership_product_id) {
+                $has_membership_product = true;
+                break;
+            }
+        }
+
+        if (!$has_membership_product) {
+            return;
+        }
+
+        // Get customer email and find member
+        $customer_email = $order->get_billing_email();
+        if (!$customer_email) {
+            return;
+        }
+
+        global $wpdb;
+        $members_table = $wpdb->prefix . 'jgk_members';
+        
+        // Find member by email
+        $member = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$members_table} WHERE user_email = %s",
+            $customer_email
+        ));
+
+        if (!$member) {
+            // Try to find by user ID if email doesn't match
+            $user = get_user_by('email', $customer_email);
+            if ($user) {
+                $member = $wpdb->get_row($wpdb->prepare(
+                    "SELECT * FROM {$members_table} WHERE user_id = %d",
+                    $user->ID
+                ));
+            }
+        }
+
+        if ($member) {
+            // Update member status to active
+            $wpdb->update(
+                $members_table,
+                array(
+                    'status' => 'active',
+                    'updated_at' => current_time('mysql')
+                ),
+                array('id' => $member->id)
+            );
+
+            // Record the payment
+            require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-database.php';
+            JuniorGolfKenya_Database::record_payment($member->id, 5000, 'woocommerce');
+
+            // Send confirmation email
+            $this->send_payment_confirmation_email($member, $order);
+
+            // Log the activation
+            error_log('JGK: Member ' . $member->id . ' activated after payment completion. Order ID: ' . $order_id);
+        }
+    }
+
+    /**
+     * Send payment confirmation email to member.
+     *
+     * @since    1.0.0
+     * @param    object    $member    Member data
+     * @param    object    $order     WooCommerce order object
+     */
+    private function send_payment_confirmation_email($member, $order) {
+        $subject = 'Welcome to Junior Golf Kenya - Payment Confirmed!';
+        
+        $message = sprintf(
+            "Dear %s,\n\n" .
+            "Congratulations! Your payment for Junior Golf Kenya membership has been successfully processed.\n\n" .
+            "Payment Details:\n" .
+            "- Amount: KES 5,000\n" .
+            "- Order ID: %s\n" .
+            "- Payment Method: %s\n" .
+            "- Date: %s\n\n" .
+            "Your membership is now active and you have full access to:\n" .
+            "- Professional coaching sessions\n" .
+            "- Tournament participation\n" .
+            "- Exclusive training facilities\n" .
+            "- Member-only events and workshops\n\n" .
+            "You can now log in to your dashboard to view your coaches, schedule sessions, and track your progress.\n\n" .
+            "Welcome to the Junior Golf Kenya family!\n\n" .
+            "Best regards,\n" .
+            "Junior Golf Kenya Team",
+            $member->first_name . ' ' . $member->last_name,
+            $order->get_id(),
+            $order->get_payment_method_title(),
+            date('F j, Y', strtotime($order->get_date_paid()))
+        );
+
+        wp_mail($member->user_email, $subject, $message);
+    }
+
+    /**
+     * Get membership product for payment.
+     *
+     * @since    1.0.0
+     * @return   int|null    Product ID or null if not found
+     */
+    public function get_membership_product_id() {
+        return get_option('jgk_membership_product_id');
+    }
 }

@@ -28,11 +28,20 @@ if (!defined('ABSPATH')) {
 class JuniorGolfKenya_Member_Details {
 
     /**
+     * Debug mode flag
+     *
+     * @since    1.0.1
+     * @var      bool
+     */
+    private $debug_mode;
+
+    /**
      * Initialize the class and set its properties.
      *
      * @since    1.0.0
      */
     public function __construct() {
+        $this->debug_mode = defined('WP_DEBUG') && WP_DEBUG;
         $this->init();
     }
 
@@ -43,6 +52,11 @@ class JuniorGolfKenya_Member_Details {
      */
     public function init() {
         add_action('wp_ajax_jgk_get_member_details', array($this, 'ajax_get_member_details'));
+        
+        // Add debug hook if enabled
+        if ($this->debug_mode) {
+            add_action('wp_ajax_jgk_debug_member_details', array($this, 'debug_member_details'));
+        }
     }
 
     /**
@@ -54,41 +68,184 @@ class JuniorGolfKenya_Member_Details {
      * @since    1.0.0
      */
     public function ajax_get_member_details() {
-        try {
-            // Log the request for debugging
-            error_log('JGK Member Details AJAX: Request received at ' . date('Y-m-d H:i:s'));
-            error_log('JGK Member Details AJAX: POST data: ' . print_r($_POST, true));
+        $start_time = microtime(true);
+        $this->log_debug('AJAX request started', 'INFO', $_POST);
 
+        try {
             // Load required classes
             $this->load_dependencies();
 
             // Validate request
             $validation_result = $this->validate_request();
             if (is_wp_error($validation_result)) {
-                wp_send_json_error(array('message' => $validation_result->get_error_message()));
+                $this->log_debug('Request validation failed: ' . $validation_result->get_error_message(), 'ERROR');
+                wp_send_json_error(array(
+                    'message' => $validation_result->get_error_message(),
+                    'code' => $validation_result->get_error_code()
+                ));
                 return;
             }
 
-            $member_id = intval($_POST['member_id']);
+            $member_id = absint($_POST['member_id']);
+            $this->log_debug("Processing member ID: {$member_id}", 'INFO');
 
             // Get member data
             $member_data = $this->get_member_data($member_id);
             if (is_wp_error($member_data)) {
-                wp_send_json_error(array('message' => $member_data->get_error_message()));
+                $this->log_debug('Member data retrieval failed: ' . $member_data->get_error_message(), 'ERROR');
+                wp_send_json_error(array(
+                    'message' => $member_data->get_error_message(),
+                    'code' => $member_data->get_error_code()
+                ));
                 return;
             }
+
+            $this->log_debug("Member data retrieved successfully", 'INFO', array(
+                'member_id' => $member_id,
+                'member_name' => $member_data->member->first_name . ' ' . $member_data->member->last_name,
+                'parents_count' => is_countable($member_data->parents) ? count($member_data->parents) : 0
+            ));
 
             // Generate HTML response
             $html = $this->generate_member_details_html($member_data);
 
-            error_log('JGK Member Details AJAX: HTML generated successfully, length: ' . strlen($html));
-            wp_send_json_success(array('html' => $html));
+            $execution_time = round((microtime(true) - $start_time) * 1000, 2);
+            $this->log_debug("AJAX request completed successfully in {$execution_time}ms", 'INFO', array(
+                'html_length' => strlen($html),
+                'execution_time_ms' => $execution_time
+            ));
+
+            wp_send_json_success(array(
+                'html' => $html,
+                'execution_time' => $execution_time
+            ));
 
         } catch (Exception $e) {
-            error_log('JGK Member Details AJAX: Exception: ' . $e->getMessage());
-            error_log('JGK Member Details AJAX: Stack trace: ' . $e->getTraceAsString());
-            wp_send_json_error(array('message' => 'Error generating member details: ' . $e->getMessage()));
+            $execution_time = round((microtime(true) - $start_time) * 1000, 2);
+            $this->log_debug("Exception occurred: " . $e->getMessage(), 'CRITICAL', array(
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+                'execution_time_ms' => $execution_time
+            ));
+
+            wp_send_json_error(array(
+                'message' => 'Error generating member details: ' . $e->getMessage(),
+                'code' => 'internal_error',
+                'execution_time' => $execution_time
+            ));
         }
+    }
+
+    /**
+     * Debug endpoint for member details
+     *
+     * @since    1.0.1
+     */
+    public function debug_member_details() {
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'Insufficient permissions'));
+            return;
+        }
+
+        $debug_data = array(
+            'server' => array(
+                'PHP_VERSION' => PHP_VERSION,
+                'WORDPRESS_VERSION' => get_bloginfo('version'),
+                'WP_DEBUG' => WP_DEBUG,
+                'WP_DEBUG_LOG' => WP_DEBUG_LOG,
+            ),
+            'plugin' => array(
+                'JUNIORGOLFKENYA_PLUGIN_PATH' => defined('JUNIORGOLFKENYA_PLUGIN_PATH') ? JUNIORGOLFKENYA_PLUGIN_PATH : 'Not defined',
+            ),
+            'test_member_id' => isset($_GET['test_member_id']) ? absint($_GET['test_member_id']) : null
+        );
+
+        // Test member retrieval if ID provided
+        if (!empty($debug_data['test_member_id'])) {
+            $this->load_dependencies();
+            $member = JuniorGolfKenya_Database::get_member($debug_data['test_member_id']);
+            $debug_data['test_member'] = $member ? array(
+                'id' => $member->id,
+                'name' => $member->first_name . ' ' . $member->last_name,
+                'status' => $member->status
+            ) : 'Member not found';
+        }
+
+        wp_send_json_success($debug_data);
+    }
+
+    /**
+     * Log debug messages with different levels
+     *
+     * @since    1.0.1
+     * @param string $message The debug message
+     * @param string $level The log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+     * @param mixed $context Additional context data
+     */
+    private function log_debug($message, $level = 'DEBUG', $context = null) {
+        if (!$this->debug_mode) {
+            return;
+        }
+
+        $timestamp = date('Y-m-d H:i:s.v');
+        $log_message = "[{$timestamp}] [{$level}] {$message}";
+
+        if ($context !== null) {
+            $log_message .= " | Context: " . $this->format_context($context);
+        }
+
+        error_log("JGK Member Details: {$log_message}");
+    }
+
+    /**
+     * Format context data for logging
+     *
+     * @since    1.0.1
+     * @param mixed $context The context data to format
+     * @return string Formatted context string
+     */
+    private function format_context($context) {
+        if (is_scalar($context)) {
+            return (string) $context;
+        }
+
+        if (is_object($context) && $context instanceof WP_Error) {
+            return $context->get_error_message() . ' (code: ' . $context->get_error_code() . ')';
+        }
+
+        // Prevent recursion and large data dumps
+        return wp_json_encode($this->sanitize_log_data($context), JSON_PRETTY_PRINT);
+    }
+
+    /**
+     * Sanitize data for logging to prevent sensitive information exposure
+     *
+     * @since    1.0.1
+     * @param mixed $data Data to sanitize
+     * @return mixed Sanitized data
+     */
+    private function sanitize_log_data($data) {
+        if (is_array($data)) {
+            $sanitized = array();
+            foreach ($data as $key => $value) {
+                // Mask sensitive fields
+                if (in_array($key, array('password', 'nonce', 'auth_key', 'secret'), true)) {
+                    $sanitized[$key] = '***MASKED***';
+                } else {
+                    $sanitized[$key] = $this->sanitize_log_data($value);
+                }
+            }
+            return $sanitized;
+        }
+
+        if (is_object($data)) {
+            // Convert objects to arrays for logging
+            $array = (array) $data;
+            return $this->sanitize_log_data($array);
+        }
+
+        return $data;
     }
 
     /**
@@ -97,8 +254,31 @@ class JuniorGolfKenya_Member_Details {
      * @since    1.0.0
      */
     private function load_dependencies() {
-        require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-database.php';
-        require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-media.php';
+        $this->log_debug('Loading dependencies', 'DEBUG');
+
+        $required_files = array(
+            'database' => JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-database.php',
+            'media' => JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-media.php'
+        );
+
+        foreach ($required_files as $key => $file) {
+            if (!file_exists($file)) {
+                $this->log_debug("Required file not found: {$file}", 'ERROR');
+                throw new RuntimeException("Required file not found: {$key}");
+            }
+            require_once $file;
+            $this->log_debug("Loaded dependency: {$key}", 'DEBUG');
+        }
+
+        // Verify classes exist
+        if (!class_exists('JuniorGolfKenya_Database')) {
+            throw new RuntimeException('JuniorGolfKenya_Database class not found after loading dependencies');
+        }
+        if (!class_exists('JuniorGolfKenya_Media')) {
+            throw new RuntimeException('JuniorGolfKenya_Media class not found after loading dependencies');
+        }
+
+        $this->log_debug('All dependencies loaded successfully', 'DEBUG');
     }
 
     /**
@@ -108,22 +288,46 @@ class JuniorGolfKenya_Member_Details {
      * @return  bool|WP_Error True if valid, WP_Error if invalid.
      */
     private function validate_request() {
+        $this->log_debug('Validating AJAX request', 'DEBUG');
+
+        // Check if it's an AJAX request
+        if (!wp_doing_ajax()) {
+            return new WP_Error('invalid_request', 'This endpoint is for AJAX requests only');
+        }
+
         // Verify nonce
+        if (empty($_POST['nonce'])) {
+            return new WP_Error('missing_nonce', 'Security nonce is missing');
+        }
+
         if (!wp_verify_nonce($_POST['nonce'], 'jgk_members_action')) {
-            return new WP_Error('security_check_failed', 'Security check failed');
+            $this->log_debug('Nonce verification failed', 'WARNING', array(
+                'received_nonce' => substr($_POST['nonce'], 0, 8) . '...'
+            ));
+            return new WP_Error('invalid_nonce', 'Security verification failed');
         }
 
         // Check permissions
         if (!current_user_can('manage_options')) {
-            return new WP_Error('insufficient_permissions', 'Insufficient permissions');
+            $current_user = wp_get_current_user();
+            $this->log_debug('Permission check failed', 'WARNING', array(
+                'current_user' => $current_user->user_login,
+                'capabilities' => $current_user->allcaps
+            ));
+            return new WP_Error('insufficient_permissions', 'You do not have permission to perform this action');
         }
 
         // Validate member ID
-        $member_id = intval($_POST['member_id']);
-        if (!$member_id || $member_id <= 0) {
-            return new WP_Error('invalid_member_id', 'Invalid member ID');
+        if (empty($_POST['member_id'])) {
+            return new WP_Error('missing_member_id', 'Member ID is required');
         }
 
+        $member_id = absint($_POST['member_id']);
+        if ($member_id <= 0) {
+            return new WP_Error('invalid_member_id', 'Invalid member ID format');
+        }
+
+        $this->log_debug('Request validation passed', 'DEBUG');
         return true;
     }
 
@@ -135,24 +339,43 @@ class JuniorGolfKenya_Member_Details {
      * @return  object|WP_Error Member data object or WP_Error on failure.
      */
     private function get_member_data($member_id) {
+        $this->log_debug("Retrieving member data for ID: {$member_id}", 'DEBUG');
+
         // Get member data
         $member = JuniorGolfKenya_Database::get_member($member_id);
         if (!$member) {
-            return new WP_Error('member_not_found', 'Member not found');
+            $this->log_debug("Member not found in database", 'ERROR', array('member_id' => $member_id));
+            return new WP_Error('member_not_found', 'Member not found in the system');
         }
+
+        $this->log_debug("Member base data retrieved", 'DEBUG', array(
+            'member_name' => $member->first_name . ' ' . $member->last_name,
+            'status' => $member->status
+        ));
 
         // Get additional data
         $member_parents = JuniorGolfKenya_Database::get_member_parents($member_id);
+        $this->log_debug("Retrieved member parents", 'DEBUG', array(
+            'parents_count' => is_countable($member_parents) ? count($member_parents) : 0
+        ));
 
         // Get coach information
         $coach_name = '';
-        if ($member->coach_id) {
+        if (!empty($member->coach_id)) {
             $coach = get_userdata($member->coach_id);
             $coach_name = $coach ? $coach->display_name : 'Unknown Coach';
+            $this->log_debug("Coach data retrieved", 'DEBUG', array(
+                'coach_id' => $member->coach_id,
+                'coach_name' => $coach_name
+            ));
         }
 
         // Calculate age
         $age = $this->calculate_age($member->date_of_birth);
+        $this->log_debug("Age calculated", 'DEBUG', array(
+            'date_of_birth' => $member->date_of_birth,
+            'calculated_age' => $age
+        ));
 
         // Return combined data
         return (object) array(
@@ -172,6 +395,7 @@ class JuniorGolfKenya_Member_Details {
      */
     private function calculate_age($date_of_birth) {
         if (empty($date_of_birth)) {
+            $this->log_debug('Date of birth is empty, cannot calculate age', 'DEBUG');
             return '';
         }
 
@@ -179,8 +403,19 @@ class JuniorGolfKenya_Member_Details {
             $birthdate = new DateTime($date_of_birth);
             $today = new DateTime();
             $age_years = $today->diff($birthdate)->y;
-            return $age_years . ' years old';
+            $result = $age_years . ' years old';
+            
+            $this->log_debug("Age calculation successful", 'DEBUG', array(
+                'date_of_birth' => $date_of_birth,
+                'calculated_age' => $result
+            ));
+            
+            return $result;
         } catch (Exception $e) {
+            $this->log_debug("Age calculation failed", 'ERROR', array(
+                'date_of_birth' => $date_of_birth,
+                'error' => $e->getMessage()
+            ));
             return 'Invalid date';
         }
     }
@@ -193,6 +428,8 @@ class JuniorGolfKenya_Member_Details {
      * @return  string HTML content for member details.
      */
     private function generate_member_details_html($member_data) {
+        $this->log_debug('Generating member details HTML', 'DEBUG');
+
         $member = $member_data->member;
         $member_parents = $member_data->parents;
         $coach_name = $member_data->coach_name;
@@ -223,9 +460,16 @@ class JuniorGolfKenya_Member_Details {
         // Parents section
         if (!empty($member_parents)) {
             $html .= $this->generate_parents_section($member_parents);
+        } else {
+            $this->log_debug('No parents data found for member', 'DEBUG');
         }
 
         $html .= '</div>'; // End member-details-wrapper
+
+        $this->log_debug('Member details HTML generated successfully', 'DEBUG', array(
+            'html_length' => strlen($html),
+            'sections_generated' => 5 // profile + 4 grid sections + parents
+        ));
 
         return $html;
     }
@@ -238,16 +482,28 @@ class JuniorGolfKenya_Member_Details {
      * @return  string HTML for profile section.
      */
     private function generate_profile_section($member) {
+        $this->log_debug('Generating profile section', 'DEBUG');
+
         $html = '<div class="member-profile-section">';
         $html .= '<div class="member-profile-header">';
 
-        error_log('JGK Member Details AJAX: About to call get_profile_image_html');
+        $this->log_debug('Calling get_profile_image_html', 'DEBUG', array(
+            'member_id' => $member->id
+        ));
+
         $profile_image_html = JuniorGolfKenya_Media::get_profile_image_html(
             $member->id,
             'medium',
-            array('style' => 'width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid #0073aa;')
+            array(
+                'style' => 'width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid #0073aa;',
+                'class' => 'member-profile-image'
+            )
         );
-        error_log('JGK Member Details AJAX: get_profile_image_html returned: ' . substr($profile_image_html, 0, 100));
+
+        $this->log_debug('Profile image HTML received', 'DEBUG', array(
+            'html_length' => strlen($profile_image_html),
+            'has_image' => !empty($profile_image_html) && strpos($profile_image_html, 'src=') !== false
+        ));
 
         $html .= $profile_image_html;
         $html .= '<div class="member-profile-info">';
@@ -260,6 +516,8 @@ class JuniorGolfKenya_Member_Details {
 
         return $html;
     }
+
+    // ... [The rest of your generate_*_section methods remain the same, but you can add debug logs to each if needed]
 
     /**
      * Generate personal information section HTML.
@@ -365,7 +623,7 @@ class JuniorGolfKenya_Member_Details {
         $html .= '<h4>Parents/Guardians</h4>';
         $html .= '<div class="parents-list">';
 
-        foreach ($member_parents as $parent) {
+        foreach ($member_parents as $index => $parent) {
             $html .= '<div class="parent-entry" style="background: #f9f9f9; padding: 15px; margin-bottom: 10px; border-radius: 5px; border-left: 4px solid #0073aa;">';
             $html .= '<h5 style="margin: 0 0 10px 0; color: #0073aa;">';
             $html .= esc_html($parent->first_name . ' ' . $parent->last_name);

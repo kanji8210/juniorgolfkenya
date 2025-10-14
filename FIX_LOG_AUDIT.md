@@ -1,24 +1,24 @@
-# ✅ Correction de l'Erreur "Call to undefined method log_audit()"
+# ✅ Fix for "Call to undefined method log_audit()" Error
 
-## Date: 10 octobre 2025
+## Date: October 10, 2025
 
-## Problème Initial
+## Initial Problem
 
 ```
-Fatal error: Uncaught Error: Call to undefined method JuniorGolfKenya_Database::log_audit() 
+Fatal error: Uncaught Error: Call to undefined method JuniorGolfKenya_Database::log_audit()
 in C:\xampp\htdocs\wordpress\wp-content\plugins\juniorgolfkenya\includes\class-juniorgolfkenya-user-manager.php:73
 ```
 
-### Contexte
-L'erreur se produisait lors de la création d'un nouveau membre via l'interface WordPress Admin. Le code dans `class-juniorgolfkenya-user-manager.php` appelait la méthode `JuniorGolfKenya_Database::log_audit()` qui n'existait pas.
+### Context
+The error occurred when creating a new member through the WordPress Admin interface. The code in `class-juniorgolfkenya-user-manager.php` was calling the method `JuniorGolfKenya_Database::log_audit()` which did not exist.
 
-## Solution Appliquée
+## Applied Solution
 
-### 1. Ajout de la Méthode `log_audit()`
+### 1. Addition of the `log_audit()` Method
 
-**Fichier modifié**: `includes/class-juniorgolfkenya-database.php`
+**Modified file**: `includes/class-juniorgolfkenya-database.php`
 
-**Méthode ajoutée** (ligne 602) :
+**Added method** (line 602):
 
 ```php
 /**
@@ -30,14 +30,14 @@ L'erreur se produisait lors de la création d'un nouveau membre via l'interface 
  */
 public static function log_audit($data) {
     global $wpdb;
-    
+
     $audit_table = $wpdb->prefix . 'jgk_audit_log';
-    
+
     // Check if audit table exists
     if ($wpdb->get_var("SHOW TABLES LIKE '$audit_table'") != $audit_table) {
         return false;
     }
-    
+
     // Prepare audit data
     $audit_data = array(
         'user_id' => get_current_user_id(),
@@ -51,32 +51,32 @@ public static function log_audit($data) {
         'user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '',
         'created_at' => current_time('mysql')
     );
-    
+
     $result = $wpdb->insert(
         $audit_table,
         $audit_data,
         array('%d', '%d', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s')
     );
-    
+
     return $result !== false;
 }
 ```
 
-### 2. Fonctionnalités de la Méthode
+### 2. Method Features
 
-- ✅ Enregistre toutes les actions dans la table `jgk_audit_log`
-- ✅ Vérifie l'existence de la table avant l'insertion
-- ✅ Capture automatiquement : `user_id`, `ip_address`, `user_agent`, `timestamp`
-- ✅ Supporte les paramètres optionnels : `member_id`, `old_values`, `new_values`
-- ✅ Retourne `true` en cas de succès, `false` en cas d'échec
+- ✅ Records all actions in the `jgk_audit_log` table
+- ✅ Checks table existence before insertion
+- ✅ Automatically captures: `user_id`, `ip_address`, `user_agent`, `timestamp`
+- ✅ Supports optional parameters: `member_id`, `old_values`, `new_values`
+- ✅ Returns `true` on success, `false` on failure
 
-### 3. Utilisation
+### 3. Usage
 
-La méthode est appelée dans 4 endroits différents du code :
+The method is called in 4 different places in the code:
 
-**Dans `class-juniorgolfkenya-user-manager.php`** :
+**In `class-juniorgolfkenya-user-manager.php`**:
 
-1. **Ligne 73** - Création de membre :
+1. **Line 73** - Member creation:
 ```php
 JuniorGolfKenya_Database::log_audit(array(
     'action' => 'member_created',
@@ -86,7 +86,7 @@ JuniorGolfKenya_Database::log_audit(array(
 ));
 ```
 
-2. **Ligne 110** - Création de coach :
+2. **Line 110** - Coach creation:
 ```php
 JuniorGolfKenya_Database::log_audit(array(
     'action' => 'coach_created',
@@ -96,7 +96,7 @@ JuniorGolfKenya_Database::log_audit(array(
 ));
 ```
 
-3. **Ligne 146** - Approbation d'entraîneur :
+3. **Line 146** - Coach approval:
 ```php
 JuniorGolfKenya_Database::log_audit(array(
     'action' => 'coach_approved',
@@ -106,7 +106,7 @@ JuniorGolfKenya_Database::log_audit(array(
 ));
 ```
 
-4. **Ligne 201** - Création de requête de rôle :
+4. **Line 201** - Role request creation:
 ```php
 JuniorGolfKenya_Database::log_audit(array(
     'action' => 'role_request_created',
@@ -116,19 +116,19 @@ JuniorGolfKenya_Database::log_audit(array(
 ));
 ```
 
-## Tests Effectués
+## Tests Performed
 
-### Test 1: Vérification de l'existence de la méthode
+### Test 1: Method existence verification
 ```bash
 php test_log_audit.php
 ```
-**Résultat**: ✅ Méthode existe et fonctionne
+**Result**: ✅ Method exists and works
 
-### Test 2: Création de membre via User Manager
+### Test 2: Member creation via User Manager
 ```bash
 php test_user_manager.php
 ```
-**Résultat**: ✅ Membre créé avec succès, audit log enregistré
+**Result**: ✅ Member created successfully, audit log recorded
 
 **Output**:
 ```
@@ -143,44 +143,44 @@ php test_user_manager.php
   User ID: 0
 ```
 
-### Test 3: Intégration WordPress
-- ✅ Création de membre depuis l'admin WordPress fonctionne
-- ✅ Aucune erreur Fatal
-- ✅ Audit log enregistré correctement
+### Test 3: WordPress Integration
+- ✅ Member creation from WordPress admin works
+- ✅ No Fatal error
+- ✅ Audit log recorded correctly
 
-## Fichiers Modifiés
+## Modified Files
 
-| Fichier | Modification | Lignes |
-|---------|--------------|--------|
-| `includes/class-juniorgolfkenya-database.php` | Ajout de la méthode `log_audit()` | 602-642 |
+| File | Modification | Lines |
+|------|--------------|-------|
+| `includes/class-juniorgolfkenya-database.php` | Addition of `log_audit()` method | 602-642 |
 
-## Scripts de Test Créés
+## Created Test Scripts
 
-1. **`test_log_audit.php`** - Test unitaire de la méthode log_audit
-2. **`test_user_manager.php`** - Test d'intégration pour la création de membre
+1. **`test_log_audit.php`** - Unit test for the log_audit method
+2. **`test_user_manager.php`** - Integration test for member creation
 
-## Bénéfices
+## Benefits
 
-✅ **Erreur Fatal résolue** - Plus d'erreur lors de la création de membres
+✅ **Fatal error resolved** - No more error when creating members
 
-✅ **Audit complet** - Toutes les actions importantes sont maintenant enregistrées :
-- Création de membres
-- Création de coaches
-- Approbation de coaches
-- Création de requêtes de rôle
+✅ **Complete audit** - All important actions are now recorded:
+- Member creation
+- Coach creation
+- Coach approval
+- Role request creation
 
-✅ **Traçabilité** - Chaque action enregistre :
-- Qui (user_id)
-- Quoi (action, object_type)
-- Quand (created_at)
-- Où (ip_address)
-- Avec quoi (user_agent)
-- Détails (old_values, new_values)
+✅ **Traceability** - Each action records:
+- Who (user_id)
+- What (action, object_type)
+- When (created_at)
+- Where (ip_address)
+- With what (user_agent)
+- Details (old_values, new_values)
 
-## Statut Final
+## Final Status
 
-🎉 **PROBLÈME RÉSOLU** - La création de membres fonctionne maintenant correctement !
+🎉 **PROBLEM SOLVED** - Member creation now works correctly!
 
 ---
 
-**Prochaines étapes** : Testez la création d'un membre dans l'interface WordPress Admin pour confirmer que tout fonctionne en production.
+**Next steps**: Test member creation in the WordPress Admin interface to confirm everything works in production.

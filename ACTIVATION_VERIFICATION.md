@@ -1,13 +1,13 @@
-# Système de Vérification d'Activation - Junior Golf Kenya
+# Activation Verification System - Junior Golf Kenya
 
-## 📋 Résumé
+## 📋 Summary
 
-Un système complet a été mis en place pour vérifier que toutes les tables de base de données sont créées correctement lors de l'activation du plugin et notifier l'administrateur du résultat.
+A complete system has been implemented to verify that all database tables are created correctly during plugin activation and notify the administrator of the result.
 
-## ✅ Fonctionnalités ajoutées
+## ✅ Added Features
 
-### 1. **Vérification automatique des tables**
-- Vérifie l'existence de 12 tables après l'activation :
+### 1. **Automatic table verification**
+- Verifies the existence of 12 tables after activation:
   - `jgk_members`
   - `jgk_memberships`
   - `jgk_plans`
@@ -21,71 +21,71 @@ Un système complet a été mis en place pour vérifier que toutes les tables de
   - `jgf_role_requests`
   - `jgf_coach_profiles`
 
-### 2. **Notification administrateur**
-- **Succès** : Affiche un message vert avec la liste des tables créées
-- **Échec** : Affiche un message rouge avec :
-  - Les tables créées avec succès
-  - Les tables qui ont échoué
-  - Un message de support
+### 2. **Administrator notification**
+- **Success**: Displays a green message with the list of created tables
+- **Failure**: Displays a red message with:
+  - Tables created successfully
+  - Tables that failed
+  - Support message
 
-### 3. **Logging pour débogage**
-- Enregistre les résultats dans le fichier de log PHP
-- Format JSON pour faciliter l'analyse
+### 3. **Logging for debugging**
+- Records results in the PHP log file
+- JSON format for easy analysis
 
-## 🔧 Fichiers modifiés
+## 🔧 Modified Files
 
 ### 1. `includes/class-juniorgolfkenya-activator.php`
-**Modifications principales :**
-- ✅ Méthode `activate()` - Capture et stocke les résultats d'activation
-- ✅ Méthode `create_tables()` - Retourne les résultats de dbDelta
-- ✅ Méthode `create_additional_tables()` - Retourne les résultats
-- ✅ Nouvelle méthode `verify_tables()` - Vérifie l'existence des tables
-- ✅ Output buffering ajouté pour éviter "headers already sent"
+**Main modifications:**
+- ✅ Method `activate()` - Captures and stores activation results
+- ✅ Method `create_tables()` - Returns dbDelta results
+- ✅ Method `create_additional_tables()` - Returns results
+- ✅ New method `verify_tables()` - Verifies table existence
+- ✅ Output buffering added to avoid "headers already sent"
 
 ### 2. `admin/class-juniorgolfkenya-admin.php`
-**Modifications principales :**
-- ✅ Nouvelle méthode `display_activation_notice()` - Affiche les notifications
+**Main modifications:**
+- ✅ New method `display_activation_notice()` - Displays notifications
 
 ### 3. `includes/class-juniorgolfkenya.php`
-**Modifications principales :**
-- ✅ Hook `admin_notices` ajouté pour afficher la notification
+**Main modifications:**
+- ✅ Hook `admin_notices` added to display notification
 
-## 📊 Comment ça fonctionne
+## 📊 How it works
 
-### Processus d'activation
+### Activation process
 
-1. **Activation du plugin**
+1. **Plugin activation**
    ```
    activate_juniorgolfkenya()
    └─> JuniorGolfKenya_Activator::activate()
    ```
 
-2. **Création des tables**
+2. **Table creation**
    ```
-   create_tables() → retourne les résultats
-   create_additional_tables() → retourne les résultats
-   ```
-
-3. **Vérification**
-   ```
-   verify_tables() → vérifie chaque table avec SHOW TABLES
+   create_tables() → returns results
+   create_additional_tables() → returns results
    ```
 
-4. **Stockage temporaire**
+3. **Verification**
+   ```
+   verify_tables() → checks each table with SHOW TABLES
+   ```
+
+4. **Temporary storage**
    ```
    set_transient('jgk_activation_notice', $data, 60)
    ```
 
-5. **Affichage de la notice**
+5. **Notice display**
    ```
    Hook: admin_notices
    └─> display_activation_notice()
-       └─> Affiche le résultat et supprime le transient
+       └─> Displays result and deletes transient
    ```
 
-## 🎯 Exemple de notification
+## 🎯 Notification example
 
-### ✅ Succès
+### ✅ Success
 ```
 ┌─────────────────────────────────────────────────────┐
 │ Junior Golf Kenya Plugin Activated Successfully!    │
@@ -94,7 +94,7 @@ Un système complet a été mis en place pour vérifier que toutes les tables de
 └─────────────────────────────────────────────────────┘
 ```
 
-### ❌ Échec partiel
+### ❌ Partial failure
 ```
 ┌─────────────────────────────────────────────────────────┐
 │ Junior Golf Kenya Plugin Activation Warning!            │
@@ -106,23 +106,23 @@ Un système complet a été mis en place pour vérifier que toutes les tables de
 └─────────────────────────────────────────────────────────┘
 ```
 
-## 🔍 Débogage
+## 🔍 Debugging
 
-### Vérifier les logs PHP
-Les résultats sont enregistrés dans le fichier de log PHP :
+### Check PHP logs
+Results are recorded in the PHP log file:
 ```
 JuniorGolfKenya Activation - Tables Verification: {"success":true,"missing":[],"existing":["jgk_members",...]}
 ```
 
-### Vérifier manuellement les tables
+### Manually verify tables
 ```sql
 SHOW TABLES LIKE 'wp_jgk_%';
 SHOW TABLES LIKE 'wp_jgf_%';
 ```
 
-### Tester la notification
+### Test notification
 ```php
-// Dans wp-admin
+// In wp-admin
 set_transient('jgk_activation_notice', array(
     'verification' => array(
         'success' => true,
@@ -132,61 +132,61 @@ set_transient('jgk_activation_notice', array(
 ), 60);
 ```
 
-## 🚀 Pour tester
+## 🚀 To test
 
-1. **Désactiver** le plugin dans WordPress
-2. **Supprimer** toutes les tables JGK (optionnel, pour test complet)
+1. **Deactivate** the plugin in WordPress
+2. **Delete** all JGK tables (optional, for complete test)
    ```sql
-   DROP TABLE IF EXISTS wp_jgk_members, wp_jgk_memberships, 
-   wp_jgk_plans, wp_jgk_payments, wp_jgk_competition_entries, 
-   wp_jgk_certifications, wp_jgk_audit_log, wp_jgf_coach_ratings, 
-   wp_jgf_recommendations, wp_jgf_training_schedules, 
+   DROP TABLE IF EXISTS wp_jgk_members, wp_jgk_memberships,
+   wp_jgk_plans, wp_jgk_payments, wp_jgk_competition_entries,
+   wp_jgk_certifications, wp_jgk_audit_log, wp_jgf_coach_ratings,
+   wp_jgf_recommendations, wp_jgf_training_schedules,
    wp_jgf_role_requests, wp_jgf_coach_profiles;
    ```
-3. **Réactiver** le plugin
-4. **Observer** la notification dans le tableau de bord admin
+3. **Reactivate** the plugin
+4. **Observe** the notification in the admin dashboard
 
-## ⚠️ Résolution de problèmes
+## ⚠️ Troubleshooting
 
-### Les tables ne sont pas créées
-**Causes possibles :**
-- Permissions de base de données insuffisantes
-- Préfixe de table incorrect
-- MySQL/MariaDB version incompatible
+### Tables are not created
+**Possible causes:**
+- Insufficient database permissions
+- Incorrect table prefix
+- Incompatible MySQL/MariaDB version
 
-**Solutions :**
-1. Vérifier les permissions utilisateur MySQL
-2. Vérifier `$wpdb->prefix` dans wp-config.php
-3. Vérifier les logs d'erreur MySQL
+**Solutions:**
+1. Check MySQL user permissions
+2. Check `$wpdb->prefix` in wp-config.php
+3. Check MySQL error logs
 
-### La notification ne s'affiche pas
-**Causes possibles :**
-- Le transient a expiré (60 secondes)
-- JavaScript qui interfère avec les notices
-- Cache WordPress actif
+### Notification doesn't display
+**Possible causes:**
+- Transient expired (60 seconds)
+- JavaScript interfering with notices
+- Active WordPress cache
 
-**Solutions :**
-1. Réactiver immédiatement et vérifier
-2. Désactiver les plugins de cache
-3. Vérifier les logs PHP pour les erreurs
+**Solutions:**
+1. Reactivate immediately and check
+2. Disable cache plugins
+3. Check PHP logs for errors
 
-## 📝 Notes techniques
+## 📝 Technical notes
 
-- **Transient duration** : 60 secondes (suffisant pour afficher après activation)
-- **Output buffering** : Utilisé avec dbDelta pour éviter les sorties prématurées
-- **Sécurité** : Utilisation de `esc_html()` pour l'affichage des données
-- **Performance** : Vérification unique à l'activation, pas d'impact en production
+- **Transient duration**: 60 seconds (sufficient to display after activation)
+- **Output buffering**: Used with dbDelta to avoid premature outputs
+- **Security**: Use of `esc_html()` for data display
+- **Performance**: One-time verification at activation, no production impact
 
-## 🎓 Bonnes pratiques
+## 🎓 Best practices
 
-1. ✅ Toujours vérifier la création des tables après activation
-2. ✅ Informer l'administrateur des problèmes potentiels
-3. ✅ Logger les erreurs pour le débogage
-4. ✅ Utiliser des transients pour les notifications temporaires
-5. ✅ Capturer la sortie de dbDelta pour éviter les conflits d'en-têtes
+1. ✅ Always verify table creation after activation
+2. ✅ Inform administrator of potential issues
+3. ✅ Log errors for debugging
+4. ✅ Use transients for temporary notifications
+5. ✅ Capture dbDelta output to avoid header conflicts
 
 ---
 
-**Date de création** : 10 octobre 2025  
-**Version** : 1.0.0  
-**Auteur** : Dennis Kosgei for PSM consult
+**Creation date**: October 10, 2025
+**Version**: 1.0.0
+**Author**: Dennis Kosgei for PSM consult

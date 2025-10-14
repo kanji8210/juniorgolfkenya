@@ -146,8 +146,8 @@ class JuniorGolfKenya_User_Manager {
             return false;
         }
 
-        // Update member status
-        $result = JuniorGolfKenya_Database::update_member($member_id, array('status' => 'active'));
+        // Update member status to 'approved' (not 'active' yet - payment needed)
+        $result = JuniorGolfKenya_Database::update_member($member_id, array('status' => 'approved'));
 
         if ($result) {
             // Send approval email
@@ -159,7 +159,7 @@ class JuniorGolfKenya_User_Manager {
                 'object_type' => 'member',
                 'object_id' => $member_id,
                 'old_values' => json_encode(array('status' => $member->status)),
-                'new_values' => json_encode(array('status' => 'active'))
+                'new_values' => json_encode(array('status' => 'approved'))
             ));
 
             return true;
@@ -178,7 +178,7 @@ class JuniorGolfKenya_User_Manager {
      */
     public static function update_member_status($member_id, $new_status) {
         // Validate status
-        $valid_statuses = array('active', 'pending', 'suspended', 'expired');
+        $valid_statuses = array('active', 'approved', 'pending', 'suspended', 'expired');
         if (!in_array($new_status, $valid_statuses)) {
             return false;
         }
@@ -342,9 +342,21 @@ class JuniorGolfKenya_User_Manager {
         $message = sprintf(
             'Dear %s,
 
-Your membership application has been approved! You can now access your member portal and start enjoying all the benefits of Junior Golf Kenya membership.
+Congratulations! Your membership application has been approved!
 
-Login to your member portal: %s
+To activate your membership and start enjoying all the benefits of Junior Golf Kenya, please complete your payment of KES 5,000 (annual fee).
+
+You can make your payment securely through:
+• M-Pesa mobile payment
+• eLipa online payment
+
+Login to your member portal to complete the payment: %s
+
+Once payment is confirmed, your membership will be fully activated and you\'ll have access to:
+• Professional coaching sessions
+• Tournament participation
+• Exclusive training facilities
+• Member-only events and competitions
 
 Best regards,
 Junior Golf Kenya Team',
