@@ -611,4 +611,49 @@ class JuniorGolfKenya_Database {
         
         return $wpdb->get_results($query);
     }
+
+    /**
+     * Record payment for a member
+     *
+     * @since    1.0.0
+     * @param    int       $member_id       Member ID
+     * @param    int       $order_id        WooCommerce Order ID
+     * @param    float     $amount          Payment amount
+     * @param    string    $payment_method  Payment method
+     * @param    string    $status          Payment status
+     * @param    string    $transaction_id  Transaction ID (optional)
+     * @return   bool|int                   Insert ID on success, false on failure
+     */
+    public static function record_payment($member_id, $order_id, $amount, $payment_method, $status = 'completed', $transaction_id = '') {
+        global $wpdb;
+        
+        $table = $wpdb->prefix . 'jgk_payments';
+        
+        // Check if payments table exists
+        if ($wpdb->get_var("SHOW TABLES LIKE '$table'") != $table) {
+            return false;
+        }
+        
+        $payment_data = array(
+            'member_id' => $member_id,
+            'order_id' => $order_id,
+            'amount' => $amount,
+            'payment_method' => $payment_method,
+            'status' => $status,
+            'transaction_id' => $transaction_id,
+            'created_at' => current_time('mysql')
+        );
+        
+        $result = $wpdb->insert(
+            $table,
+            $payment_data,
+            array('%d', '%d', '%f', '%s', '%s', '%s', '%s')
+        );
+        
+        if ($result !== false) {
+            return $wpdb->insert_id;
+        }
+        
+        return false;
+    }
 }

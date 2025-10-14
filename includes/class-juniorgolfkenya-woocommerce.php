@@ -152,8 +152,11 @@ class JuniorGolfKenya_WooCommerce {
         // Record the payment in JGK system
         $payment_id = JuniorGolfKenya_Database::record_payment(
             $member->id,
+            $order->get_id(),
             $membership_amount,
-            'woocommerce'
+            $order->get_payment_method_title(),
+            'completed',
+            $order->get_transaction_id()
         );
 
         if (!$payment_id) {
@@ -168,12 +171,6 @@ class JuniorGolfKenya_WooCommerce {
         if ($status_updated) {
             // Send payment confirmation email
             $user_manager->send_payment_confirmation_email($member->id, $membership_amount);
-
-            // Store WooCommerce order ID in payment record
-            JuniorGolfKenya_Database::update_payment($payment_id, array(
-                'transaction_id' => $order->get_id(),
-                'notes' => 'Payment processed via WooCommerce order #' . $order->get_id()
-            ));
 
             error_log("JGK: Successfully processed membership payment for member {$member->id} via WooCommerce order {$order->get_id()}");
         } else {

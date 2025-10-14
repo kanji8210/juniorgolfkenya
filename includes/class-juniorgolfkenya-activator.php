@@ -194,10 +194,29 @@ class JuniorGolfKenya_Activator {
             KEY is_public (is_public)
         ) $charset_collate;";
 
-        // Memberships table (for tracking membership history)
-        $table_memberships = $wpdb->prefix . 'jgk_memberships';
-        $sql_memberships = "CREATE TABLE $table_memberships (
+        // Payments table (for tracking all payments including imported data)
+        $table_payments = $wpdb->prefix . 'jgk_payments';
+        $sql_payments = "CREATE TABLE $table_payments (
             id mediumint(9) NOT NULL AUTO_INCREMENT,
+            member_id mediumint(9) NOT NULL,
+            order_id bigint(20) UNSIGNED,
+            transaction_id varchar(100),
+            amount decimal(10,2) NOT NULL,
+            currency varchar(3) DEFAULT 'KES',
+            payment_method varchar(50),
+            payment_gateway varchar(50),
+            status varchar(32) DEFAULT 'pending',
+            payment_date datetime DEFAULT CURRENT_TIMESTAMP,
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            notes text,
+            PRIMARY KEY  (id),
+            KEY member_id (member_id),
+            KEY order_id (order_id),
+            KEY transaction_id (transaction_id),
+            KEY status (status),
+            KEY payment_date (payment_date)
+        ) $charset_collate;";
             member_id mediumint(9) NOT NULL,
             plan_id mediumint(9) NOT NULL,
             status varchar(20) DEFAULT 'active',
