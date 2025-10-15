@@ -1,0 +1,52 @@
+{
+    "environment": "local",
+    "timestamp": "2025-10-15 08:08:03",
+    "database": {
+        "host": "localhost",
+        "name": "mysql",
+        "prefix": "wp_",
+        "tables": {
+            "jgk_payments": {
+                "name": "wp_jgk_payments",
+                "exists": true
+            },
+            "wp_posts": {
+                "name": "wp_posts",
+                "exists": true
+            },
+            "wp_postmeta": {
+                "name": "wp_postmeta",
+                "exists": true
+            },
+            "wc_order_items": {
+                "name": "wp_woocommerce_order_items",
+                "exists": false
+            },
+            "wc_order_itemmeta": {
+                "name": "wp_woocommerce_order_itemmeta",
+                "exists": false
+            }
+        },
+        "payment_count": 7
+    },
+    "wordpress": {
+        "version": "6.8.3",
+        "site_url": "http:\/\/localhost\/wordpress",
+        "debug_enabled": true,
+        "plugin_active": true
+    },
+    "php": {
+        "version": "8.2.12",
+        "memory_limit": "512M",
+        "max_execution_time": "0"
+    },
+    "payments": {
+        "total_count": 7,
+        "total_amount": 76913,
+        "by_status": {
+            "completed": 7,
+            "pending": 0,
+            "failed": 0
+        }
+    }
+}

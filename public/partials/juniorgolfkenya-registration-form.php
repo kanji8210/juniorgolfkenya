@@ -273,127 +273,26 @@ if (isset($_POST['jgk_register_member'])) {
 
                         wp_mail($admin_email, $admin_subject, $admin_message);
 
-                        // Auto-login the user after successful registration
+                        // Set registration success flag and redirect
+                        $registration_success = true;
+                        
+                        // Auto-login the user after successful registration  
                         wp_set_current_user($user_id);
                         wp_set_auth_cookie($user_id);
 
-                        // Redirect to Member Portal after successful registration
+                        // Determine redirect URL
                         $portal_page_id = get_option('jgk_page_member_portal');
-                
-                // Insert into members table
-                $members_table = $wpdb->prefix . 'jgk_members';
-                $insert_result = $wpdb->insert(
-                    $members_table,
-                    array(
-                        'user_id' => $user_id,
-                        'membership_number' => $membership_number,
-                        'first_name' => $first_name,
-                        'last_name' => $last_name,
-                        'date_of_birth' => !empty($date_of_birth) ? $date_of_birth : null,
-                        'gender' => $gender,
-                        'phone' => $phone,
-                        'address' => $address,
-                        'membership_type' => $membership_type,
-                        'status' => 'pending', // Await manual approval before activation
-                        'date_joined' => current_time('mysql'),
-                        'expiry_date' => date('Y-m-d', strtotime('+1 year')),
-                        'club_affiliation' => $club_affiliation,
-                        'handicap' => $handicap,
-                        'medical_conditions' => $medical_conditions,
-                        'emergency_contact_name' => $emergency_contact_name,
-                        'emergency_contact_phone' => $emergency_contact_phone,
-                        'consent_photography' => $consent_photography,
-                        'parental_consent' => $parental_consent,
-                        'created_at' => current_time('mysql'),
-                        'updated_at' => current_time('mysql'),
-                    ),
-                    array(
-                        '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s',
-                        '%s', '%s', '%s', '%f', '%s', '%s', '%s', '%s', '%d', '%s', '%s'
-                    )
-                );
-                
-                if ($insert_result === false) {
-                    $registration_errors[] = 'Failed to save member information.';
-                    wp_delete_user($user_id);
-                } else {
-                    $member_id = $wpdb->insert_id;
-                    
-                    // Insert parent/guardian information if provided
-                    if (!empty($parent_first_name) && !empty($parent_last_name)) {
-                        $parents_table = $wpdb->prefix . 'jgk_parents_guardians';
-                        $wpdb->insert(
-                            $parents_table,
-                            array(
-                                'member_id' => $member_id,
-                                'relationship' => !empty($parent_relationship) ? $parent_relationship : 'parent',
-                                'first_name' => $parent_first_name,
-                                'last_name' => $parent_last_name,
-                                'email' => $parent_email,
-                                'phone' => $parent_phone,
-                                'is_primary_contact' => 1,
-                                'emergency_contact' => 1,
-                                'created_at' => current_time('mysql'),
-                            ),
-                            array('%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s')
-                        );
+                        if ($portal_page_id) {
+                            $redirect_url = get_permalink($portal_page_id);
+                        } else {
+                            $dashboard_page_id = get_option('jgk_page_member_dashboard');
+                            $redirect_url = $dashboard_page_id ? get_permalink($dashboard_page_id) : home_url('/member-portal');
+                        }
+
+                        // Perform redirect
+                        wp_redirect($redirect_url);
+                        exit;
                     }
-                    
-                    // Send notification email to user
-                    $to = $email;
-                    $subject = 'Welcome to Junior Golf Kenya - Account Created Successfully';
-                    
-                    // Get dashboard URL from saved page ID
-                    $dashboard_page_id = get_option('jgk_page_member_dashboard');
-                    $dashboard_url = $dashboard_page_id ? get_permalink($dashboard_page_id) : home_url('/member-dashboard');
-                    
-                    $message = "Dear {$first_name} {$last_name},\n\n";
-                    $message .= "Welcome to Junior Golf Kenya! Your account has been created successfully.\n\n";
-                    $message .= "Membership Details:\n";
-                    $message .= "- Membership Number: {$membership_number}\n";
-                    $message .= "- Username: {$username}\n";
-                    $message .= "- Email: {$email}\n\n";
-                    $message .= "You can now log in and access your member dashboard:\n";
-                    $message .= "Login URL: " . wp_login_url() . "\n\n";
-                    $message .= "Dashboard URL: " . $dashboard_url . "\n\n";
-                    $message .= "Your application is currently pending review. We'll notify you once it's approved and active.\n\n";
-                    $message .= "If you have any questions, please don't hesitate to contact us.\n\n";
-                    $message .= "Best regards,\n";
-                    $message .= "Junior Golf Kenya Team";
-                    
-                    wp_mail($to, $subject, $message);
-                    
-                    // Send notification to admin
-                    $admin_email = get_option('admin_email');
-                    $admin_subject = 'New Member Registration - Junior Golf Kenya';
-                    $admin_message = "A new member has registered:\n\n";
-                    $admin_message .= "Name: {$first_name} {$last_name}\n";
-                    $admin_message .= "Email: {$email}\n";
-                    $admin_message .= "Membership Number: {$membership_number}\n";
-                    $admin_message .= "Membership Type: " . ucfirst($membership_type) . "\n";
-                    $admin_message .= "Status: Pending approval\n\n";
-                    $admin_message .= "View member details in the admin panel:\n";
-                    $admin_message .= admin_url('admin.php?page=juniorgolfkenya-members&action=edit&id=' . $member_id);
-                    
-                    wp_mail($admin_email, $admin_subject, $admin_message);
-                    
-                    // Auto-login the user after successful registration
-                    wp_set_current_user($user_id);
-                    wp_set_auth_cookie($user_id);
-                    
-                    // Redirect to Member Portal after successful registration
-                    $portal_page_id = get_option('jgk_page_member_portal');
-                    if ($portal_page_id) {
-                        $redirect_url = get_permalink($portal_page_id);
-                    } else {
-                        // Fallback to member dashboard if portal not found
-                        $dashboard_page_id = get_option('jgk_page_member_dashboard');
-                        $redirect_url = $dashboard_page_id ? get_permalink($dashboard_page_id) : home_url('/member-portal');
-                    }
-                    
-                    // Perform redirect
-                    wp_redirect($redirect_url);
-                    exit;
                 }
             }
         }
