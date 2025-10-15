@@ -769,18 +769,6 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
 
     <!-- Members Table -->
     <div class="jgk-table-container">
-        <!-- Debug Information -->
-        <div style="background: #f0f0f0; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; font-family: monospace; font-size: 12px;">
-            <strong>Debug Info:</strong><br>
-            Page: <?php echo $page; ?> | Per Page: <?php echo $per_page; ?> | Status Filter: '<?php echo $status_filter; ?>' | Search: '<?php echo $search; ?>'<br>
-            Members Count: <?php echo is_array($members) ? count($members) : 'Not an array'; ?> | Total Members: <?php echo $total_members; ?> | Total Pages: <?php echo $total_pages; ?><br>
-            <?php if (is_array($members) && count($members) > 0): ?>
-                First Member ID: <?php echo $members[0]->id; ?> | Name: <?php echo esc_html($members[0]->first_name . ' ' . $members[0]->last_name); ?>
-                <br><button onclick="console.log('Testing toggle...'); toggleMemberDetails(<?php echo $members[0]->id; ?>)">Test Toggle First Member</button>
-                <button onclick="console.log('JGK Debug: Checking elements...'); console.log('Details row:', document.getElementById('member-details-<?php echo $members[0]->id; ?>')); console.log('Toggle button:', document.querySelector('[data-member-id=\"<?php echo $members[0]->id; ?>\"]'));">Check Elements</button>
-            <?php endif; ?>
-        </div>
-
         <table class="wp-list-table widefat fixed striped jgk-table">
             <thead>
                 <tr>
@@ -1434,22 +1422,15 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Page load debug
-    console.log('JGK Debug: Page loaded successfully');
-    console.log('JGK Debug: toggleMemberDetails function exists:', typeof toggleMemberDetails);
-    console.log('JGK Debug: jgkAjax exists:', typeof jgkAjax);
-    
     // Check if member detail rows exist
     const detailRows = document.querySelectorAll('[id^="member-details-"]');
-    console.log('JGK Debug: Found detail rows:', detailRows.length);
     
     // Check if toggle buttons exist
     const toggleButtons = document.querySelectorAll('[data-member-id]');
-    console.log('JGK Debug: Found toggle buttons:', toggleButtons.length);
     
     // Log each button's data-member-id
     toggleButtons.forEach(button => {
-        console.log('JGK Debug: Button data-member-id:', button.getAttribute('data-member-id'));
+        // Debug logging removed
     });
 });
 </script>

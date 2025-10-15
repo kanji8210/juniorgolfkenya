@@ -419,12 +419,6 @@ if (isset($_POST['jgk_register_member'])) {
             </div>
         </div>
 
-        <!-- Debug Console -->
-        <div class="jgk-debug-console" style="display: none; background: #f3f4f6; padding: 15px; margin: 15px 40px; border-radius: 8px; border-left: 4px solid #3b82f6; font-family: monospace; font-size: 12px;">
-            <strong>Debug Console:</strong>
-            <div id="debug-output" style="margin-top: 8px; max-height: 200px; overflow-y: auto;"></div>
-        </div>
-
     <form method="post" class="jgk-member-form" id="jgk-registration-form" enctype="multipart/form-data">
             <?php wp_nonce_field('jgk_member_registration', 'jgk_register_nonce'); ?>
 
