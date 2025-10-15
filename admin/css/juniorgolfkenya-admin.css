@@ -1,0 +1,183 @@
+/**
+ * Admin styles for Junior Golf Kenya plugin
+ */
+
+/* CSS Variables for consistent theming */
+:root {
+    --jgk-bg: #ffffff;
+    --jgk-surface: #f7faf9;
+    --jgk-muted: #6b7280;
+    --jgk-text: #0f172a;
+    --jgk-accent: #0ea57a;
+    --jgk-accent-2: #078a60;
+    --jgk-border: #e6e9ec;
+    --jgk-radius: 12px;
+    --jgk-shadow: 0 8px 24px rgba(13, 20, 30, 0.06);
+    --jgk-ease: cubic-bezier(.2,.9,.2,1);
+}
+
+/* Form styling consistent with registration form */
+.jgk-form-section {
+    background: var(--jgk-bg);
+    border: 1px solid var(--jgk-border);
+    border-radius: var(--jgk-radius);
+    box-shadow: var(--jgk-shadow);
+    padding: 28px;
+    margin-top: 20px;
+}
+
+.jgk-form-section h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--jgk-text);
+    margin: 0 0 20px 0;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--jgk-border);
+}
+
+/* Grid layout for form rows */
+.jgk-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-bottom: 20px;
+}
+
+.jgk-form-field {
+    margin-bottom: 18px;
+}
+
+.jgk-form-field label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--jgk-text);
+    font-weight: 600;
+    font-size: .98rem;
+}
+
+.jgk-form-field input,
+.jgk-form-field select,
+.jgk-form-field textarea {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--jgk-border);
+    background: var(--jgk-surface);
+    box-sizing: border-box;
+    color: var(--jgk-text);
+    transition: box-shadow .22s var(--jgk-ease), transform .22s var(--jgk-ease);
+    font-size: 1rem;
+}
+
+.jgk-form-field input:focus,
+.jgk-form-field select:focus,
+.jgk-form-field textarea:focus {
+    outline: none;
+    box-shadow: 0 10px 30px rgba(14,165,122,0.08);
+    border-color: var(--jgk-accent);
+    transform: translateY(-2px);
+}
+
+.jgk-form-field textarea {
+    min-height: 120px;
+    resize: vertical;
+}
+
+/* Info boxes */
+.jgk-form-field-info {
+    background: #e7f3ff;
+    border-left: 4px solid #0073aa;
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 18px;
+}
+
+.jgk-form-field-info label {
+    font-weight: 600;
+    color: #0073aa;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.jgk-form-field-info p {
+    margin: 0;
+    color: #555;
+}
+
+/* File upload styling */
+.jgk-file-upload {
+    position: relative;
+    width: 100%;
+    border: 1px dashed var(--jgk-border);
+    border-radius: 10px;
+    background: var(--jgk-surface);
+    transition: all .2s var(--jgk-ease);
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.jgk-file-upload:hover {
+    border-color: var(--jgk-accent);
+    background: rgba(14,165,122,0.02);
+}
+
+/* Buttons */
+.jgk-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 22px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 0.98rem;
+    cursor: pointer;
+    border: none;
+    transition: all .22s var(--jgk-ease);
+    text-decoration: none;
+    min-height: 48px;
+}
+
+.jgk-btn:focus {
+    outline: 3px solid rgba(14,165,122,0.12);
+    outline-offset: 2px;
+}
+
+.jgk-btn-primary {
+    background: linear-gradient(180deg, var(--jgk-accent), var(--jgk-accent-2));
+    color: #fff;
+    box-shadow: 0 8px 20px rgba(14,165,122,0.14);
+}
+
+.jgk-btn-primary:hover {
+    background: linear-gradient(180deg, var(--jgk-accent-2), var(--jgk-accent));
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px rgba(14,165,122,0.2);
+}
+
+.jgk-btn-secondary {
+    background: #6b7280;
+    color: #fff;
+}
+
+.jgk-btn-secondary:hover {
+    background: #4b5563;
+    transform: translateY(-1px);
+}
+
+/* Admin container */
+.jgk-admin-container {
+    margin: 20px 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .jgk-form-row {
+        grid-template-columns: 1fr;
+        gap: 0;
+    }
+
+    .jgk-form-section {
+        padding: 20px;
+        margin: 20px 0;
+    }
+}

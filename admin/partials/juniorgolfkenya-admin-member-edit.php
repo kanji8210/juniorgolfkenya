@@ -145,7 +145,7 @@ if (!defined('ABSPATH')) {
                            min="<?php echo date('Y-m-d', strtotime('-18 years')); ?>">
                     <small style="color: #666;">Âge requis : 2-17 ans</small>
                 </div>   
-                <div class="jgk-f rm-field">
+                <div class="jgk-form-field">
                     <label for="gender">Gender</label>
                     <select id="gender" name="gender">
                         <option value="">Select Gender</option>
@@ -328,10 +328,10 @@ if (!defined('ABSPATH')) {
             </div>
             <?php endif; ?>
             
-            <p class="submit">
-                <input type="submit" class="button-primary" value="Update Member">
-                <a href="<?php echo admin_url('admin.php?page=juniorgolfkenya-members'); ?>" class="button">Cancel</a>
-            </p>
+            <div style="display: flex; gap: 12px; justify-content: flex-start; margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--jgk-border);">
+                <button type="submit" class="jgk-btn jgk-btn-primary">Update Member</button>
+                <a href="<?php echo admin_url('admin.php?page=juniorgolfkenya-members'); ?>" class="jgk-btn jgk-btn-secondary">Cancel</a>
+            </div>
         </form>
     </div>
 </div>

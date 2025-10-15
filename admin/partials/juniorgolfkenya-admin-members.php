@@ -531,14 +531,14 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
                 </div>
             </div>
             
-            <p>
-                <button type="button" class="button" onclick="addParentEntry()">+ Add Another Parent/Guardian</button>
-            </p>
+            <div style="margin-top: 20px;">
+                <button type="button" class="jgk-btn jgk-btn-secondary" onclick="addParentEntry()">+ Add Another Parent/Guardian</button>
+            </div>
             
-            <p class="submit">
-                <input type="submit" class="button-primary" value="Create Member">
-                <button type="button" class="button" onclick="toggleAddMemberForm()">Cancel</button>
-            </p>
+            <div style="display: flex; gap: 12px; justify-content: flex-start; margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--jgk-border);">
+                <button type="submit" class="jgk-btn jgk-btn-primary">Create Member</button>
+                <button type="button" class="jgk-btn jgk-btn-secondary" onclick="toggleAddMemberForm()">Cancel</button>
+            </div>
         </form>
     </div>
 
