@@ -58,9 +58,36 @@ if ($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $members_table)) === $m
 }
 
 if ($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $payments_table)) === $payments_table) {
-    $overview_stats['total_revenue']   = floatval($wpdb->get_var("SELECT SUM(amount) FROM $payments_table WHERE status='completed'") ?: 0);
+    // JGK payments revenue
+    $jgk_revenue = floatval($wpdb->get_var("SELECT SUM(amount) FROM $payments_table WHERE status='completed'") ?: 0);
     $month_start = date('Y-m-01');
-    $overview_stats['monthly_revenue'] = floatval($wpdb->get_var($wpdb->prepare("SELECT SUM(amount) FROM $payments_table WHERE status='completed' AND DATE(payment_date) BETWEEN %s AND %s", $month_start, date('Y-m-d'))) ?: 0);
+    $jgk_monthly_revenue = floatval($wpdb->get_var($wpdb->prepare("SELECT SUM(amount) FROM $payments_table WHERE status='completed' AND DATE(payment_date) BETWEEN %s AND %s", $month_start, date('Y-m-d'))) ?: 0);
+
+    // WooCommerce revenue (if tables exist)
+    $wc_revenue = 0;
+    $wc_monthly_revenue = 0;
+
+    if ($wc_tables_ok) {
+        $wc_revenue = floatval($wpdb->get_var("
+            SELECT SUM(om_total.meta_value)
+            FROM {$wpdb->posts} p
+            INNER JOIN {$wpdb->postmeta} om_total ON p.ID = om_total.post_id AND om_total.meta_key = '_order_total'
+            WHERE p.post_type = 'shop_order'
+            AND p.post_status IN ('wc-completed')
+        ") ?: 0);
+
+        $wc_monthly_revenue = floatval($wpdb->get_var($wpdb->prepare("
+            SELECT SUM(om_total.meta_value)
+            FROM {$wpdb->posts} p
+            INNER JOIN {$wpdb->postmeta} om_total ON p.ID = om_total.post_id AND om_total.meta_key = '_order_total'
+            WHERE p.post_type = 'shop_order'
+            AND p.post_status IN ('wc-completed')
+            AND DATE(p.post_date) BETWEEN %s AND %s", $month_start, date('Y-m-d'))) ?: 0);
+    }
+
+    // Total revenue (JGK + WooCommerce)
+    $overview_stats['total_revenue'] = $jgk_revenue + $wc_revenue;
+    $overview_stats['monthly_revenue'] = $jgk_monthly_revenue + $wc_monthly_revenue;
 }
 
 // Coaches (basic query via WP_User_Query if role exists)
@@ -99,7 +126,7 @@ if ($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $members_table)) === $m
 }
 
 // ------------------------------------------------------------------
-// Payment stats from custom payments table (authoritative totals)
+// Payment stats from custom payments table AND WooCommerce (combined)
 // ------------------------------------------------------------------
 $payment_stats = array(
     'total_revenue' => 0,
@@ -110,8 +137,18 @@ $payment_stats = array(
     'by_method' => array()
 );
 
+// JGK Payments stats
+$jgk_stats = array(
+    'total_revenue' => 0,
+    'completed_payments' => 0,
+    'pending_payments' => 0,
+    'failed_payments' => 0,
+    'total_payments' => 0,
+    'by_method' => array()
+);
+
 if ($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $payments_table)) === $payments_table) {
-    $agg = $wpdb->get_row($wpdb->prepare("SELECT 
+    $agg = $wpdb->get_row($wpdb->prepare("SELECT
         COUNT(*) total_payments,
         SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) completed_payments,
         SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) pending_payments,
@@ -119,33 +156,111 @@ if ($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $payments_table)) === $
         SUM(CASE WHEN status='completed' THEN amount ELSE 0 END) total_revenue
         FROM $payments_table
         WHERE DATE(payment_date) BETWEEN %s AND %s", $date_from, $date_to));
-    
+
     if ($agg) {
-        $payment_stats['total_payments']      = intval($agg->total_payments);
-        $payment_stats['completed_payments']  = intval($agg->completed_payments);
-        $payment_stats['pending_payments']    = intval($agg->pending_payments);
-        $payment_stats['failed_payments']     = intval($agg->failed_payments);
-        $payment_stats['total_revenue']       = floatval($agg->total_revenue);
+        $jgk_stats['total_payments']      = intval($agg->total_payments);
+        $jgk_stats['completed_payments']  = intval($agg->completed_payments);
+        $jgk_stats['pending_payments']    = intval($agg->pending_payments);
+        $jgk_stats['failed_payments']     = intval($agg->failed_payments);
+        $jgk_stats['total_revenue']       = floatval($agg->total_revenue);
     }
-    
-    $methods = $wpdb->get_results($wpdb->prepare("SELECT payment_method, 
+
+    $methods = $wpdb->get_results($wpdb->prepare("SELECT payment_method,
         COUNT(*) cnt,
         SUM(CASE WHEN status='completed' THEN amount ELSE 0 END) amt,
         SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) completed
         FROM $payments_table
         WHERE DATE(payment_date) BETWEEN %s AND %s
         GROUP BY payment_method", $date_from, $date_to));
-    
+
     foreach ($methods as $m) {
         $total = intval($m->cnt);
         $completed = intval($m->completed);
-        $rate = $total ? ($completed / $total * 100) : 0;
-        $key = $m->payment_method ?: 'unknown';
-        $payment_stats['by_method'][$key] = array(
-            'count' => $total,
-            'amount' => floatval($m->amt),
-            'success_rate' => $rate,
+        $revenue = floatval($m->amt);
+        $method = !empty($m->payment_method) ? $m->payment_method : 'unknown';
+
+        $jgk_stats['by_method'][$method] = array(
+            'total' => $total,
+            'completed' => $completed,
+            'revenue' => $revenue
         );
+    }
+}
+
+// WooCommerce stats
+$wc_stats = array(
+    'total_revenue' => 0,
+    'completed_payments' => 0,
+    'pending_payments' => 0,
+    'failed_payments' => 0,
+    'total_payments' => 0,
+    'by_method' => array()
+);
+
+if ($wc_tables_ok) {
+    // Count WooCommerce orders by status
+    $wc_counts = $wpdb->get_row($wpdb->prepare("SELECT
+        COUNT(*) total_orders,
+        SUM(CASE WHEN post_status='wc-completed' THEN 1 ELSE 0 END) completed_orders,
+        SUM(CASE WHEN post_status IN ('wc-pending', 'wc-on-hold') THEN 1 ELSE 0 END) pending_orders,
+        SUM(CASE WHEN post_status IN ('wc-cancelled', 'wc-refunded', 'wc-failed') THEN 1 ELSE 0 END) failed_orders,
+        SUM(CASE WHEN post_status='wc-completed' THEN CAST(meta_value AS DECIMAL(10,2)) ELSE 0 END) total_revenue
+        FROM {$wpdb->posts} p
+        INNER JOIN {$wpdb->postmeta} om_total ON p.ID = om_total.post_id AND om_total.meta_key = '_order_total'
+        WHERE p.post_type = 'shop_order'
+        AND DATE(p.post_date) BETWEEN %s AND %s", $date_from, $date_to));
+
+    if ($wc_counts) {
+        $wc_stats['total_payments']      = intval($wc_counts->total_orders);
+        $wc_stats['completed_payments']  = intval($wc_counts->completed_orders);
+        $wc_stats['pending_payments']    = intval($wc_counts->pending_orders);
+        $wc_stats['failed_payments']     = intval($wc_counts->failed_orders);
+        $wc_stats['total_revenue']       = floatval($wc_counts->total_revenue);
+    }
+
+    // WooCommerce payments by method
+    $wc_methods = $wpdb->get_results($wpdb->prepare("SELECT
+        COALESCE(pm.meta_value, 'woocommerce') as payment_method,
+        COUNT(*) cnt,
+        SUM(CASE WHEN p.post_status='wc-completed' THEN CAST(om_total.meta_value AS DECIMAL(10,2)) ELSE 0 END) amt,
+        SUM(CASE WHEN p.post_status='wc-completed' THEN 1 ELSE 0 END) completed
+        FROM {$wpdb->posts} p
+        INNER JOIN {$wpdb->postmeta} om_total ON p.ID = om_total.post_id AND om_total.meta_key = '_order_total'
+        LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = '_payment_method'
+        WHERE p.post_type = 'shop_order'
+        AND DATE(p.post_date) BETWEEN %s AND %s
+        GROUP BY COALESCE(pm.meta_value, 'woocommerce')", $date_from, $date_to));
+
+    foreach ($wc_methods as $m) {
+        $total = intval($m->cnt);
+        $completed = intval($m->completed);
+        $revenue = floatval($m->amt);
+        $method = !empty($m->payment_method) ? $m->payment_method : 'woocommerce';
+
+        $wc_stats['by_method'][$method] = array(
+            'total' => $total,
+            'completed' => $completed,
+            'revenue' => $revenue
+        );
+    }
+}
+
+// Combine JGK and WooCommerce stats
+$payment_stats['total_payments'] = $jgk_stats['total_payments'] + $wc_stats['total_payments'];
+$payment_stats['completed_payments'] = $jgk_stats['completed_payments'] + $wc_stats['completed_payments'];
+$payment_stats['pending_payments'] = $jgk_stats['pending_payments'] + $wc_stats['pending_payments'];
+$payment_stats['failed_payments'] = $jgk_stats['failed_payments'] + $wc_stats['failed_payments'];
+$payment_stats['total_revenue'] = $jgk_stats['total_revenue'] + $wc_stats['total_revenue'];
+
+// Combine payment methods
+$payment_stats['by_method'] = array_merge_recursive($jgk_stats['by_method'], $wc_stats['by_method']);
+
+// Sum up duplicate methods
+foreach ($payment_stats['by_method'] as $method => $data) {
+    if (is_array($data['total'])) {
+        $payment_stats['by_method'][$method]['total'] = array_sum($data['total']);
+        $payment_stats['by_method'][$method]['completed'] = array_sum($data['completed']);
+        $payment_stats['by_method'][$method]['revenue'] = array_sum($data['revenue']);
     }
 }
 
@@ -210,6 +325,35 @@ for ($i = 11; $i >= 0; $i--) {
         'new_members' => 0,
         'revenue' => 0,
     );
+}
+
+// Populate monthly revenue data (JGK + WooCommerce)
+foreach ($monthly_data as $month => &$data) {
+    $month_start = $month . '-01';
+    $month_end = date('Y-m-t', strtotime($month_start)); // Last day of month
+
+    // JGK payments revenue for this month
+    $jgk_monthly = 0;
+    if ($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $payments_table)) === $payments_table) {
+        $jgk_monthly = floatval($wpdb->get_var($wpdb->prepare("
+            SELECT SUM(amount) FROM $payments_table
+            WHERE status='completed'
+            AND DATE(payment_date) BETWEEN %s AND %s", $month_start, $month_end)) ?: 0);
+    }
+
+    // WooCommerce revenue for this month
+    $wc_monthly = 0;
+    if ($wc_tables_ok) {
+        $wc_monthly = floatval($wpdb->get_var($wpdb->prepare("
+            SELECT SUM(CAST(om_total.meta_value AS DECIMAL(10,2)))
+            FROM {$wpdb->posts} p
+            INNER JOIN {$wpdb->postmeta} om_total ON p.ID = om_total.post_id AND om_total.meta_key = '_order_total'
+            WHERE p.post_type = 'shop_order'
+            AND p.post_status = 'wc-completed'
+            AND DATE(p.post_date) BETWEEN %s AND %s", $month_start, $month_end)) ?: 0);
+    }
+
+    $data['revenue'] = $jgk_monthly + $wc_monthly;
 }
 
 // Coaches list (simple) for filters when needed
@@ -479,6 +623,62 @@ if ($report_type === 'coaches' && $coach_id) {
                             );
                         }
                     }
+
+                    // WooCommerce payments
+                    if ($wc_tables_ok) {
+                        $wc_payments = $wpdb->get_results($wpdb->prepare("
+                            SELECT
+                                p.post_date as date_created,
+                                CASE
+                                    WHEN m.user_id IS NOT NULL THEN CONCAT(u.display_name, ' (', m.membership_number, ')')
+                                    WHEN pm_customer.meta_value != 0 THEN CONCAT('Customer #', pm_customer.meta_value)
+                                    ELSE 'Guest Customer'
+                                END as member_name,
+                                p.ID as order_id,
+                                CAST(pm_total.meta_value AS DECIMAL(10,2)) as amount,
+                                COALESCE(pm_payment.meta_value, 'woocommerce') as payment_method,
+                                CASE
+                                    WHEN p.post_status = 'wc-completed' THEN 'completed'
+                                    WHEN p.post_status = 'wc-processing' THEN 'processing'
+                                    WHEN p.post_status = 'wc-pending' THEN 'pending'
+                                    WHEN p.post_status = 'wc-on-hold' THEN 'on_hold'
+                                    WHEN p.post_status = 'wc-cancelled' THEN 'cancelled'
+                                    WHEN p.post_status = 'wc-refunded' THEN 'refunded'
+                                    WHEN p.post_status = 'wc-failed' THEN 'failed'
+                                    ELSE 'unknown'
+                                END as status
+                            FROM {$wpdb->posts} p
+                            INNER JOIN {$wpdb->postmeta} pm_customer ON p.ID = pm_customer.post_id AND pm_customer.meta_key = '_customer_user'
+                            INNER JOIN {$wpdb->postmeta} pm_total ON p.ID = pm_total.post_id AND pm_total.meta_key = '_order_total'
+                            LEFT JOIN {$wpdb->postmeta} pm_payment ON p.ID = pm_payment.post_id AND pm_payment.meta_key = '_payment_method'
+                            LEFT JOIN $members_table m ON pm_customer.meta_value = m.user_id
+                            LEFT JOIN $users_table u ON m.user_id = u.ID
+                            WHERE p.post_type = 'shop_order'
+                            AND p.post_status IN ('wc-completed', 'wc-processing', 'wc-pending', 'wc-on-hold', 'wc-cancelled', 'wc-refunded', 'wc-failed')
+                            AND DATE(p.post_date) BETWEEN %s AND %s
+                            ORDER BY p.post_date DESC
+                            LIMIT 25
+                        ", $date_from, $date_to));
+
+                        foreach ($wc_payments as $payment) {
+                            $recent_payments[] = array(
+                                'date' => $payment->date_created,
+                                'member' => $payment->member_name ?: 'Unknown',
+                                'order_id' => $payment->order_id ?: 'N/A',
+                                'amount' => $payment->amount,
+                                'payment_method' => $payment->payment_method,
+                                'status' => $payment->status,
+                            );
+                        }
+                    }
+
+                    // Sort combined payments by date (most recent first)
+                    usort($recent_payments, function($a, $b) {
+                        return strtotime($b['date']) - strtotime($a['date']);
+                    });
+
+                    // Limit to 50 most recent
+                    $recent_payments = array_slice($recent_payments, 0, 50);
                     
                     // Display payments
                     if (empty($recent_payments)): ?>
@@ -490,7 +690,7 @@ if ($report_type === 'coaches' && $coach_id) {
                     <tr>
                         <td><?php echo date('M j, Y H:i', strtotime($payment['date'])); ?></td>
                         <td><?php echo esc_html($payment['member']); ?></td>
-                        <td><?php echo $payment['order_id']; ?></td>
+                        <td><?php echo $payment['order_id']; ?> <?php if (isset($payment['source']) && $payment['source'] === 'woocommerce') echo '<small style="color:#666;">(WC)</small>'; ?></td>
                         <td>KSh <?php echo number_format($payment['amount'], 2); ?></td>
                         <td><?php echo esc_html($payment['payment_method']); ?></td>
                         <td>
