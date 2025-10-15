@@ -1,0 +1,486 @@
+/* Junior Golf Kenya Registration Form Styles */
+
+.jgk-container {
+    background-color: rebeccapurple;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    background: #ffffff;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    border-radius: 16px;
+    margin-top: 20px;
+    margin-bottom: 40px;
+    border: 1px solid #e5e7eb;
+}
+.jgk-title {
+    text-align: center;
+    color: #1f2937;
+    margin-bottom: 30px;
+    font-size: 2.5rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.jgk-description {
+    text-align: center;
+    color: #6b7280;
+    margin-bottom: 40px;
+    font-size: 1.1rem;
+    line-height: 1.6;
+}
+
+/* Progress Tracker */
+.jgk-progress-tracker {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 40px;
+    position: relative;
+    padding: 0 20px;
+}
+
+.jgk-progress-tracker::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 20px;
+    right: 20px;
+    height: 3px;
+    background: #e5e7eb;
+    z-index: 1;
+    border-radius: 2px;
+}
+
+.jgk-progress-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 2;
+    background: #ffffff;
+    padding: 0 10px;
+    min-width: 80px;
+}
+
+.jgk-progress-step .step-number {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: #e5e7eb;
+    color: #9ca3af;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.1rem;
+    margin-bottom: 8px;
+    transition: all 0.3s ease;
+    border: 3px solid #e5e7eb;
+}
+
+.jgk-progress-step.active .step-number {
+    background: #10b981;
+    color: white;
+    border-color: #10b981;
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.jgk-progress-step .step-title {
+    font-size: 0.875rem;
+    color: #6b7280;
+    font-weight: 600;
+    text-align: center;
+    transition: color 0.3s ease;
+}
+
+.jgk-progress-step.active .step-title {
+    color: #10b981;
+}
+
+/* Form Steps */
+.jgk-form-step {
+    display: none;
+    animation: fadeOut 0.3s ease;
+}
+
+.jgk-form-step.active {
+    display: block;
+    animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+}
+
+/* Form Groups */
+.jgk-form-group {
+    margin-bottom: 24px;
+}
+
+.jgk-form-row {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+.jgk-form-row .jgk-form-group {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+.jgk-label {
+    display: block;
+    margin-bottom: 8px;
+    color: #374151;
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.jgk-input, .jgk-select, .jgk-textarea {
+    width: 100%;
+    padding: 14px 16px;
+    border: 2px solid #d1d5db;
+    border-radius: 10px;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    background: #ffffff;
+    color: #1f2937;
+    box-sizing: border-box;
+}
+
+.jgk-input:focus, .jgk-select:focus, .jgk-textarea:focus {
+    outline: none;
+    border-color: #10b981;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+    transform: translateY(-2px);
+}
+
+.jgk-input:hover, .jgk-select:hover, .jgk-textarea:hover {
+    border-color: #10b981;
+}
+
+.jgk-textarea {
+    resize: vertical;
+    min-height: 120px;
+    font-family: inherit;
+}
+
+.jgk-select {
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 12px center;
+    background-repeat: no-repeat;
+    background-size: 16px;
+    padding-right: 48px;
+    appearance: none;
+}
+
+/* File Upload Styling */
+.jgk-file-upload {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+}
+
+.jgk-file-input {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+}
+
+.jgk-file-label {
+    display: block;
+    padding: 14px 16px;
+    border: 2px dashed #d1d5db;
+    border-radius: 10px;
+    text-align: center;
+    color: #6b7280;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: #f9fafb;
+}
+
+.jgk-file-label:hover {
+    border-color: #10b981;
+    background: #f0fdf4;
+    color: #10b981;
+}
+
+/* Buttons */
+.jgk-button-group {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 40px;
+    gap: 16px;
+}
+
+.jgk-btn {
+    padding: 14px 32px;
+    border: none;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 120px;
+}
+
+.jgk-btn-primary {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.jgk-btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4);
+}
+
+.jgk-btn-secondary {
+    background: #f3f4f6;
+    color: #374151;
+    border: 2px solid #d1d5db;
+}
+
+.jgk-btn-secondary:hover {
+    background: #e5e7eb;
+    border-color: #9ca3af;
+    transform: translateY(-2px);
+}
+
+.jgk-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.jgk-btn:disabled:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+/* Success Messages */
+.jgk-success-message {
+    background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
+    border: 2px solid #10b981;
+    color: #065f46;
+    padding: 20px;
+    border-radius: 12px;
+    margin: 20px 0;
+    text-align: center;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1);
+}
+
+/* Error Messages */
+.jgk-error-message {
+    background: linear-gradient(135deg, #fef2f2 0%, #fef7f7 100%);
+    border: 2px solid #ef4444;
+    color: #dc2626;
+    padding: 20px;
+    border-radius: 12px;
+    margin: 20px 0;
+    text-align: center;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.1);
+}
+
+/* Field Error Messages */
+.field-error {
+    display: block;
+    color: #ef4444;
+    font-size: 0.875rem;
+    margin-top: 6px;
+    font-weight: 500;
+}
+
+/* Age Validation Message */
+#age-validation-message {
+    margin-top: 12px;
+    padding: 12px;
+    border-radius: 8px;
+    font-weight: 600;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+/* Password Strength Indicator */
+.password-strength {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .jgk-container {
+        margin: 10px;
+        padding: 20px;
+        border-radius: 12px;
+    }
+    
+    .jgk-title {
+        font-size: 2rem;
+        margin-bottom: 20px;
+    }
+    
+    .jgk-description {
+        font-size: 1rem;
+        margin-bottom: 30px;
+    }
+    
+    .jgk-progress-tracker {
+        padding: 0 10px;
+        margin-bottom: 30px;
+    }
+    
+    .jgk-progress-step {
+        min-width: 60px;
+        padding: 0 5px;
+    }
+    
+    .jgk-progress-step .step-number {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+    }
+    
+    .jgk-progress-step .step-title {
+        font-size: 0.75rem;
+    }
+    
+    .jgk-form-row {
+        flex-direction: column;
+        gap: 0;
+    }
+    
+    .jgk-form-row .jgk-form-group {
+        margin-bottom: 24px;
+    }
+    
+    .jgk-button-group {
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .jgk-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .jgk-container {
+        margin: 5px;
+        padding: 15px;
+    }
+    
+    .jgk-title {
+        font-size: 1.75rem;
+    }
+    
+    .jgk-progress-tracker {
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: center;
+    }
+    
+    .jgk-progress-tracker::before {
+        display: none;
+    }
+    
+    .jgk-progress-step {
+        min-width: auto;
+        margin-bottom: 10px;
+    }
+    
+    .jgk-input, .jgk-select, .jgk-textarea {
+        padding: 12px 14px;
+        font-size: 16px; /* Prevents zoom on iOS */
+    }
+}
+
+/* Loading Animation */
+.jgk-loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #10b981;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Focus Styles for Accessibility */
+.jgk-btn:focus, .jgk-input:focus, .jgk-select:focus, .jgk-textarea:focus {
+    outline: 2px solid #10b981;
+    outline-offset: 2px;
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+    .jgk-container {
+        border: 3px solid #000;
+    }
+    
+    .jgk-input, .jgk-select, .jgk-textarea {
+        border: 3px solid #000;
+    }
+    
+    .jgk-btn-primary {
+        background: #000;
+        border: 3px solid #000;
+    }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+    .jgk-form-step,
+    .jgk-progress-step .step-number,
+    .jgk-btn,
+    .jgk-input,
+    .jgk-select,
+    .jgk-textarea {
+        transition: none;
+        animation: none;
+    }
+    
+    .jgk-form-step.active {
+        animation: none;
+    }
+}

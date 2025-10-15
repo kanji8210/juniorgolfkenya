@@ -96,6 +96,14 @@ class JuniorGolfKenya_Public {
      * @since    1.0.0
      */
     public function member_portal_shortcode($atts) {
+        // Enqueue assets for the member portal
+        wp_enqueue_style(
+            'jgk-member-portal',
+            JUNIORGOLFKENYA_PLUGIN_URL . 'public/partials/css/juniorgolfkenya-member-portal.css',
+            array(),
+            '1.0.0'
+        );
+
         ob_start();
         include JUNIORGOLFKENYA_PLUGIN_PATH . 'public/partials/juniorgolfkenya-member-portal.php';
         return ob_get_clean();
@@ -107,7 +115,57 @@ class JuniorGolfKenya_Public {
      * @since    1.0.0
      */
     public function registration_form_shortcode($atts) {
+        // Debug: Log that shortcode is being executed
+        error_log('JGK Debug: Registration form shortcode executed');
+
+        // Enqueue assets for the registration form
+        $base_url = JUNIORGOLFKENYA_PLUGIN_URL;
+
+        // Fix for local development - force HTTP instead of HTTPS
+        if (strpos($base_url, 'https://localhost') === 0) {
+            $base_url = str_replace('https://localhost', 'http://localhost', $base_url);
+        }
+
+        $css_url = $base_url . 'public/partials/css/juniorgolfkenya-registration-form.css';
+        $js_url = $base_url . 'public/partials/js/juniorgolfkenya-registration-form.js';
+
+        error_log('JGK Debug: Base URL after fix: ' . $base_url);
+        error_log('JGK Debug: Final CSS URL: ' . $css_url);
+        error_log('JGK Debug: Final JS URL: ' . $js_url);
+
+        wp_enqueue_style(
+            'jgk-registration-form',
+            $css_url,
+            array(),
+            '1.0.0'
+        );
+        wp_enqueue_script(
+            'jgk-registration-form',
+            $js_url,
+            array('jquery'),
+            '1.0.0',
+            true
+        );
+
+        // Debug: Check if files exist
+        $css_file = JUNIORGOLFKENYA_PLUGIN_PATH . 'public/partials/css/juniorgolfkenya-registration-form.css';
+        $js_file = JUNIORGOLFKENYA_PLUGIN_PATH . 'public/partials/js/juniorgolfkenya-registration-form.js';
+
+        if (file_exists($css_file)) {
+            error_log('JGK Debug: CSS file exists at: ' . $css_file);
+        } else {
+            error_log('JGK Debug: CSS file NOT found at: ' . $css_file);
+        }
+
+        if (file_exists($js_file)) {
+            error_log('JGK Debug: JS file exists at: ' . $js_file);
+        } else {
+            error_log('JGK Debug: JS file NOT found at: ' . $js_file);
+        }
+
         ob_start();
+        // Debug comment in HTML output
+        echo '<!-- JGK Debug: Registration form shortcode rendered at ' . date('Y-m-d H:i:s') . ' -->';
         include JUNIORGOLFKENYA_PLUGIN_PATH . 'public/partials/juniorgolfkenya-registration-form.php';
         return ob_get_clean();
     }
@@ -118,6 +176,14 @@ class JuniorGolfKenya_Public {
      * @since    1.0.0
      */
     public function verification_widget_shortcode($atts) {
+        // Enqueue assets for the verification widget
+        wp_enqueue_style(
+            'jgk-verification-widget',
+            JUNIORGOLFKENYA_PLUGIN_URL . 'public/partials/css/juniorgolfkenya-verification-widget.css',
+            array(),
+            '1.0.0'
+        );
+
         ob_start();
         include JUNIORGOLFKENYA_PLUGIN_PATH . 'public/partials/juniorgolfkenya-verification-widget.php';
         return ob_get_clean();
@@ -318,6 +384,14 @@ class JuniorGolfKenya_Public {
         // if (!in_array('jgk_coach', $current_user->roles)) {
         //     return '<div class="jgk-notice jgk-notice-error">You do not have permission to view this page.</div>';
         // }
+
+        // Enqueue assets for the coach dashboard
+        wp_enqueue_style(
+            'jgk-coach-dashboard',
+            JUNIORGOLFKENYA_PLUGIN_URL . 'public/partials/css/juniorgolfkenya-coach-dashboard.css',
+            array(),
+            '1.0.0'
+        );
 
         ob_start();
         include JUNIORGOLFKENYA_PLUGIN_PATH . 'public/partials/juniorgolfkenya-coach-dashboard.php';
@@ -658,6 +732,14 @@ class JuniorGolfKenya_Public {
         }
 
         // Member is active, show dashboard
+        // Enqueue assets for the member dashboard
+        wp_enqueue_style(
+            'jgk-member-dashboard',
+            JUNIORGOLFKENYA_PLUGIN_URL . 'public/partials/css/juniorgolfkenya-member-dashboard.css',
+            array(),
+            '1.0.0'
+        );
+
         ob_start();
         include JUNIORGOLFKENYA_PLUGIN_PATH . 'public/partials/juniorgolfkenya-member-dashboard.php';
         return ob_get_clean();
@@ -669,6 +751,14 @@ class JuniorGolfKenya_Public {
      * @since    1.0.0
      */
     public function public_members_shortcode($atts) {
+        // Enqueue assets for public members
+        wp_enqueue_style(
+            'jgk-public-members',
+            JUNIORGOLFKENYA_PLUGIN_URL . 'public/partials/css/juniorgolfkenya-public-members.css',
+            array(),
+            '1.0.0'
+        );
+
         ob_start();
         include JUNIORGOLFKENYA_PLUGIN_PATH . 'public/partials/juniorgolfkenya-public-members.php';
         return ob_get_clean();
@@ -680,6 +770,14 @@ class JuniorGolfKenya_Public {
      * @since    1.0.0
      */
     public function coach_request_form_shortcode($atts) {
+        // Enqueue assets for coach request form
+        wp_enqueue_style(
+            'jgk-coach-request-form',
+            JUNIORGOLFKENYA_PLUGIN_URL . 'public/partials/css/juniorgolfkenya-coach-request-form.css',
+            array(),
+            '1.0.0'
+        );
+
         ob_start();
         include JUNIORGOLFKENYA_PLUGIN_PATH . 'public/partials/juniorgolfkenya-coach-request-form.php';
         return ob_get_clean();
