@@ -146,16 +146,6 @@ class JuniorGolfKenya_Public {
         );
 
         ob_start();
-        // Debug output: show the computed CSS URL to administrators for verification
-        if ( function_exists('current_user_can') && current_user_can('manage_options') ) {
-            // HTML comment for easy discovery in source
-            echo '<!-- JGK Debug: CSS URL = ' . esc_url( $css_url ) . ' -->';
-            // Small banner visible in page for admins (clickable link)
-            echo '<div style="background:#fff3bf;border:1px solid #ffd324;padding:8px 12px;margin:10px 0;font-size:13px;color:#333;">';
-            echo 'JGK CSS URL: <a href="' . esc_url( $css_url ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( $css_url ) . '</a>';
-            echo '</div>';
-        }
-
         include JUNIORGOLFKENYA_PLUGIN_PATH . 'public/partials/juniorgolfkenya-registration-form.php';
         return ob_get_clean();
     }

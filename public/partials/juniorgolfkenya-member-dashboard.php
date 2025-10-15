@@ -96,18 +96,6 @@ $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id,
                 </div>
             </div>
             <div class="jgk-payment-banner-actions">
-                <?php
-                // Debug information for payment CTA selection
-                if (WP_DEBUG) {
-                    echo '<div class="jgk-debug-info" style="background: #f0f0f0; padding: 10px; margin-bottom: 15px; border-radius: 5px; font-size: 12px;">';
-                    echo '<strong>Debug - Payment CTA Selection:</strong><br>';
-                    echo 'WooCommerce Active: ' . (class_exists('WooCommerce') ? 'Yes' : 'No') . '<br>';
-                    echo 'Membership Product ID: ' . (get_option('jgk_membership_product_id') ?: 'Not set') . '<br>';
-                    echo 'Current User ID: ' . get_current_user_id() . '<br>';
-                    echo 'Member Status: ' . $stats['member']->status . '<br>';
-                    echo 'Product URL Generation: ' . (get_option('jgk_membership_product_id') ? 'Using existing product' : 'Will create new product') . '<br>';
-                    echo '</div>';
-                }
 
                 if (class_exists('WooCommerce')) {
                     $membership_product_id = get_option('jgk_membership_product_id');
@@ -282,76 +270,6 @@ $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id,
                         <h4>Choose Payment Method</h4>
                         <div class="jgk-payment-buttons">
                             <?php
-                            // Debug information for payment selection
-                            if (WP_DEBUG) {
-                                echo '<div class="jgk-debug-info" style="background: #f0f0f0; padding: 10px; margin-bottom: 15px; border-radius: 5px; font-size: 12px;">';
-                                echo '<strong>Debug - Payment Selection:</strong><br>';
-                                echo 'WooCommerce Active: ' . (class_exists('WooCommerce') ? 'Yes' : 'No') . '<br>';
-                                echo 'Membership Product ID: ' . (get_option('jgk_membership_product_id') ?: 'Not set') . '<br>';
-                                echo 'Current User ID: ' . get_current_user_id() . '<br>';
-                                echo 'Member Status: ' . $stats['member']->status . '<br>';
-                                echo 'Cart URL: ' . wc_get_cart_url() . '<br>';
-
-                                // Enhanced debug: Show recent WooCommerce orders for membership product
-                                if (class_exists('WooCommerce') && get_option('jgk_membership_product_id')) {
-                                    global $wpdb;
-                                    $membership_product_id = get_option('jgk_membership_product_id');
-                                    $user_id = get_current_user_id();
-
-                                    // Get recent orders containing the membership product
-                                    $recent_orders = $wpdb->get_results($wpdb->prepare("
-                                        SELECT o.ID, o.post_date, o.post_status, oi.order_item_name
-                                        FROM {$wpdb->posts} o
-                                        INNER JOIN {$wpdb->prefix}woocommerce_order_items oi ON o.ID = oi.order_id
-                                        INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta oim ON oi.order_item_id = oim.order_item_id
-                                        WHERE o.post_type = 'shop_order'
-                                        AND o.post_author = %d
-                                        AND oim.meta_key = '_product_id'
-                                        AND oim.meta_value = %d
-                                        ORDER BY o.post_date DESC
-                                        LIMIT 3
-                                    ", $user_id, $membership_product_id));
-
-                                    if (!empty($recent_orders)) {
-                                        echo '<br><strong>Recent Membership Orders:</strong><br>';
-                                        foreach ($recent_orders as $order) {
-                                            $order_obj = wc_get_order($order->ID);
-                                            $payment_method = $order_obj->get_payment_method_title();
-                                            $status = $order_obj->get_status();
-                                            echo "Order #{$order->ID} ({$order->post_date}): {$status} - {$payment_method}<br>";
-                                        }
-                                    } else {
-                                        echo '<br><strong>Recent Membership Orders:</strong> None found<br>';
-                                    }
-
-                                    // Check for iPay/eLipa payment processing
-                                    $ipay_logs = $wpdb->get_results($wpdb->prepare("
-                                        SELECT meta_value, meta_key
-                                        FROM {$wpdb->postmeta}
-                                        WHERE post_id IN (
-                                            SELECT ID FROM {$wpdb->posts}
-                                            WHERE post_type = 'shop_order'
-                                            AND post_author = %d
-                                        )
-                                        AND meta_key LIKE %s
-                                        ORDER BY meta_id DESC
-                                        LIMIT 5
-                                    ", $user_id, 'jgk_ipay_%'));
-
-                                    if (!empty($ipay_logs)) {
-                                        echo '<br><strong>iPay/eLipa Processing:</strong><br>';
-                                        foreach ($ipay_logs as $log) {
-                                            $key = str_replace('jgk_ipay_', '', $log->meta_key);
-                                            echo "{$key}: {$log->meta_value}<br>";
-                                        }
-                                    } else {
-                                        echo '<br><strong>iPay/eLipa Processing:</strong> No recent activity<br>';
-                                    }
-                                }
-
-                                echo '</div>';
-                            }
-
                             // Check if WooCommerce is active
                             if (class_exists('WooCommerce')) {
                                 // Get or create membership product
@@ -372,24 +290,9 @@ $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id,
                                     
                                     $membership_product_id = $product->get_id();
                                     update_option('jgk_membership_product_id', $membership_product_id);
-                                    
-                                    if (WP_DEBUG) {
-                                        echo '<div class="jgk-debug-info" style="background: #d4edda; color: #155724; padding: 10px; margin-bottom: 15px; border-radius: 5px; font-size: 12px;">';
-                                        echo '<strong>Debug:</strong> New membership product created with ID: ' . $membership_product_id;
-                                        echo '</div>';
-                                    }
                                 }
                                 
                                 $product = wc_get_product($membership_product_id);
-                                if ($product) {
-                                    $add_to_cart_url = wc_get_cart_url() . '?add-to-cart=' . $membership_product_id;
-                                    
-                                    if (WP_DEBUG) {
-                                        echo '<div class="jgk-debug-info" style="background: #d1ecf1; color: #0c5460; padding: 10px; margin-bottom: 15px; border-radius: 5px; font-size: 12px;">';
-                                        echo '<strong>Debug - Product Info:</strong><br>';
-                                        echo 'Product Name: ' . $product->get_name() . '<br>';
-                                        echo 'Product Price: KSh ' . $product->get_price() . '<br>';
-                                        echo 'Add to Cart URL: ' . $add_to_cart_url . '<br>';
                                         echo 'Product Status: ' . $product->get_status() . '<br>';
                                         echo '</div>';
                                     }
@@ -404,21 +307,9 @@ $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id,
                                         Pay with eLipa
                                     </a>
                                     <?php
-                                } else {
-                                    if (WP_DEBUG) {
-                                        echo '<div class="jgk-debug-info" style="background: #f8d7da; color: #721c24; padding: 10px; margin-bottom: 15px; border-radius: 5px; font-size: 12px;">';
-                                        echo '<strong>Debug Error:</strong> Could not retrieve product with ID: ' . $membership_product_id;
-                                        echo '</div>';
-                                    }
                                 }
                             } else {
                                 // Fallback if WooCommerce is not active
-                                if (WP_DEBUG) {
-                                    echo '<div class="jgk-debug-info" style="background: #fff3cd; color: #856404; padding: 10px; margin-bottom: 15px; border-radius: 5px; font-size: 12px;">';
-                                    echo '<strong>Debug Warning:</strong> WooCommerce is not active or installed.';
-                                    echo '</div>';
-                                }
-                                
                                 ?>
                                 <div class="jgk-payment-notice">
                                     <p><strong>Payment system is being configured.</strong></p>
@@ -429,12 +320,7 @@ $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id,
                             }
                             ?>
 
-                            <?php if (WP_DEBUG && class_exists('WooCommerce')): ?>
-                            <div class="jgk-debug-info" style="background: #e9ecef; padding: 15px; margin-top: 15px; border-radius: 5px; font-size: 12px; border-left: 4px solid #007cba;">
-                                <strong>🔍 Payment Verification Debug:</strong><br><br>
-
-                                <?php
-                                $membership_product_id = get_option('jgk_membership_product_id');
+                        </div>
                                 $user_id = get_current_user_id();
                                 global $wpdb;
 
@@ -504,12 +390,6 @@ $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id,
                                 }
 
                                 echo '<br><strong>System Configuration:</strong><br>';
-                                echo '• Membership Product ID: ' . ($membership_product_id ?: 'Not set') . '<br>';
-                                echo '• WooCommerce Active: Yes<br>';
-                                echo '• Debug Mode: Enabled<br>';
-                                echo '• Current Time: ' . current_time('mysql') . '<br>';
-                                ?>
-                            </div>
                             <?php endif; ?>
 
                         </div>

@@ -551,22 +551,6 @@ html,body{font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'H
     margin-bottom: 4px;
 }
 
-/* Debug console */
-.jgk-debug-console {
-    background: #f3f4f6;
-    border: 1px solid var(--jgk-border);
-    border-radius: var(--jgk-radius);
-    padding: 16px;
-    margin: 16px 0;
-    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-    font-size: 12px;
-    color: var(--jgk-text);
-}
-
-.jgk-debug-console strong {
-    color: var(--jgk-accent);
-}
-
 /* Age validation message */
 #age-validation-message {
     margin-top: 12px;

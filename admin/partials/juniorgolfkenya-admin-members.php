@@ -1436,48 +1436,8 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <script>
-// Debug function to test AJAX connectivity
-function jgkTestAjax() {
-    console.log('JGK Test: Testing AJAX connectivity...');
-    
-    if (typeof jgkAjax === 'undefined') {
-        console.error('JGK Test: jgkAjax is not defined!');
-        return;
-    }
-    
-    fetch(jgkAjax.ajaxurl + '?action=jgk_get_member_details&member_id=1&nonce=' + jgkAjax.members_nonce, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        }
-    })
-    .then(response => {
-        console.log('JGK Test: Response status:', response.status);
-        console.log('JGK Test: Response ok:', response.ok);
-        return response.text(); // Get raw response first
-    })
-    .then(text => {
-        console.log('JGK Test: Raw response:', text);
-        try {
-            const data = JSON.parse(text);
-            console.log('JGK Test: Parsed JSON:', data);
-        } catch (e) {
-            console.error('JGK Test: Failed to parse JSON:', e);
-        }
-    })
-    .catch(error => {
-        console.error('JGK Test: AJAX error:', error);
-    });
-}
-
 // Close modal when clicking outside
 document.addEventListener('DOMContentLoaded', function() {
-    // Debug: Check if jgkAjax is available
-    console.log('JGK DOM loaded - jgkAjax check:', {
-        available: typeof jgkAjax !== 'undefined',
-        ajaxurl: typeof jgkAjax !== 'undefined' ? jgkAjax.ajaxurl : 'NOT AVAILABLE',
-        nonce: typeof jgkAjax !== 'undefined' ? jgkAjax.members_nonce : 'NOT AVAILABLE'
-    });
     
     const modal = document.getElementById('member-details-modal');
     if (modal) {
