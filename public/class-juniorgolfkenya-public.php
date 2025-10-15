@@ -56,7 +56,7 @@ class JuniorGolfKenya_Public {
     public function enqueue_styles() {
         wp_enqueue_style($this->plugin_name, JUNIORGOLFKENYA_PLUGIN_URL . 'public/css/juniorgolfkenya-public.css', array(), $this->version, 'all');
     }
-
+    
     /**
      * Register the JavaScript for the public-facing side of the site.
      *
@@ -64,6 +64,11 @@ class JuniorGolfKenya_Public {
      */
     public function enqueue_scripts() {
         wp_enqueue_script($this->plugin_name, JUNIORGOLFKENYA_PLUGIN_URL . 'public/js/juniorgolfkenya-public.js', array('jquery'), $this->version, false);
+    }
+    
+    function printUrl() {
+
+        echo JUNIORGOLFKENYA_PLUGIN_URL;
     }
 
     /**
@@ -115,9 +120,6 @@ class JuniorGolfKenya_Public {
      * @since    1.0.0
      */
     public function registration_form_shortcode($atts) {
-        // Debug: Log that shortcode is being executed
-        error_log('JGK Debug: Registration form shortcode executed');
-
         // Enqueue assets for the registration form
         $base_url = JUNIORGOLFKENYA_PLUGIN_URL;
 
@@ -128,10 +130,6 @@ class JuniorGolfKenya_Public {
 
         $css_url = $base_url . 'public/partials/css/juniorgolfkenya-registration-form.css';
         $js_url = $base_url . 'public/partials/js/juniorgolfkenya-registration-form.js';
-
-        error_log('JGK Debug: Base URL after fix: ' . $base_url);
-        error_log('JGK Debug: Final CSS URL: ' . $css_url);
-        error_log('JGK Debug: Final JS URL: ' . $js_url);
 
         wp_enqueue_style(
             'jgk-registration-form',
@@ -147,25 +145,17 @@ class JuniorGolfKenya_Public {
             true
         );
 
-        // Debug: Check if files exist
-        $css_file = JUNIORGOLFKENYA_PLUGIN_PATH . 'public/partials/css/juniorgolfkenya-registration-form.css';
-        $js_file = JUNIORGOLFKENYA_PLUGIN_PATH . 'public/partials/js/juniorgolfkenya-registration-form.js';
-
-        if (file_exists($css_file)) {
-            error_log('JGK Debug: CSS file exists at: ' . $css_file);
-        } else {
-            error_log('JGK Debug: CSS file NOT found at: ' . $css_file);
-        }
-
-        if (file_exists($js_file)) {
-            error_log('JGK Debug: JS file exists at: ' . $js_file);
-        } else {
-            error_log('JGK Debug: JS file NOT found at: ' . $js_file);
-        }
-
         ob_start();
-        // Debug comment in HTML output
-        echo '<!-- JGK Debug: Registration form shortcode rendered at ' . date('Y-m-d H:i:s') . ' -->';
+        // Debug output: show the computed CSS URL to administrators for verification
+        if ( function_exists('current_user_can') && current_user_can('manage_options') ) {
+            // HTML comment for easy discovery in source
+            echo '<!-- JGK Debug: CSS URL = ' . esc_url( $css_url ) . ' -->';
+            // Small banner visible in page for admins (clickable link)
+            echo '<div style="background:#fff3bf;border:1px solid #ffd324;padding:8px 12px;margin:10px 0;font-size:13px;color:#333;">';
+            echo 'JGK CSS URL: <a href="' . esc_url( $css_url ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( $css_url ) . '</a>';
+            echo '</div>';
+        }
+
         include JUNIORGOLFKENYA_PLUGIN_PATH . 'public/partials/juniorgolfkenya-registration-form.php';
         return ob_get_clean();
     }

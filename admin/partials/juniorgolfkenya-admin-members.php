@@ -228,6 +228,20 @@ if (isset($_POST['action'])) {
                         JuniorGolfKenya_Media::delete_profile_image($member_id);
                     }
                     
+                    // Handle birth certificate upload
+                    if (isset($_FILES['birth_certificate']) && $_FILES['birth_certificate']['error'] === UPLOAD_ERR_OK) {
+                        $upload_result = JuniorGolfKenya_Media::upload_birth_certificate($member->user_id, $_FILES['birth_certificate']);
+                        if (!$upload_result['success']) {
+                            $message = 'Member updated but birth certificate failed: ' . $upload_result['message'];
+                            $message_type = 'warning';
+                        }
+                    }
+                    
+                    // Handle birth certificate deletion
+                    if (isset($_POST['delete_birth_certificate']) && $_POST['delete_birth_certificate'] === '1') {
+                        JuniorGolfKenya_Media::delete_birth_certificate($member->user_id);
+                    }
+                    
                     if (empty($message)) {
                         $message = 'Member updated successfully!';
                         $message_type = 'success';
@@ -791,7 +805,7 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
                 <?php foreach ($members as $member): ?>
                 <tr>
                     <td>
-                        <?php echo JuniorGolfKenya_Media::get_profile_image_html($member->id, 'thumbnail', array('style' => 'width: 40px; height: 40px; border-radius: 50%; object-fit: cover;')); ?>
+                        <?php echo JuniorGolfKenya_Media::get_profile_image_html($member->id, 'thumbnail', array('style' => 'width: 50px; height: 50px; border-radius: 50%; object-fit: cover;')); ?>
                     </td>
                     <td><strong><?php echo esc_html($member->membership_number ?: 'JGK-' . str_pad($member->id, 4, '0', STR_PAD_LEFT)); ?></strong></td>
                     <td>
@@ -980,6 +994,39 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
                                             </div>
                                         </div>
                                         <?php endforeach; ?>
+                                    </div>
+                                </div>
+                                <?php endif; ?>
+
+                                <!-- Birth Certificate Section -->
+                                <?php
+                                $birth_certificate_url = JuniorGolfKenya_Media::get_birth_certificate_url($member->user_id);
+                                $birth_certificate_id = JuniorGolfKenya_Media::get_birth_certificate_id($member->user_id);
+                                ?>
+                                <?php if ($birth_certificate_url): ?>
+                                <div class="member-details-section">
+                                    <h4>Birth Certificate</h4>
+                                    <div class="birth-certificate-section">
+                                        <p><strong>Document Status:</strong> <span style="color: #28a745;">✓ Uploaded</span></p>
+                                        <div class="birth-certificate-actions" style="margin-top: 10px;">
+                                            <a href="<?php echo esc_url($birth_certificate_url); ?>" target="_blank" class="button button-primary" style="margin-right: 10px;">
+                                                👁️ View Birth Certificate
+                                            </a>
+                                            <a href="<?php echo esc_url($birth_certificate_url); ?>" download class="button button-secondary">
+                                                📥 Download Birth Certificate
+                                            </a>
+                                        </div>
+                                        <p style="margin-top: 10px; color: #666; font-size: 12px;">
+                                            File uploaded on: <?php echo date('M j, Y g:i A', get_post_time('U', false, $birth_certificate_id)); ?>
+                                        </p>
+                                    </div>
+                                </div>
+                                <?php else: ?>
+                                <div class="member-details-section">
+                                    <h4>Birth Certificate</h4>
+                                    <div class="birth-certificate-section">
+                                        <p><strong>Document Status:</strong> <span style="color: #dc3545;">✗ Not uploaded</span></p>
+                                        <p style="color: #666; font-size: 14px;">No birth certificate has been uploaded for this member.</p>
                                     </div>
                                 </div>
                                 <?php endif; ?>

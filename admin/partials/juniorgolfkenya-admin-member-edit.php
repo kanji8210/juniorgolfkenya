@@ -67,6 +67,51 @@ if (!defined('ABSPATH')) {
                 </div>
             </div>
 
+            <!-- Birth Certificate Section -->
+            <h2>Birth Certificate</h2>
+            <div class="jgk-form-row">
+                <div class="jgk-form-field">
+                    <label>Current Birth Certificate</label>
+                    <div style="margin: 10px 0;">
+                        <?php
+                        $birth_certificate_id = get_user_meta($edit_member->user_id, 'jgk_birth_certificate', true);
+                        if (!empty($birth_certificate_id)) {
+                            $attachment_url = wp_get_attachment_url($birth_certificate_id);
+                            $file_type = get_post_mime_type($birth_certificate_id);
+                            $file_name = basename(get_attached_file($birth_certificate_id));
+                            
+                            echo '<div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: #f8f9fa; border-radius: 5px;">';
+                            if (strpos($file_type, 'image/') === 0) {
+                                echo '<img src="' . esc_url($attachment_url) . '" style="max-width: 100px; max-height: 100px; border-radius: 5px;" alt="Birth Certificate">';
+                            } else {
+                                echo '<span class="dashicons dashicons-media-document" style="font-size: 48px; color: #666;"></span>';
+                            }
+                            echo '<div>';
+                            echo '<strong>' . esc_html($file_name) . '</strong><br>';
+                            echo '<small>' . esc_html($file_type) . '</small><br>';
+                            echo '<a href="' . esc_url($attachment_url) . '" target="_blank" class="button button-small">View/Download</a>';
+                            echo '</div>';
+                            echo '</div>';
+                        } else {
+                            echo '<p style="color: #666; font-style: italic;">No birth certificate uploaded</p>';
+                        }
+                        ?>
+                    </div>
+                    <?php if (!empty($birth_certificate_id)): ?>
+                    <label style="display: flex; align-items: center; gap: 5px; margin-top: 10px;">
+                        <input type="checkbox" name="delete_birth_certificate" value="1">
+                        Delete current birth certificate
+                    </label>
+                    <?php endif; ?>
+                </div>
+                <div class="jgk-form-field">
+                    <label for="birth_certificate">Upload New Birth Certificate</label>
+                    <input type="file" id="birth_certificate" name="birth_certificate" accept=".pdf,image/*">
+                    <small>Max 10MB. PDF, JPG, PNG, GIF or WebP format.</small>
+                    <div id="birth_certificate_preview" style="margin-top: 10px;"></div>
+                </div>
+            </div>
+
             <h2>Personal Information</h2>
             <div class="jgk-form-row">
                 <div class="jgk-form-field">

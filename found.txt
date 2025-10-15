@@ -1,0 +1,3 @@
+  </style>
+> <link rel='stylesheet' id='jgk-registration-form-css' href='http://localhost/wordpress/wp-content/plugins/juniorgolfkenya/public/partials/css/juniorgolfkenya-registration-form.css?ver=1.0.0' media='all' />
+  <style id='wp-block-post-content-inline-css'>

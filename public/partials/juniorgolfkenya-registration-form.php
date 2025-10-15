@@ -13,8 +13,6 @@
 if (!defined('ABSPATH')) {
     exit;
 }
-// Enqueue styles and scripts
-
 
 // Handle form submission
 $registration_success = false;
@@ -169,9 +167,44 @@ if (isset($_POST['jgk_register_member'])) {
                     }
                 }
 
+                $birth_certificate_id = 0;
+
+                if (!empty($_FILES['birth_certificate']['name'])) {
+                    if ($_FILES['birth_certificate']['error'] !== UPLOAD_ERR_OK) {
+                        $registration_errors[] = 'Birth certificate upload failed. Please try again.';
+                    } else {
+                        $max_file_size = 10 * 1024 * 1024; // 10MB for birth certificates
+                        if ($_FILES['birth_certificate']['size'] > $max_file_size) {
+                            $registration_errors[] = 'Birth certificate must be 10MB or smaller.';
+                        } else {
+                            $file_info = wp_check_filetype($_FILES['birth_certificate']['name']);
+                            $allowed_extensions = array('pdf', 'jpg', 'jpeg', 'png', 'gif', 'webp');
+                            if (empty($file_info['ext']) || !in_array(strtolower($file_info['ext']), $allowed_extensions, true)) {
+                                $registration_errors[] = 'Birth certificate must be PDF, JPG, PNG, GIF, or WebP.';
+                            } else {
+                                if (!function_exists('media_handle_upload')) {
+                                    require_once ABSPATH . 'wp-admin/includes/file.php';
+                                    require_once ABSPATH . 'wp-admin/includes/media.php';
+                                    require_once ABSPATH . 'wp-admin/includes/image.php';
+                                }
+                                $birth_certificate_id = media_handle_upload('birth_certificate', 0);
+                                if (is_wp_error($birth_certificate_id)) {
+                                    $registration_errors[] = 'Failed to upload birth certificate: ' . $birth_certificate_id->get_error_message();
+                                    $birth_certificate_id = 0;
+                                } else {
+                                    update_user_meta($user_id, 'jgk_birth_certificate', $birth_certificate_id);
+                                }
+                            }
+                        }
+                    }
+                }
+
                 if (!empty($registration_errors)) {
                     if ($profile_image_id) {
                         wp_delete_attachment($profile_image_id, true);
+                    }
+                    if ($birth_certificate_id) {
+                        wp_delete_attachment($birth_certificate_id, true);
                     }
                     wp_delete_user($user_id);
                 } else {
@@ -212,6 +245,9 @@ if (isset($_POST['jgk_register_member'])) {
                         $registration_errors[] = 'Failed to save member information.';
                         if ($profile_image_id) {
                             wp_delete_attachment($profile_image_id, true);
+                        }
+                        if ($birth_certificate_id) {
+                            wp_delete_attachment($birth_certificate_id, true);
                         }
                         wp_delete_user($user_id);
                     } else {
@@ -456,6 +492,16 @@ if (isset($_POST['jgk_register_member'])) {
                     <small>Supported formats: JPG, PNG, GIF, or WebP. Maximum size 5MB.</small>
                 </div>
 
+                <div class="jgk-form-group">
+                    <label for="birth_certificate">Birth Certificate *</label>
+                    <div class="jgk-file-upload">
+                        <span class="dashicons dashicons-media-document"></span>
+                        <span id="birth_certificate_label">Choose birth certificate</span>
+                        <input type="file" id="birth_certificate" name="birth_certificate" accept=".pdf,image/*" required>
+                    </div>
+                    <small>Supported formats: PDF, JPG, PNG, GIF, or WebP. Maximum size 10MB. Required for age verification.</small>
+                </div>
+
                 <div class="jgk-step-actions">
                     <button type="button" class="jgk-btn jgk-btn-next" data-next="2">Next</button>
                 </div>
@@ -632,13 +678,6 @@ if (isset($_POST['jgk_register_member'])) {
                 </div>
             </div>
         </form>
-
-        <!-- Debug Toggle -->
-        <div style="text-align: center; margin-top: 20px;">
-            <button type="button" id="debug-toggle" class="jgk-btn jgk-btn-secondary" style="font-size: 12px; padding: 8px 16px;">
-                🐛 Toggle Debug Console
-            </button>
-        </div>
     </div> <!-- End jgk-container -->
     <?php endif; ?>
 </div>

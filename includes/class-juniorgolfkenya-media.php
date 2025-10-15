@@ -321,4 +321,174 @@ class JuniorGolfKenya_Media {
         
         return $wpdb->get_results($query);
     }
+
+    /**
+     * Upload and attach birth certificate to a user
+     *
+     * @since    1.0.1
+     * @param    int      $user_id    User ID
+     * @param    array    $file       $_FILES array entry
+     * @return   array                Result with attachment_id or error
+     */
+    public static function upload_birth_certificate($user_id, $file) {
+        // Validate user exists
+        $user = get_user_by('id', $user_id);
+        if (!$user) {
+            return array(
+                'success' => false,
+                'message' => 'User not found'
+            );
+        }
+
+        // Validate file upload
+        if (!isset($file['error']) || is_array($file['error'])) {
+            return array(
+                'success' => false,
+                'message' => 'Invalid file upload'
+            );
+        }
+
+        // Check for upload errors
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            return array(
+                'success' => false,
+                'message' => self::get_upload_error_message($file['error'])
+            );
+        }
+
+        // Validate file type
+        $allowed_types = array('application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp');
+        $file_type = mime_content_type($file['tmp_name']);
+        
+        if (!in_array($file_type, $allowed_types)) {
+            return array(
+                'success' => false,
+                'message' => 'Invalid file type. Only PDF and image files (JPG, PNG, GIF, WebP) are allowed.'
+            );
+        }
+
+        // Validate file size (max 10MB)
+        $max_size = 10 * 1024 * 1024; // 10MB in bytes
+        if ($file['size'] > $max_size) {
+            return array(
+                'success' => false,
+                'message' => 'File too large. Maximum size is 10MB.'
+            );
+        }
+
+        // Load WordPress media functions
+        if (!function_exists('media_handle_upload')) {
+            require_once(ABSPATH . 'wp-admin/includes/image.php');
+            require_once(ABSPATH . 'wp-admin/includes/file.php');
+            require_once(ABSPATH . 'wp-admin/includes/media.php');
+        }
+
+        // Prepare file for upload
+        $upload_overrides = array(
+            'test_form' => false,
+            'test_type' => true
+        );
+
+        // Create a temporary $_FILES entry if uploading programmatically
+        if (!isset($_FILES['birth_certificate'])) {
+            $_FILES['birth_certificate'] = $file;
+        }
+
+        // Upload to media library
+        $attachment_id = media_handle_upload('birth_certificate', 0, array(), $upload_overrides);
+
+        if (is_wp_error($attachment_id)) {
+            return array(
+                'success' => false,
+                'message' => $attachment_id->get_error_message()
+            );
+        }
+
+        // Delete old birth certificate if exists
+        $old_attachment_id = get_user_meta($user_id, 'jgk_birth_certificate', true);
+        if (!empty($old_attachment_id)) {
+            wp_delete_attachment($old_attachment_id, true);
+        }
+
+        // Update user meta with new birth certificate
+        update_user_meta($user_id, 'jgk_birth_certificate', $attachment_id);
+
+        // Log the action
+        JuniorGolfKenya_Database::log_audit(array(
+            'action' => 'birth_certificate_uploaded',
+            'object_type' => 'user',
+            'object_id' => $user_id,
+            'old_values' => json_encode(array('birth_certificate_id' => $old_attachment_id)),
+            'new_values' => json_encode(array('birth_certificate_id' => $attachment_id))
+        ));
+
+        return array(
+            'success' => true,
+            'attachment_id' => $attachment_id,
+            'url' => wp_get_attachment_url($attachment_id),
+            'message' => 'Birth certificate uploaded successfully'
+        );
+    }
+
+    /**
+     * Delete birth certificate from a user
+     *
+     * @since    1.0.1
+     * @param    int    $user_id    User ID
+     * @return   bool               True on success, false on failure
+     */
+    public static function delete_birth_certificate($user_id) {
+        $old_attachment_id = get_user_meta($user_id, 'jgk_birth_certificate', true);
+        
+        if (empty($old_attachment_id)) {
+            return false;
+        }
+
+        // Delete user meta
+        delete_user_meta($user_id, 'jgk_birth_certificate');
+
+        // Delete attachment from media library
+        wp_delete_attachment($old_attachment_id, true);
+
+        // Log the action
+        JuniorGolfKenya_Database::log_audit(array(
+            'action' => 'birth_certificate_deleted',
+            'object_type' => 'user',
+            'object_id' => $user_id,
+            'old_values' => json_encode(array('birth_certificate_id' => $old_attachment_id)),
+            'new_values' => json_encode(array('birth_certificate_id' => null))
+        ));
+
+        return true;
+    }
+
+    /**
+     * Get birth certificate URL for a user
+     *
+     * @since    1.0.1
+     * @param    int    $user_id    User ID
+     * @return   string|false       Birth certificate URL or false if not found
+     */
+    public static function get_birth_certificate_url($user_id) {
+        $attachment_id = get_user_meta($user_id, 'jgk_birth_certificate', true);
+        
+        if (empty($attachment_id)) {
+            return false;
+        }
+
+        return wp_get_attachment_url($attachment_id);
+    }
+
+    /**
+     * Get birth certificate attachment ID for a user
+     *
+     * @since    1.0.1
+     * @param    int    $user_id    User ID
+     * @return   int|false          Birth certificate attachment ID or false if not found
+     */
+    public static function get_birth_certificate_id($user_id) {
+        $attachment_id = get_user_meta($user_id, 'jgk_birth_certificate', true);
+        
+        return !empty($attachment_id) ? $attachment_id : false;
+    }
 }
