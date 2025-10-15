@@ -134,6 +134,151 @@ if (isset($_POST['jgk_register_member'])) {
                 
                 // Generate membership number
                 $membership_number = 'JGK-' . date('Y') . '-' . str_pad($user_id, 4, '0', STR_PAD_LEFT);
+
+                $profile_image_id = 0;
+
+                if (!empty($_FILES['profile_image']['name'])) {
+                    if ($_FILES['profile_image']['error'] !== UPLOAD_ERR_OK) {
+                        $registration_errors[] = 'Profile image upload failed. Please try again.';
+                    } else {
+                        $max_file_size = 5 * 1024 * 1024;
+                        if ($_FILES['profile_image']['size'] > $max_file_size) {
+                            $registration_errors[] = 'Profile image must be 5MB or smaller.';
+                        } else {
+                            $file_info = wp_check_filetype($_FILES['profile_image']['name']);
+                            $allowed_extensions = array('jpg', 'jpeg', 'png', 'gif', 'webp');
+                            if (empty($file_info['ext']) || !in_array(strtolower($file_info['ext']), $allowed_extensions, true)) {
+                                $registration_errors[] = 'Profile image must be JPG, PNG, GIF, or WebP.';
+                            } else {
+                                if (!function_exists('media_handle_upload')) {
+                                    require_once ABSPATH . 'wp-admin/includes/file.php';
+                                    require_once ABSPATH . 'wp-admin/includes/media.php';
+                                    require_once ABSPATH . 'wp-admin/includes/image.php';
+                                }
+                                $profile_image_id = media_handle_upload('profile_image', 0);
+                                if (is_wp_error($profile_image_id)) {
+                                    $registration_errors[] = 'Failed to upload profile image: ' . $profile_image_id->get_error_message();
+                                    $profile_image_id = 0;
+                                } else {
+                                    update_user_meta($user_id, 'jgk_profile_image', $profile_image_id);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (!empty($registration_errors)) {
+                    if ($profile_image_id) {
+                        wp_delete_attachment($profile_image_id, true);
+                    }
+                    wp_delete_user($user_id);
+                } else {
+                    // Insert into members table
+                    $members_table = $wpdb->prefix . 'jgk_members';
+                    $insert_result = $wpdb->insert(
+                        $members_table,
+                        array(
+                            'user_id' => $user_id,
+                            'membership_number' => $membership_number,
+                            'first_name' => $first_name,
+                            'last_name' => $last_name,
+                            'date_of_birth' => !empty($date_of_birth) ? $date_of_birth : null,
+                            'gender' => $gender,
+                            'phone' => $phone,
+                            'address' => $address,
+                            'membership_type' => $membership_type,
+                            'status' => 'pending', // Await manual approval before activation
+                            'date_joined' => current_time('mysql'),
+                            'expiry_date' => date('Y-m-d', strtotime('+1 year')),
+                            'club_affiliation' => $club_affiliation,
+                            'handicap' => $handicap,
+                            'medical_conditions' => $medical_conditions,
+                            'emergency_contact_name' => $emergency_contact_name,
+                            'emergency_contact_phone' => $emergency_contact_phone,
+                            'consent_photography' => $consent_photography,
+                            'parental_consent' => $parental_consent,
+                            'created_at' => current_time('mysql'),
+                            'updated_at' => current_time('mysql'),
+                        ),
+                        array(
+                            '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s',
+                            '%s', '%s', '%s', '%f', '%s', '%s', '%s', '%s', '%d', '%s', '%s'
+                        )
+                    );
+
+                    if ($insert_result === false) {
+                        $registration_errors[] = 'Failed to save member information.';
+                        if ($profile_image_id) {
+                            wp_delete_attachment($profile_image_id, true);
+                        }
+                        wp_delete_user($user_id);
+                    } else {
+                        $member_id = $wpdb->insert_id;
+
+                        // Insert parent/guardian information if provided
+                        if (!empty($parent_first_name) && !empty($parent_last_name)) {
+                            $parents_table = $wpdb->prefix . 'jgk_parents_guardians';
+                            $wpdb->insert(
+                                $parents_table,
+                                array(
+                                    'member_id' => $member_id,
+                                    'relationship' => !empty($parent_relationship) ? $parent_relationship : 'parent',
+                                    'first_name' => $parent_first_name,
+                                    'last_name' => $parent_last_name,
+                                    'email' => $parent_email,
+                                    'phone' => $parent_phone,
+                                    'is_primary_contact' => 1,
+                                    'emergency_contact' => 1,
+                                    'created_at' => current_time('mysql'),
+                                ),
+                                array('%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s')
+                            );
+                        }
+
+                        // Send notification email to user
+                        $to = $email;
+                        $subject = 'Welcome to Junior Golf Kenya - Account Created Successfully';
+
+                        // Get dashboard URL from saved page ID
+                        $dashboard_page_id = get_option('jgk_page_member_dashboard');
+                        $dashboard_url = $dashboard_page_id ? get_permalink($dashboard_page_id) : home_url('/member-dashboard');
+
+                        $message = "Dear {$first_name} {$last_name},\n\n";
+                        $message .= "Welcome to Junior Golf Kenya! Your account has been created successfully.\n\n";
+                        $message .= "Membership Details:\n";
+                        $message .= "- Membership Number: {$membership_number}\n";
+                        $message .= "- Username: {$username}\n";
+                        $message .= "- Email: {$email}\n\n";
+                        $message .= "You can now log in and access your member dashboard:\n";
+                        $message .= "Login URL: " . wp_login_url() . "\n\n";
+                        $message .= "Dashboard URL: " . $dashboard_url . "\n\n";
+                        $message .= "Your application is currently pending review. We'll notify you once it's approved and active.\n\n";
+                        $message .= "If you have any questions, please don't hesitate to contact us.\n\n";
+                        $message .= "Best regards,\n";
+                        $message .= "Junior Golf Kenya Team";
+
+                        wp_mail($to, $subject, $message);
+
+                        // Send notification to admin
+                        $admin_email = get_option('admin_email');
+                        $admin_subject = 'New Member Registration - Junior Golf Kenya';
+                        $admin_message = "A new member has registered:\n\n";
+                        $admin_message .= "Name: {$first_name} {$last_name}\n";
+                        $admin_message .= "Email: {$email}\n";
+                        $admin_message .= "Membership Number: {$membership_number}\n";
+                        $admin_message .= "Membership Type: " . ucfirst($membership_type) . "\n";
+                        $admin_message .= "Status: Pending approval\n\n";
+                        $admin_message .= "View member details in the admin panel:\n";
+                        $admin_message .= admin_url('admin.php?page=juniorgolfkenya-members&action=edit&id=' . $member_id);
+
+                        wp_mail($admin_email, $admin_subject, $admin_message);
+
+                        // Auto-login the user after successful registration
+                        wp_set_current_user($user_id);
+                        wp_set_auth_cookie($user_id);
+
+                        // Redirect to Member Portal after successful registration
+                        $portal_page_id = get_option('jgk_page_member_portal');
                 
                 // Insert into members table
                 $members_table = $wpdb->prefix . 'jgk_members';
@@ -342,7 +487,7 @@ if (isset($_POST['jgk_register_member'])) {
             <div id="debug-output" style="margin-top: 8px; max-height: 200px; overflow-y: auto;"></div>
         </div>
 
-        <form method="post" class="jgk-member-form" id="jgk-registration-form">
+    <form method="post" class="jgk-member-form" id="jgk-registration-form" enctype="multipart/form-data">
             <?php wp_nonce_field('jgk_member_registration', 'jgk_register_nonce'); ?>
 
             <!-- Step 1: Personal Information -->
@@ -380,7 +525,7 @@ if (isset($_POST['jgk_register_member'])) {
                         <small style="color: #666;">Must be between 2 and 17 years old</small>
                         <div id="age-validation-message" style="margin-top: 10px;"></div>
                     </div>
-                    <div class="jgk-form-group">
+                    <div class="jgk-form-group jgk-select-group">
                         <label for="gender">Gender</label>
                         <select id="gender" name="gender">
                             <option value="">Select Gender</option>
@@ -397,6 +542,16 @@ if (isset($_POST['jgk_register_member'])) {
                         <label for="address">Address</label>
                         <textarea id="address" name="address" rows="3" placeholder="Enter complete address"><?php echo esc_textarea($_POST['address'] ?? ''); ?></textarea>
                     </div>
+                </div>
+
+                <div class="jgk-form-group">
+                    <label for="profile_image">Profile Photo (optional)</label>
+                    <div class="jgk-file-upload">
+                        <span class="dashicons dashicons-upload"></span>
+                        <span id="profile_image_label">Choose an image</span>
+                        <input type="file" id="profile_image" name="profile_image" accept="image/*">
+                    </div>
+                    <small>Supported formats: JPG, PNG, GIF, or WebP. Maximum size 5MB.</small>
                 </div>
 
                 <div class="jgk-step-actions">
@@ -478,7 +633,7 @@ if (isset($_POST['jgk_register_member'])) {
                         <input type="tel" id="parent_phone" name="parent_phone" value="<?php echo esc_attr($_POST['parent_phone'] ?? ''); ?>" placeholder="+254...">
                         <small>At least email OR phone required</small>
                     </div>
-                    <div class="jgk-form-group full-width">
+                    <div class="jgk-form-group full-width jgk-select-group">
                         <label for="parent_relationship">Relationship to Child *</label>
                         <select id="parent_relationship" name="parent_relationship" required>
                             <option value="">Select Relationship</option>
@@ -779,6 +934,94 @@ if (isset($_POST['jgk_register_member'])) {
     font-size: 12px;
     color: #6b7280;
     line-height: 1.4;
+}
+
+.jgk-file-upload {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    width: 100%;
+    border: 1px dashed #cbd5f5;
+    border-radius: 10px;
+    background: #f8fafc;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.jgk-file-upload .dashicons {
+    font-size: 20px;
+    color: #2563eb;
+}
+
+.jgk-file-upload span {
+    font-weight: 500;
+    color: #1f2937;
+}
+
+.jgk-file-upload input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.jgk-file-upload:hover {
+    border-color: #94a3f6;
+    background: #eef2ff;
+}
+
+.jgk-select-group {
+    position: relative;
+}
+
+.jgk-select-group select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    cursor: pointer;
+    padding-right: 52px;
+    background-color: #ffffff;
+}
+
+.jgk-select-group::after {
+    content: '\25BC';
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    font-size: 12px;
+    pointer-events: none;
+    transition: color 0.2s ease;
+}
+
+.jgk-select-group::before {
+    content: '\2713';
+    position: absolute;
+    right: 42px;
+    top: 50%;
+    transform: translateY(-50%) scale(0.8);
+    color: #10b981;
+    font-size: 14px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.jgk-select-group.has-value::before {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+}
+
+.jgk-select-group.has-value select {
+    border-color: #10b981;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12);
+}
+
+.jgk-select-group.has-value::after {
+    color: #2563eb;
 }
 
 /* Textarea Section */
@@ -1453,6 +1696,17 @@ document.addEventListener('DOMContentLoaded', function() {
             debugLog(`Age validation passed: ${age} years old`, 'success');
             return true;
         }
+    }
+
+    const profileImageInput = document.getElementById('profile_image');
+    const profileImageLabel = document.getElementById('profile_image_label');
+
+    if (profileImageInput && profileImageLabel) {
+        profileImageInput.addEventListener('change', function() {
+            const fileName = this.files && this.files.length ? this.files[0].name : 'Choose an image';
+            profileImageLabel.textContent = fileName;
+            debugLog(this.files && this.files.length ? 'Profile image selected: ' + fileName : 'Profile image selection cleared', 'info');
+        });
     }
 
     // Real-time age validation

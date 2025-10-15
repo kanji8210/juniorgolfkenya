@@ -207,6 +207,9 @@ if (!$member) {
     return;
 }
 
+$profile_image_id = get_user_meta($user_id, 'jgk_profile_image', true);
+$profile_image_url = $profile_image_id ? wp_get_attachment_image_url($profile_image_id, 'medium') : '';
+
 // Get membership status with expiration check
 $membership_status = JuniorGolfKenya_Member_Data::get_membership_status($member);
 
@@ -262,15 +265,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     array('id' => $member->id)
                 );
                 
-                if ($result !== false) {
-                    $message = 'Profile updated successfully!';
-                    $message_type = 'success';
-                    // Refresh member data
-                    $member = JuniorGolfKenya_Database::get_member_by_user_id($user_id);
-                } else {
+                $upload_error = '';
+                $upload_success = '';
+
+                if (!empty($_FILES['profile_image']['name'])) {
+                    if ($_FILES['profile_image']['error'] !== UPLOAD_ERR_OK) {
+                        $upload_error = 'Profile image upload failed. Please try again.';
+                    } else {
+                        $max_file_size = 5 * 1024 * 1024;
+                        if ($_FILES['profile_image']['size'] > $max_file_size) {
+                            $upload_error = 'Profile image must be 5MB or smaller.';
+                        } else {
+                            $file_info = wp_check_filetype($_FILES['profile_image']['name']);
+                            $allowed_extensions = array('jpg', 'jpeg', 'png', 'gif', 'webp');
+                            if (empty($file_info['ext']) || !in_array(strtolower($file_info['ext']), $allowed_extensions, true)) {
+                                $upload_error = 'Profile image must be JPG, PNG, GIF, or WebP.';
+                            } else {
+                                if (!function_exists('media_handle_upload')) {
+                                    require_once ABSPATH . 'wp-admin/includes/file.php';
+                                    require_once ABSPATH . 'wp-admin/includes/media.php';
+                                    require_once ABSPATH . 'wp-admin/includes/image.php';
+                                }
+                                $new_profile_image_id = media_handle_upload('profile_image', 0);
+                                if (is_wp_error($new_profile_image_id)) {
+                                    $upload_error = 'Failed to upload profile image: ' . $new_profile_image_id->get_error_message();
+                                } else {
+                                    update_user_meta($user_id, 'jgk_profile_image', $new_profile_image_id);
+                                    if (!empty($profile_image_id)) {
+                                        wp_delete_attachment($profile_image_id, true);
+                                    }
+                                    $profile_image_id = $new_profile_image_id;
+                                    $profile_image_url = wp_get_attachment_image_url($profile_image_id, 'medium');
+                                    $upload_success = 'Profile photo updated.';
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if ($result === false) {
                     $message = 'Failed to update profile.';
                     $message_type = 'error';
+                } elseif (!empty($upload_error)) {
+                    $message = $upload_error;
+                    $message_type = 'error';
+                } else {
+                    $success_parts = array('Profile updated successfully!');
+                    if ($upload_success) {
+                        $success_parts[] = $upload_success;
+                    }
+                    $message = implode(' ', $success_parts);
+                    $message_type = 'success';
                 }
+
+                // Refresh member and image data
+                $member = JuniorGolfKenya_Database::get_member_by_user_id($user_id);
+                $profile_image_id = get_user_meta($user_id, 'jgk_profile_image', true);
+                $profile_image_url = $profile_image_id ? wp_get_attachment_image_url($profile_image_id, 'medium') : '';
                 break;
         }
     }
@@ -430,9 +481,28 @@ if (!empty($member->coach_id)) {
     <div id="edit-profile" class="jgk-card">
         <h3>Update Your Information</h3>
         
-        <form method="post" class="jgk-form">
+        <form method="post" class="jgk-form" enctype="multipart/form-data">
             <?php wp_nonce_field('jgk_member_portal'); ?>
             <input type="hidden" name="action" value="update_profile">
+            
+            <div class="jgk-form-field">
+                <label for="profile_image_portal">Profile Photo</label>
+                <div class="jgk-avatar-upload">
+                    <div class="jgk-avatar-preview">
+                        <?php if ($profile_image_url): ?>
+                            <img src="<?php echo esc_url($profile_image_url); ?>" alt="Current profile photo">
+                        <?php else: ?>
+                            <span class="dashicons dashicons-admin-users"></span>
+                        <?php endif; ?>
+                    </div>
+                    <div class="jgk-file-upload jgk-file-upload-inline">
+                        <span class="dashicons dashicons-upload"></span>
+                        <span id="profile_image_portal_label">Choose an image</span>
+                        <input type="file" id="profile_image_portal" name="profile_image" accept="image/*">
+                    </div>
+                </div>
+                <small>Supported formats: JPG, PNG, GIF, or WebP. Maximum size 5MB.</small>
+            </div>
             
             <div class="jgk-form-row">
                 <div class="jgk-form-field">
