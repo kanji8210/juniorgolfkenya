@@ -110,100 +110,14 @@ $total_amount = array_sum(array_map(function($p) { return $p->amount; }, $paymen
 $pending_amount = array_sum(array_map(function($p) { return $p->status === 'pending' ? $p->amount : 0; }, $payments));
 $completed_amount = array_sum(array_map(function($p) { return $p->status === 'completed' ? $p->amount : 0; }, $payments));
 
-// Debug scan of payment sources/tables
 global $wpdb;
 $prefix = $wpdb->prefix;
-
-$dbg = array();
 
 // Detect membership product id from either legacy option or new settings array
 $legacy_membership_id = intval(get_option('jgk_membership_product_id', 0));
 $payment_settings = get_option('jgk_payment_settings', array());
 $settings_membership_id = intval($payment_settings['membership_product_id'] ?? 0);
 $membership_product_id = $legacy_membership_id > 0 ? $legacy_membership_id : $settings_membership_id;
-
-// Table existence
-$tables = array(
-    'jgk_payments' => $prefix . 'jgk_payments',
-    'wp_posts' => $wpdb->posts,
-    'wp_postmeta' => $wpdb->postmeta,
-    'wc_order_items' => $prefix . 'woocommerce_order_items',
-    'wc_order_itemmeta' => $prefix . 'woocommerce_order_itemmeta',
-);
-
-foreach ($tables as $label => $tbl) {
-    $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $tbl)) === $tbl;
-    $dbg['tables'][$label] = array('name' => $tbl, 'exists' => $exists);
-}
-
-// Counts from JGK payments table
-if (!empty($dbg['tables']['jgk_payments']['exists'])) {
-    $jgk_total = intval($wpdb->get_var("SELECT COUNT(*) FROM {$tables['jgk_payments']}"));
-    $jgk_completed = intval($wpdb->get_var("SELECT COUNT(*) FROM {$tables['jgk_payments']} WHERE status='completed'"));
-    $jgk_by_gateway = $wpdb->get_results("SELECT COALESCE(payment_gateway,'') as gateway, COUNT(*) as cnt FROM {$tables['jgk_payments']} GROUP BY payment_gateway", ARRAY_A);
-    $dbg['jgk'] = array(
-        'count' => $jgk_total,
-        'completed' => $jgk_completed,
-        'by_gateway' => $jgk_by_gateway,
-    );
-}
-
-// WooCommerce membership orders count (if ID configured and Woo tables exist)
-$wc_sources_ok = (!empty($dbg['tables']['wp_posts']['exists']) && !empty($dbg['tables']['wp_postmeta']['exists']) && !empty($dbg['tables']['wc_order_items']['exists']) && !empty($dbg['tables']['wc_order_itemmeta']['exists']));
-if ($wc_sources_ok) {
-    $statuses = "('wc-completed','wc-processing','wc-pending','wc-on-hold','wc-cancelled','wc-refunded','wc-failed')";
-    $wc_membership_count = null;
-    if ($membership_product_id > 0) {
-        $wc_membership_count = intval($wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(DISTINCT o.ID)
-             FROM {$wpdb->posts} o
-             INNER JOIN {$wpdb->prefix}woocommerce_order_items oi ON o.ID = oi.order_id
-             INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta oim ON oi.order_item_id = oim.order_item_id AND oim.meta_key = '_product_id' AND oim.meta_value = %d
-             WHERE o.post_type = 'shop_order' AND o.post_status IN $statuses",
-            $membership_product_id
-        )));
-    }
-
-    // Stripe-like methods count
-    $wc_stripe_count = intval($wpdb->get_var(
-        "SELECT COUNT(DISTINCT o.ID)
-         FROM {$wpdb->posts} o
-         INNER JOIN {$wpdb->postmeta} pm ON pm.post_id = o.ID AND pm.meta_key = '_payment_method'
-         WHERE o.post_type='shop_order' AND o.post_status IN $statuses AND pm.meta_value LIKE 'stripe%'"
-    ));
-
-    // iPay/eLipa/M-Pesa methods count (based on method slug)
-    $ipay_methods = array('ipay','elipa','mpesa','airtel','card');
-    $placeholders = implode(',', array_fill(0, count($ipay_methods), '%s'));
-    $in_list = "('" . implode("','", array_map('esc_sql', $ipay_methods)) . "')"; // safe since static list
-    $wc_ipay_count = intval($wpdb->get_var(
-        "SELECT COUNT(DISTINCT o.ID)
-         FROM {$wpdb->posts} o
-         INNER JOIN {$wpdb->postmeta} pm ON pm.post_id = o.ID AND pm.meta_key = '_payment_method'
-         WHERE o.post_type='shop_order' AND o.post_status IN $statuses AND pm.meta_value IN $in_list"
-    ));
-
-    // Transients for iPay status in options table
-    $ipay_transient_count = intval($wpdb->get_var($wpdb->prepare(
-        "SELECT COUNT(*) FROM {$wpdb->options} WHERE option_name LIKE %s",
-        '_transient_jgk_ipay_status_%'
-    )));
-
-    // Stripe keys presence
-    $stripe_public = !empty($payment_settings['stripe_public_key']);
-    $stripe_secret = !empty($payment_settings['stripe_secret_key']);
-
-    $dbg['woocommerce'] = array(
-        'membership_product_id' => $membership_product_id,
-        'membership_product_source' => $legacy_membership_id > 0 ? 'jgk_membership_product_id' : ($settings_membership_id > 0 ? 'jgk_payment_settings[membership_product_id]' : 'none'),
-        'tables_ok' => $wc_sources_ok,
-        'membership_orders' => $wc_membership_count,
-        'stripe_orders' => $wc_stripe_count,
-        'ipay_orders' => $wc_ipay_count,
-        'ipay_status_transients' => $ipay_transient_count,
-        'stripe_keys' => array('public' => $stripe_public, 'secret' => $stripe_secret),
-    );
-}
 ?>
 
 <div class="wrap jgk-admin-container">
@@ -284,107 +198,6 @@ if ($wc_sources_ok) {
                 <a href="<?php echo admin_url('admin.php?page=juniorgolfkenya-payments'); ?>" class="button">Clear</a>
             </form>
         </div>
-    </div>
-
-    <!-- Debug: Payment Sources Scan -->
-    <div class="jgk-debug-panel" style="margin: 15px 0;">
-        <details>
-            <summary style="cursor:pointer;font-weight:600;">Debug: Payment Sources Scan</summary>
-            <div style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:15px;margin-top:10px;">
-                <h3 style="margin-top:0;">Sources vérifiées</h3>
-                <table class="wp-list-table widefat fixed striped">
-                    <thead>
-                        <tr>
-                            <th>Source/Table</th>
-                            <th>Statut</th>
-                            <th>Détails</th>
-                            <th>Compteur</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><code><?php echo esc_html($tables['jgk_payments']); ?></code></td>
-                            <td><?php echo !empty($dbg['tables']['jgk_payments']['exists']) ? '✔️ Found' : '❌ Missing'; ?></td>
-                            <td>JGK payments table</td>
-                            <td>
-                                <?php if (!empty($dbg['jgk'])): ?>
-                                    Total: <?php echo intval($dbg['jgk']['count']); ?>, Completed: <?php echo intval($dbg['jgk']['completed']); ?>
-                                    <?php if (!empty($dbg['jgk']['by_gateway'])): ?>
-                                        <br>By gateway:
-                                        <?php foreach ($dbg['jgk']['by_gateway'] as $row): ?>
-                                            <span style="display:inline-block;margin-right:8px;">
-                                                <?php echo esc_html($row['gateway'] !== '' ? $row['gateway'] : 'unknown'); ?>: <?php echo intval($row['cnt']); ?>
-                                            </span>
-                                        <?php endforeach; ?>
-                                    <?php endif; ?>
-                                <?php else: ?>
-                                    N/A
-                                <?php endif; ?>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>WooCommerce (product ID)</td>
-                            <td>
-                                <?php
-                                if (!empty($dbg['woocommerce'])) {
-                                    echo $dbg['woocommerce']['tables_ok'] ? '✔️ Tables OK' : '❌ WC tables missing';
-                                } else {
-                                    echo 'ℹ️ Not checked';
-                                }
-                                ?>
-                            </td>
-                            <td>
-                                Product ID: <?php echo intval($membership_product_id); ?>
-                                <br>Source: <?php echo esc_html($dbg['woocommerce']['membership_product_source'] ?? 'unknown'); ?>
-                            </td>
-                            <td>
-                                <?php if (!empty($dbg['woocommerce'])): ?>
-                                    Membership orders: <?php echo is_null($dbg['woocommerce']['membership_orders']) ? 'N/A' : intval($dbg['woocommerce']['membership_orders']); ?>
-                                <?php else: ?>
-                                    N/A
-                                <?php endif; ?>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>WooCommerce (Stripe)</td>
-                            <td><?php echo !empty($dbg['woocommerce']) && $dbg['woocommerce']['tables_ok'] ? '✔️ Checked' : 'ℹ️ Not checked'; ?></td>
-                            <td>Orders with _payment_method LIKE 'stripe%'<br>Keys set: Pub=<?php echo !empty($dbg['woocommerce']) && $dbg['woocommerce']['stripe_keys']['public'] ? 'yes' : 'no'; ?>, Sec=<?php echo !empty($dbg['woocommerce']) && $dbg['woocommerce']['stripe_keys']['secret'] ? 'yes' : 'no'; ?></td>
-                            <td><?php echo !empty($dbg['woocommerce']) ? intval($dbg['woocommerce']['stripe_orders']) : 0; ?></td>
-                        </tr>
-                        <tr>
-                            <td>WooCommerce (iPay/eLipa/M-Pesa)</td>
-                            <td><?php echo !empty($dbg['woocommerce']) && $dbg['woocommerce']['tables_ok'] ? '✔️ Checked' : 'ℹ️ Not checked'; ?></td>
-                            <td>Orders with _payment_method IN (ipay, elipa, mpesa, airtel, card)<br>Transients: <?php echo !empty($dbg['woocommerce']) ? intval($dbg['woocommerce']['ipay_status_transients']) : 0; ?></td>
-                            <td><?php echo !empty($dbg['woocommerce']) ? intval($dbg['woocommerce']['ipay_orders']) : 0; ?></td>
-                        </tr>
-                        <tr>
-                            <td><code><?php echo esc_html($tables['wp_posts']); ?></code></td>
-                            <td><?php echo !empty($dbg['tables']['wp_posts']['exists']) ? '✔️ Found' : '❌ Missing'; ?></td>
-                            <td>WP posts (orders)</td>
-                            <td>-</td>
-                        </tr>
-                        <tr>
-                            <td><code><?php echo esc_html($tables['wp_postmeta']); ?></code></td>
-                            <td><?php echo !empty($dbg['tables']['wp_postmeta']['exists']) ? '✔️ Found' : '❌ Missing'; ?></td>
-                            <td>WP postmeta (_payment_method, totals, etc.)</td>
-                            <td>-</td>
-                        </tr>
-                        <tr>
-                            <td><code><?php echo esc_html($tables['wc_order_items']); ?></code></td>
-                            <td><?php echo !empty($dbg['tables']['wc_order_items']['exists']) ? '✔️ Found' : '❌ Missing'; ?></td>
-                            <td>WooCommerce order items</td>
-                            <td>-</td>
-                        </tr>
-                        <tr>
-                            <td><code><?php echo esc_html($tables['wc_order_itemmeta']); ?></code></td>
-                            <td><?php echo !empty($dbg['tables']['wc_order_itemmeta']['exists']) ? '✔️ Found' : '❌ Missing'; ?></td>
-                            <td>WooCommerce order item meta (_product_id)</td>
-                            <td>-</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </details>
     </div>
 
     <!-- Payments Table -->
