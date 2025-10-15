@@ -1,0 +1,35 @@
+{
+    "timestamp": "2025-10-15 08:06:32",
+    "environment": "local",
+    "wordpress_version": "6.8.3",
+    "php_version": "8.2.12",
+    "site_url": "http:\/\/localhost\/wordpress",
+    "database": {
+        "host": "localhost",
+        "name": "mysql",
+        "prefix": "wp_"
+    },
+    "tables": {
+        "jgk_members": {
+            "exists": true,
+            "count": "10"
+        },
+        "jgk_payments": {
+            "exists": true,
+            "count": "7"
+        },
+        "jgk_memberships": {
+            "exists": true,
+            "count": "0"
+        },
+        "jgk_audit_log": {
+            "exists": true,
+            "count": "41"
+        }
+    },
+    "payment_counts": {
+        "total": 7,
+        "completed": 7,
+        "pending": 0
+    }
+}
