@@ -404,15 +404,10 @@ class JuniorGolfKenya_Database {
             $manual_payments = $wpdb->get_results($query);
         }
 
-        // Get WooCommerce payments for membership product
+        // Get WooCommerce payments for ALL orders (not just membership product)
         $woocommerce_payments = array();
-        // Resolve membership product id from legacy option or settings array
-        $legacy_membership_id = intval(get_option('jgk_membership_product_id', 0));
-        $payment_settings = get_option('jgk_payment_settings', array());
-        $settings_membership_id = intval($payment_settings['membership_product_id'] ?? 0);
-        $membership_product_id = $legacy_membership_id > 0 ? $legacy_membership_id : $settings_membership_id;
 
-        // Ensure WooCommerce tables exist before querying
+        // Check WooCommerce tables exist
         $wc_tables_ok = (
             $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $wpdb->posts)) === $wpdb->posts &&
             $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $wpdb->postmeta)) === $wpdb->postmeta &&
@@ -420,8 +415,8 @@ class JuniorGolfKenya_Database {
             $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $wpdb->prefix . 'woocommerce_order_itemmeta')) === ($wpdb->prefix . 'woocommerce_order_itemmeta')
         );
 
-        if ($membership_product_id && $wc_tables_ok) {
-            error_log("JGK PAYMENT DEBUG: Getting WooCommerce payments for membership product ID: {$membership_product_id}");
+        if ($wc_tables_ok) {
+            error_log("JGK PAYMENT DEBUG: Getting ALL WooCommerce payments");
 
             $wc_query = "
                 SELECT
@@ -429,7 +424,10 @@ class JuniorGolfKenya_Database {
                     o.ID as order_id,
                     o.post_date as created_at,
                     om_total.meta_value as amount,
-                    'membership' as payment_type,
+                    CASE
+                        WHEN oim.meta_value = %d THEN 'membership'
+                        ELSE 'other'
+                    END as payment_type,
                     COALESCE(om_payment.meta_value, 'woocommerce') as payment_method,
                     CASE
                         WHEN o.post_status = 'wc-completed' THEN 'completed'
@@ -441,7 +439,11 @@ class JuniorGolfKenya_Database {
                         WHEN o.post_status = 'wc-failed' THEN 'failed'
                         ELSE 'unknown'
                     END as status,
-                    CONCAT(u.display_name, ' (', m.membership_number, ')') as member_name,
+                    CASE
+                        WHEN m.user_id IS NOT NULL THEN CONCAT(u.display_name, ' (', m.membership_number, ')')
+                        WHEN om_customer.meta_value != 0 THEN CONCAT('Customer #', om_customer.meta_value)
+                        ELSE 'Guest Customer'
+                    END as member_name,
                     'woocommerce' as source,
                     om_transaction.meta_value as transaction_id,
                     CONCAT('WooCommerce Order #', o.ID) as notes
@@ -451,7 +453,7 @@ class JuniorGolfKenya_Database {
                 LEFT JOIN {$wpdb->postmeta} om_payment ON o.ID = om_payment.post_id AND om_payment.meta_key = '_payment_method'
                 LEFT JOIN {$wpdb->postmeta} om_transaction ON o.ID = om_transaction.post_id AND om_transaction.meta_key = '_transaction_id'
                 INNER JOIN {$wpdb->prefix}woocommerce_order_items oi ON o.ID = oi.order_id
-                INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta oim ON oi.order_item_id = oim.order_item_id AND oim.meta_key = '_product_id' AND oim.meta_value = %d
+                INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta oim ON oi.order_item_id = oim.order_item_id AND oim.meta_key = '_product_id'
                 LEFT JOIN $members_table m ON om_customer.meta_value = m.user_id
                 LEFT JOIN $users_table u ON m.user_id = u.ID
                 WHERE o.post_type = 'shop_order'
@@ -487,6 +489,18 @@ class JuniorGolfKenya_Database {
                     $wc_query .= " AND o.post_status = %s";
                     $wc_params[] = $status_map[$status_filter];
                 }
+            }
+
+            // Add type filter for WooCommerce payments
+            if ($type_filter !== 'all') {
+                if ($type_filter === 'membership') {
+                    $wc_query .= " AND oim.meta_value = %d";
+                    $wc_params[] = $membership_product_id;
+                } elseif ($type_filter === 'other') {
+                    $wc_query .= " AND oim.meta_value != %d";
+                    $wc_params[] = $membership_product_id;
+                }
+                // For other types, we'll need to map them to products or categories
             }
 
             $wc_query .= " ORDER BY o.post_date DESC";

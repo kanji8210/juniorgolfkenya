@@ -175,6 +175,17 @@ if ($dbg['woocommerce']['tables_ok']) {
     $membership_result = $wpdb->get_row($membership_orders_query);
     $dbg['woocommerce']['membership_orders'] = intval($membership_result->membership_orders ?? 0);
     
+    // Count ALL WooCommerce orders
+    $all_orders_query = "
+        SELECT COUNT(DISTINCT p.ID) as all_orders
+        FROM {$tables['wp_posts']} p
+        INNER JOIN {$tables['wc_order_items']} oi ON p.ID = oi.order_id
+        WHERE p.post_type = 'shop_order'
+        AND p.post_status IN ('wc-completed', 'wc-processing', 'wc-on-hold', 'wc-pending')
+    ";
+    $all_orders_result = $wpdb->get_row($all_orders_query);
+    $dbg['woocommerce']['all_orders'] = intval($all_orders_result->all_orders ?? 0);
+    
     // Stripe orders
     $stripe_orders = $wpdb->get_var($wpdb->prepare("
         SELECT COUNT(*) FROM {$tables['wp_postmeta']} 
@@ -213,18 +224,17 @@ if ($dbg['woocommerce']['tables_ok']) {
     <?php endif; ?>
 
         <?php
-        // Diagnostic: Woo orders detected but none loaded
-        $dbg_wc_orders = isset($dbg['woocommerce']['membership_orders']) ? intval($dbg['woocommerce']['membership_orders']) : 0;
+        // Diagnostic: Check if WooCommerce orders exist but filters might be hiding them
+        $dbg_wc_orders = isset($dbg['woocommerce']['all_orders']) ? intval($dbg['woocommerce']['all_orders']) : 0;
         $has_wc_row = false;
         foreach ($payments as $p) { if (isset($p->source) && $p->source === 'woocommerce') { $has_wc_row = true; break; } }
         if ($dbg_wc_orders > 0 && !$has_wc_row) : ?>
             <div class="notice notice-warning" style="border-left-color:#dba617;">
-                <p><strong>Notice:</strong> <?php echo esc_html($dbg_wc_orders); ?> WooCommerce membership orders ont été détectées (produit ID <?php echo intval($membership_product_id); ?>) mais aucune ligne WooCommerce n'est affichée dans la liste. Causes possibles:
+                <p><strong>Notice:</strong> <?php echo esc_html($dbg_wc_orders); ?> WooCommerce orders ont été détectées mais aucune ligne WooCommerce n'est affichée dans la liste. Causes possibles:
                 <ul style="margin-top:4px;list-style:disc;padding-left:18px;">
                     <li>Filtres actifs (status/type/dates) excluant toutes les commandes.</li>
-                    <li>Product ID configuré différent de celui réellement utilisé dans certaines commandes (variations, produits remplacés).</li>
+                    <li>Status de commande non inclus dans la requête (ex: custom status) – adapter la liste des statuts si nécessaire.</li>
                     <li>Extension de cache/objet retardant la récupération (essayez de vider le cache).</li>
-                    <li>Un statut de commande non inclus dans la requête (ex: custom status) – adapter la liste des statuts si nécessaire.</li>
                 </ul>
                 </p>
             </div>
@@ -287,6 +297,7 @@ if ($dbg['woocommerce']['tables_ok']) {
             <summary style="cursor:pointer;font-weight:600;">Debug: Payment Sources Scan</summary>
             <div style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:15px;margin-top:10px;">
                 <h3 style="margin-top:0;">Sources vérifiées</h3>
+                <p><strong>Current DB Prefix:</strong> <?php echo esc_html($prefix); ?></p>
                 <table class="wp-list-table widefat fixed striped">
                     <thead>
                         <tr>
@@ -334,7 +345,8 @@ if ($dbg['woocommerce']['tables_ok']) {
                             </td>
                             <td>
                                 <?php if (!empty($dbg['woocommerce'])): ?>
-                                    Membership orders: <?php echo is_null($dbg['woocommerce']['membership_orders']) ? 'N/A' : intval($dbg['woocommerce']['membership_orders']); ?>
+                                    Membership orders: <?php echo is_null($dbg['woocommerce']['membership_orders']) ? 'N/A' : intval($dbg['woocommerce']['membership_orders']); ?><br>
+                                    All orders: <?php echo is_null($dbg['woocommerce']['all_orders']) ? 'N/A' : intval($dbg['woocommerce']['all_orders']); ?>
                                 <?php else: ?>
                                     N/A
                                 <?php endif; ?>
