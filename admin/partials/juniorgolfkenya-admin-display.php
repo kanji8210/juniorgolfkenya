@@ -54,7 +54,7 @@ $pending_role_requests = JuniorGolfKenya_Database::get_role_requests('pending');
         </div>
     </div>
 
-    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-top: 30px;">
+    <div class="jgk-dashboard-layout">
         <!-- Recent Members -->
         <div class="jgk-table-container">
             <h2>Recent Members</h2>
@@ -94,23 +94,28 @@ $pending_role_requests = JuniorGolfKenya_Database::get_role_requests('pending');
         <!-- Quick Actions -->
         <div class="jgk-form-section">
             <h2>Quick Actions</h2>
-            <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div>
                 <a href="<?php echo admin_url('admin.php?page=juniorgolfkenya-members'); ?>" class="jgk-button">
+                    <span class="dashicons dashicons-admin-users"></span>
                     Manage Members
                 </a>
                 <a href="<?php echo admin_url('admin.php?page=juniorgolfkenya-role-requests'); ?>" class="jgk-button">
+                    <span class="dashicons dashicons-groups"></span>
                     Review Role Requests
                     <?php if (count($pending_role_requests) > 0): ?>
                     <span class="count-badge"><?php echo count($pending_role_requests); ?></span>
                     <?php endif; ?>
                 </a>
                 <a href="<?php echo admin_url('admin.php?page=juniorgolfkenya-coaches'); ?>" class="jgk-button">
+                    <span class="dashicons dashicons-awards"></span>
                     Manage Coaches
                 </a>
                 <a href="<?php echo admin_url('admin.php?page=juniorgolfkenya-payments'); ?>" class="jgk-button">
+                    <span class="dashicons dashicons-money-alt"></span>
                     View Payments
                 </a>
                 <a href="<?php echo admin_url('admin.php?page=juniorgolfkenya-reports'); ?>" class="jgk-button">
+                    <span class="dashicons dashicons-chart-bar"></span>
                     Generate Reports
                 </a>
             </div>
@@ -133,14 +138,3 @@ $pending_role_requests = JuniorGolfKenya_Database::get_role_requests('pending');
         </div>
     </div>
 </div>
-
-<style>
-.count-badge {
-    background: #dc3232;
-    color: white;
-    border-radius: 10px;
-    padding: 2px 6px;
-    font-size: 11px;
-    margin-left: 5px;
-}
-</style>

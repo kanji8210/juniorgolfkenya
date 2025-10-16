@@ -223,6 +223,124 @@ if ($dbg['woocommerce']['tables_ok']) {
     </div>
     <?php endif; ?>
 
+<!-- Record Payment Modal -->
+<div id="record-modal" class="jgk-modal" style="display: none;">
+    <div class="jgk-modal-content">
+        <div class="jgk-modal-header">
+            <h2>Record New Payment</h2>
+            <span class="jgk-modal-close" onclick="closeRecordModal()">&times;</span>
+        </div>
+        <div class="jgk-modal-body">
+            <form method="post" id="record-form">
+                <?php wp_nonce_field('jgk_payment_action'); ?>
+                <input type="hidden" name="action" value="record_payment">
+                
+                <div class="jgk-form-field">
+                    <label for="member_id">Member:</label>
+                    <select id="member_id" name="member_id" required>
+                        <option value="">Select Member</option>
+                        <?php foreach ($members as $member): ?>
+                        <option value="<?php echo $member->id; ?>">
+                            <?php echo esc_html($member->full_name . ' (' . $member->membership_number . ')'); ?>
+                        </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                
+                <div class="jgk-form-field">
+                    <label for="amount">Amount (KSh):</label>
+                    <input type="number" id="amount" name="amount" step="0.01" min="1.01" required>
+                </div>
+                
+                <div class="jgk-form-field">
+                    <label for="payment_type">Payment Type:</label>
+                    <select id="payment_type" name="payment_type" required>
+                        <option value="membership">Membership Fee</option>
+                        <option value="tournament">Tournament Fee</option>
+                        <option value="training">Training Fee</option>
+                        <option value="certification">Certification Fee</option>
+                    </select>
+                </div>
+                
+                <div class="jgk-form-field">
+                    <label for="payment_method">Payment Method:</label>
+                    <select id="payment_method" name="payment_method" required>
+                        <option value="cash">Cash</option>
+                        <option value="mpesa">M-Pesa</option>
+                        <option value="bank_transfer">Bank Transfer</option>
+                        <option value="cheque">Cheque</option>
+                        <option value="online">Online Payment</option>
+                    </select>
+                </div>
+                
+                <div class="jgk-form-field">
+                    <label for="record_notes">Notes:</label>
+                    <textarea id="record_notes" name="notes" rows="3" placeholder="Payment notes or reference..."></textarea>
+                </div>
+                
+                <div class="jgk-form-field">
+                    <input type="submit" class="button-primary" value="Record Payment">
+                    <button type="button" class="button" onclick="closeRecordModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Update Payment Modal -->
+<div id="update-modal" class="jgk-modal" style="display: none;">
+    <div class="jgk-modal-content">
+        <div class="jgk-modal-header">
+            <h2>Update Payment</h2>
+            <span class="jgk-modal-close" onclick="closeUpdateModal()">&times;</span>
+        </div>
+        <div class="jgk-modal-body">
+            <form method="post" id="update-form">
+                <?php wp_nonce_field('jgk_payment_action'); ?>
+                <input type="hidden" name="action" value="update_payment">
+                <input type="hidden" name="payment_id" id="update-payment-id">
+                <input type="hidden" id="update-original-amount" value="">
+                
+                <div class="jgk-form-field">
+                    <label for="update_amount">Amount (KSh):</label>
+                    <input type="number" id="update_amount" name="amount" step="0.01" min="1.01" placeholder="Leave blank to keep current amount">
+                    <small id="update_amount_help" style="color:#b32d2e;display:block;margin-top:6px;">Warning: Changing the amount will affect reports and totals.</small>
+                </div>
+
+                <div class="jgk-form-field">
+                    <label for="update_payment_type">Payment Type:</label>
+                    <select id="update_payment_type" name="payment_type">
+                        <option value="membership">Membership Fee</option>
+                        <option value="tournament">Tournament Fee</option>
+                        <option value="training">Training Fee</option>
+                        <option value="certification">Certification Fee</option>
+                    </select>
+                </div>
+
+                <div class="jgk-form-field">
+                    <label for="update_status">Status:</label>
+                    <select id="update_status" name="status" required>
+                        <option value="pending">Pending</option>
+                        <option value="completed">Completed</option>
+                        <option value="failed">Failed</option>
+                        <option value="refunded">Refunded</option>
+                    </select>
+                </div>
+                
+                <div class="jgk-form-field">
+                    <label for="update_notes">Notes:</label>
+                    <textarea id="update_notes" name="notes" rows="3" placeholder="Update notes..."></textarea>
+                </div>
+                
+                <div class="jgk-form-field">
+                    <input type="submit" class="button-primary" value="Update Payment">
+                    <button type="button" class="button" onclick="closeUpdateModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
         <?php
         // Diagnostic: Check if WooCommerce orders exist but filters might be hiding them
         $dbg_wc_orders = isset($dbg['woocommerce']['all_orders']) ? intval($dbg['woocommerce']['all_orders']) : 0;
@@ -485,124 +603,6 @@ if ($dbg['woocommerce']['tables_ok']) {
                 <?php endif; ?>
             </tbody>
         </table>
-    </div>
-</div>
-
-<!-- Record Payment Modal -->
-<div id="record-modal" class="jgk-modal" style="display: none;">
-    <div class="jgk-modal-content">
-        <div class="jgk-modal-header">
-            <h2>Record New Payment</h2>
-            <span class="jgk-modal-close" onclick="closeRecordModal()">&times;</span>
-        </div>
-        <div class="jgk-modal-body">
-            <form method="post" id="record-form">
-                <?php wp_nonce_field('jgk_payment_action'); ?>
-                <input type="hidden" name="action" value="record_payment">
-                
-                <div class="jgk-form-field">
-                    <label for="member_id">Member:</label>
-                    <select id="member_id" name="member_id" required>
-                        <option value="">Select Member</option>
-                        <?php foreach ($members as $member): ?>
-                        <option value="<?php echo $member->id; ?>">
-                            <?php echo esc_html($member->full_name . ' (' . $member->membership_number . ')'); ?>
-                        </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                
-                <div class="jgk-form-field">
-                    <label for="amount">Amount (KSh):</label>
-                    <input type="number" id="amount" name="amount" step="0.01" min="1.01" required>
-                </div>
-                
-                <div class="jgk-form-field">
-                    <label for="payment_type">Payment Type:</label>
-                    <select id="payment_type" name="payment_type" required>
-                        <option value="membership">Membership Fee</option>
-                        <option value="tournament">Tournament Fee</option>
-                        <option value="training">Training Fee</option>
-                        <option value="certification">Certification Fee</option>
-                    </select>
-                </div>
-                
-                <div class="jgk-form-field">
-                    <label for="payment_method">Payment Method:</label>
-                    <select id="payment_method" name="payment_method" required>
-                        <option value="cash">Cash</option>
-                        <option value="mpesa">M-Pesa</option>
-                        <option value="bank_transfer">Bank Transfer</option>
-                        <option value="cheque">Cheque</option>
-                        <option value="online">Online Payment</option>
-                    </select>
-                </div>
-                
-                <div class="jgk-form-field">
-                    <label for="record_notes">Notes:</label>
-                    <textarea id="record_notes" name="notes" rows="3" placeholder="Payment notes or reference..."></textarea>
-                </div>
-                
-                <div class="jgk-form-field">
-                    <input type="submit" class="button-primary" value="Record Payment">
-                    <button type="button" class="button" onclick="closeRecordModal()">Cancel</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Update Payment Modal -->
-<div id="update-modal" class="jgk-modal" style="display: none;">
-    <div class="jgk-modal-content">
-        <div class="jgk-modal-header">
-            <h2>Update Payment</h2>
-            <span class="jgk-modal-close" onclick="closeUpdateModal()">&times;</span>
-        </div>
-        <div class="jgk-modal-body">
-            <form method="post" id="update-form">
-                <?php wp_nonce_field('jgk_payment_action'); ?>
-                <input type="hidden" name="action" value="update_payment">
-                <input type="hidden" name="payment_id" id="update-payment-id">
-                <input type="hidden" id="update-original-amount" value="">
-                
-                <div class="jgk-form-field">
-                    <label for="update_amount">Amount (KSh):</label>
-                    <input type="number" id="update_amount" name="amount" step="0.01" min="1.01" placeholder="Leave blank to keep current amount">
-                    <small id="update_amount_help" style="color:#b32d2e;display:block;margin-top:6px;">Warning: Changing the amount will affect reports and totals.</small>
-                </div>
-
-                <div class="jgk-form-field">
-                    <label for="update_payment_type">Payment Type:</label>
-                    <select id="update_payment_type" name="payment_type">
-                        <option value="membership">Membership Fee</option>
-                        <option value="tournament">Tournament Fee</option>
-                        <option value="training">Training Fee</option>
-                        <option value="certification">Certification Fee</option>
-                    </select>
-                </div>
-
-                <div class="jgk-form-field">
-                    <label for="update_status">Status:</label>
-                    <select id="update_status" name="status" required>
-                        <option value="pending">Pending</option>
-                        <option value="completed">Completed</option>
-                        <option value="failed">Failed</option>
-                        <option value="refunded">Refunded</option>
-                    </select>
-                </div>
-                
-                <div class="jgk-form-field">
-                    <label for="update_notes">Notes:</label>
-                    <textarea id="update_notes" name="notes" rows="3" placeholder="Update notes..."></textarea>
-                </div>
-                
-                <div class="jgk-form-field">
-                    <input type="submit" class="button-primary" value="Update Payment">
-                    <button type="button" class="button" onclick="closeUpdateModal()">Cancel</button>
-                </div>
-            </form>
-        </div>
     </div>
 </div>
 
