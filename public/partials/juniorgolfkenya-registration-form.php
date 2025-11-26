@@ -105,7 +105,7 @@ if (isset($_POST['jgk_register_member'])) {
         }
         
         if (empty($parent_relationship)) {
-            $registration_errors[] = 'Veuillez indiquer votre relation avec l\'enfant (mère, père, tuteur...).';
+            $registration_errors[] = 'Please indicate your relationship with the child (mother, father, guardian...).';
         }
         
         // If no errors, proceed with registration
@@ -397,23 +397,23 @@ if (isset($_POST['jgk_register_member'])) {
 
         <!-- Progress Steps -->
         <div class="jgk-progress-steps">
-            <div class="jgk-step active" data-step="1">
+            <div class="jgk-progress-step active" data-step="1">
                 <div class="jgk-step-number">1</div>
                 <div class="jgk-step-label">Personal Info</div>
             </div>
-            <div class="jgk-step" data-step="2">
+            <div class="jgk-progress-step" data-step="2">
                 <div class="jgk-step-number">2</div>
                 <div class="jgk-step-label">Membership</div>
             </div>
-            <div class="jgk-step" data-step="3">
+            <div class="jgk-progress-step" data-step="3">
                 <div class="jgk-step-number">3</div>
                 <div class="jgk-step-label">Parent Info</div>
             </div>
-            <div class="jgk-step" data-step="4">
+            <div class="jgk-progress-step" data-step="4">
                 <div class="jgk-step-number">4</div>
                 <div class="jgk-step-label">Emergency</div>
             </div>
-            <div class="jgk-step" data-step="5">
+            <div class="jgk-progress-step" data-step="5">
                 <div class="jgk-step-number">5</div>
                 <div class="jgk-step-label">Consent</div>
             </div>

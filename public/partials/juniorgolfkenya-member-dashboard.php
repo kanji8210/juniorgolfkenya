@@ -96,7 +96,7 @@ $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id,
                 </div>
             </div>
             <div class="jgk-payment-banner-actions">
-
+                <?php
                 if (class_exists('WooCommerce')) {
                     $membership_product_id = get_option('jgk_membership_product_id');
                     if ($membership_product_id) {
@@ -114,12 +114,12 @@ $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id,
                         <?php
                     } else {
                         ?>
-                        <p class="jgk-payment-notice">Membership product not configured. Please contact administrator.</p>
+                        <p class="jgk-payment-notice">⚠️ Membership product not configured. Please contact administrator.</p>
                         <?php
                     }
                 } else {
                     ?>
-                    <p class="jgk-payment-notice">WooCommerce not installed or activated.</p>
+                    <p class="jgk-payment-notice">⚠️ WooCommerce not installed or activated. Please contact administrator.</p>
                     <?php
                 }
                 ?>
@@ -292,11 +292,9 @@ $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id,
                                     update_option('jgk_membership_product_id', $membership_product_id);
                                 }
                                 
-                                $product = wc_get_product($membership_product_id);
-                                        echo 'Product Status: ' . $product->get_status() . '<br>';
-                                        echo '</div>';
-                                    }
-                                    
+                                if ($membership_product_id) {
+                                    $product_url = get_permalink($membership_product_id);
+                                    $add_to_cart_url = wc_get_cart_url() . '?add-to-cart=' . $membership_product_id;
                                     ?>
                                     <a href="<?php echo esc_url($add_to_cart_url); ?>" class="jgk-payment-btn jgk-payment-mpesa">
                                         <span class="dashicons dashicons-smartphone"></span>
@@ -304,7 +302,7 @@ $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id,
                                     </a>
                                     <a href="<?php echo esc_url($add_to_cart_url); ?>" class="jgk-payment-btn jgk-payment-elipa">
                                         <span class="dashicons dashicons-credit-card"></span>
-                                        Pay with eLipa
+                                        Pay with eLipa / Card
                                     </a>
                                     <?php
                                 }
@@ -312,86 +310,13 @@ $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id,
                                 // Fallback if WooCommerce is not active
                                 ?>
                                 <div class="jgk-payment-notice">
-                                    <p><strong>Payment system is being configured.</strong></p>
+                                    <p><strong>⚠️ Payment system is being configured.</strong></p>
                                     <p>Please contact the administrator to complete your payment.</p>
                                     <p><em>Phone: +254 XXX XXX XXX</em></p>
                                 </div>
                                 <?php
                             }
                             ?>
-
-                        </div>
-                                $user_id = get_current_user_id();
-                                global $wpdb;
-
-                                // Check membership payment verification
-                                $member_payments = $wpdb->get_results($wpdb->prepare("
-                                    SELECT p.*, m.first_name, m.last_name, m.status as member_status
-                                    FROM {$wpdb->prefix}jgk_payments p
-                                    LEFT JOIN {$wpdb->prefix}jgk_members m ON p.member_id = m.id
-                                    WHERE p.member_id = %d
-                                    ORDER BY p.created_at DESC
-                                    LIMIT 3
-                                ", $user_id));
-
-                                echo '<strong>Manual Payments:</strong><br>';
-                                if (!empty($member_payments)) {
-                                    foreach ($member_payments as $payment) {
-                                        echo "• Payment #{$payment->id}: KSh {$payment->amount} ({$payment->payment_method}) - {$payment->status}<br>";
-                                    }
-                                } else {
-                                    echo '• No manual payments found<br>';
-                                }
-
-                                echo '<br><strong>WooCommerce Orders:</strong><br>';
-                                if ($membership_product_id) {
-                                    $wc_orders = $wpdb->get_results($wpdb->prepare("
-                                        SELECT o.ID, o.post_date, o.post_status, pm.meta_value as total
-                                        FROM {$wpdb->posts} o
-                                        INNER JOIN {$wpdb->postmeta} pm ON o.ID = pm.post_id AND pm.meta_key = '_order_total'
-                                        INNER JOIN {$wpdb->prefix}woocommerce_order_items oi ON o.ID = oi.order_id
-                                        INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta oim ON oi.order_item_id = oim.order_item_id
-                                        WHERE o.post_type = 'shop_order'
-                                        AND o.post_author = %d
-                                        AND oim.meta_key = '_product_id'
-                                        AND oim.meta_value = %d
-                                        ORDER BY o.post_date DESC
-                                        LIMIT 3
-                                    ", $user_id, $membership_product_id));
-
-                                    if (!empty($wc_orders)) {
-                                        foreach ($wc_orders as $order) {
-                                            $order_obj = wc_get_order($order->ID);
-                                            $payment_method = $order_obj->get_payment_method_title();
-                                            echo "• Order #{$order->ID}: KSh {$order->total} ({$payment_method}) - {$order->post_status}<br>";
-                                        }
-                                    } else {
-                                        echo '• No WooCommerce orders found for membership product<br>';
-                                    }
-                                } else {
-                                    echo '• Membership product not configured<br>';
-                                }
-
-                                // Check for payment processing errors
-                                echo '<br><strong>Payment Processing Status:</strong><br>';
-                                $error_logs = get_transient('jgk_payment_errors_' . $user_id);
-                                if ($error_logs) {
-                                    echo '• Recent errors: ' . implode(', ', $error_logs) . '<br>';
-                                } else {
-                                    echo '• No recent payment errors<br>';
-                                }
-
-                                // Check iPay/eLipa processing status
-                                $ipay_status = get_transient('jgk_ipay_status_' . $user_id);
-                                if ($ipay_status) {
-                                    echo '• iPay/eLipa Status: ' . $ipay_status . '<br>';
-                                } else {
-                                    echo '• No active iPay/eLipa processing<br>';
-                                }
-
-                                echo '<br><strong>System Configuration:</strong><br>';
-                            <?php endif; ?>
-
                         </div>
                         <div class="jgk-payment-note">
                             <small>

@@ -260,6 +260,18 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Birth certificate handling
+    const birthCertInput = document.getElementById('birth_certificate');
+    const birthCertLabel = document.getElementById('birth_certificate_label');
+
+    if (birthCertInput && birthCertLabel) {
+        birthCertInput.addEventListener('change', function() {
+            const fileName = this.files && this.files.length ? this.files[0].name : 'Choose birth certificate';
+            birthCertLabel.textContent = fileName;
+            debugLog(this.files && this.files.length ? 'Birth certificate selected: ' + fileName : 'Birth certificate selection cleared', 'info');
+        });
+    }
+
     // Real-time age validation
     const dobField = document.getElementById('date_of_birth');
     if (dobField) {
