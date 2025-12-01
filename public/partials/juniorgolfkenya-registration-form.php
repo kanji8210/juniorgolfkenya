@@ -339,7 +339,37 @@ if (isset($_POST['jgk_register_member'])) {
 ?>
 
 <div class="jgk-registration-form">
-    <?php if ($registration_success): ?>
+    <?php 
+    // Check if user is already logged in
+    if (is_user_logged_in() && !$registration_success): 
+        $current_user = wp_get_current_user();
+        $dashboard_page_id = get_option('jgk_page_member_dashboard');
+        $dashboard_url = $dashboard_page_id ? get_permalink($dashboard_page_id) : home_url('/member-dashboard');
+    ?>
+        <!-- Already Logged In Message -->
+        <div class="jgk-registration-success">
+            <div class="jgk-success-icon" style="background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);">
+                <span class="dashicons dashicons-admin-users"></span>
+            </div>
+            <h2>You're Already Logged In!</h2>
+            <p>Welcome back, <strong><?php echo esc_html($current_user->display_name); ?></strong>!</p>
+            <div class="jgk-success-details">
+                <p>You are currently logged in to your account. If you're already a member, you can access your dashboard directly.</p>
+                <p><strong>Looking to register another junior member?</strong> Please log out first, or contact us to add multiple children to your parent account.</p>
+            </div>
+            <div class="jgk-success-actions">
+                <a href="<?php echo esc_url($dashboard_url); ?>" class="jgk-btn jgk-btn-primary jgk-btn-large">
+                    <span class="dashicons dashicons-dashboard"></span>
+                    Go to My Dashboard
+                </a>
+                <a href="<?php echo wp_logout_url(get_permalink()); ?>" class="jgk-btn jgk-btn-secondary">
+                    <span class="dashicons dashicons-exit"></span>
+                    Logout
+                </a>
+                <a href="<?php echo home_url(); ?>" class="jgk-btn jgk-btn-secondary">Return to Home</a>
+            </div>
+        </div>
+    <?php elseif ($registration_success): ?>
         <!-- Success Message -->
         <div class="jgk-registration-success">
             <div class="jgk-success-icon">

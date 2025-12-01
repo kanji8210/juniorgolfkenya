@@ -79,6 +79,7 @@ class JuniorGolfKenya_Public {
     public function init_shortcodes() {
         add_shortcode('jgk_member_portal', array($this, 'member_portal_shortcode'));
         add_shortcode('jgk_registration_form', array($this, 'registration_form_shortcode'));
+        add_shortcode('jgk_login_form', array($this, 'login_form_shortcode'));
         add_shortcode('jgk_verification_widget', array($this, 'verification_widget_shortcode'));
         add_shortcode('jgk_coach_dashboard', array($this, 'coach_dashboard_shortcode'));
         add_shortcode('jgk_member_dashboard', array($this, 'member_dashboard_shortcode'));
@@ -148,6 +149,33 @@ class JuniorGolfKenya_Public {
 
         ob_start();
         include JUNIORGOLFKENYA_PLUGIN_PATH . 'public/partials/juniorgolfkenya-registration-form.php';
+        return ob_get_clean();
+    }
+
+    /**
+     * Login form shortcode.
+     *
+     * @since    1.0.0
+     */
+    public function login_form_shortcode($atts) {
+        // Enqueue assets for the login form
+        wp_enqueue_style(
+            'jgk-login-form',
+            JUNIORGOLFKENYA_PLUGIN_URL . 'public/partials/css/juniorgolfkenya-login-form.css',
+            array(),
+            '1.0.0'
+        );
+
+        wp_enqueue_script(
+            'jgk-login-form',
+            JUNIORGOLFKENYA_PLUGIN_URL . 'public/partials/js/juniorgolfkenya-login-form.js',
+            array('jquery'),
+            '1.0.0',
+            true
+        );
+
+        ob_start();
+        include JUNIORGOLFKENYA_PLUGIN_PATH . 'public/partials/juniorgolfkenya-login-form.php';
         return ob_get_clean();
     }
 
