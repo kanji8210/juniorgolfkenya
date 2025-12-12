@@ -1074,6 +1074,13 @@ A: Administrators can manually adjust membership status and process refunds thro
 - Enhanced parent dashboard for multi-child management
 - Parent email now required and used as primary family identifier
 
+**Version 1.2.1**
+- Removed "pending approval" stage from member dashboard
+- Members see dashboard immediately after registration
+- Direct payment access for approved members
+- Updated parent dashboard to show "Payment Required" instead of "Awaiting Admin Approval"
+- Streamlined user experience: Register → Pay → Access Dashboard
+
 ---
 
 ## Support & Contact
@@ -1086,7 +1093,7 @@ For technical support or questions:
 ---
 
 **Last Updated:** December 12, 2025  
-**Plugin Version:** 1.2.0  
+**Plugin Version:** 1.2.1  
 **WordPress Compatibility:** 5.0+  
 **WooCommerce Compatibility:** 4.0+ developed for Junior Golf Kenya. All rights reserved.
 

@@ -624,120 +624,6 @@ class JuniorGolfKenya_Public {
             return '<div class="jgk-notice jgk-notice-error">Member profile not found. Please contact administrator.</div>';
         }
 
-        // If status is pending, show waiting message
-        if ($member->status === 'pending' || $member->status === 'pending_approval') {
-            ob_start();
-            ?>
-            <div class="jgk-pending-approval">
-                <div class="jgk-pending-icon">
-                    <span class="dashicons dashicons-clock"></span>
-                </div>
-                <h2>Membership Pending Approval</h2>
-                <p>Hello <?php echo esc_html($member->first_name . ' ' . $member->last_name); ?>,</p>
-                <div class="jgk-pending-details">
-                    <p>Thank you for registering with Junior Golf Kenya!</p>
-                    <p><strong>Your membership number:</strong> <?php echo esc_html($member->membership_number); ?></p>
-                    <p>Your membership is currently <strong>pending approval</strong> by our administration team. You will receive an email notification once your membership is approved.</p>
-                    <p>Once approved, you will be able to access:</p>
-                    <ul>
-                        <li>✅ Your personal member dashboard</li>
-                        <li>✅ Coach information and contact details</li>
-                        <li>✅ Training schedules and events</li>
-                        <li>✅ Your profile and membership information</li>
-                    </ul>
-                    <p>If you have any questions, please contact us at <a href="mailto:<?php echo esc_attr(get_option('admin_email')); ?>"><?php echo esc_html(get_option('admin_email')); ?></a></p>
-                </div>
-            </div>
-            <style>
-                .jgk-pending-approval {
-                    max-width: 700px;
-                    margin: 60px auto;
-                    padding: 0;
-                    background: white;
-                    border-radius: 15px;
-                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-                    text-align: center;
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
-                }
-                .jgk-pending-icon {
-                    width: 100px;
-                    height: 100px;
-                    margin: -50px auto 30px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-                    border-radius: 50%;
-                    color: white;
-                    font-size: 50px;
-                    box-shadow: 0 8px 25px rgba(79, 172, 254, 0.3);
-                }
-                .jgk-pending-approval h2 {
-                    margin: 0 0 20px 0;
-                    padding: 30px 40px 0;
-                    color: #2c3e50;
-                    font-size: 28px;
-                    font-weight: 700;
-                }
-                .jgk-pending-approval > p {
-                    margin: 0 0 30px 0;
-                    padding: 0 40px;
-                    color: #7f8c8d;
-                    font-size: 16px;
-                }
-                .jgk-pending-details {
-                    padding: 30px 40px 40px;
-                    background: #f8f9fa;
-                    border-radius: 0 0 15px 15px;
-                    text-align: left;
-                }
-                .jgk-pending-details p {
-                    margin: 0 0 15px 0;
-                    color: #2c3e50;
-                    font-size: 15px;
-                    line-height: 1.6;
-                }
-                .jgk-pending-details p:last-of-type {
-                    margin-bottom: 0;
-                }
-                .jgk-pending-details ul {
-                    margin: 20px 0;
-                    padding-left: 0;
-                    list-style: none;
-                }
-                .jgk-pending-details li {
-                    margin-bottom: 10px;
-                    padding-left: 5px;
-                    color: #2c3e50;
-                    font-size: 15px;
-                }
-                .jgk-pending-details a {
-                    color: #4facfe;
-                    text-decoration: none;
-                }
-                .jgk-pending-details a:hover {
-                    text-decoration: underline;
-                }
-                @media (max-width: 768px) {
-                    .jgk-pending-approval {
-                        margin: 40px 15px;
-                    }
-                    .jgk-pending-approval h2 {
-                        padding: 20px 20px 0;
-                        font-size: 22px;
-                    }
-                    .jgk-pending-approval > p {
-                        padding: 0 20px;
-                    }
-                    .jgk-pending-details {
-                        padding: 20px;
-                    }
-                }
-            </style>
-            <?php
-            return ob_get_clean();
-        }
-
         // If status is suspended or expired, show appropriate message
         if ($member->status === 'suspended') {
             return '<div class="jgk-notice jgk-notice-error">Your membership is currently suspended. Please contact administrator for more information.</div>';
@@ -747,7 +633,7 @@ class JuniorGolfKenya_Public {
             return '<div class="jgk-notice jgk-notice-warning">Your membership has expired. Please renew your membership to access the dashboard.</div>';
         }
 
-        // Member is active, show dashboard
+        // Member is approved or active, show dashboard
         // Enqueue assets for the member dashboard
         wp_enqueue_style(
             'jgk-member-dashboard',

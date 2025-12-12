@@ -230,11 +230,12 @@ $parent_info = JuniorGolfKenya_Parent_Dashboard::get_parent_info($parent_email);
                                     Expires: <?php echo date('d M Y', strtotime($child->expiry_date)); ?>
                                 </small>
                                 <?php endif; ?>
-                            <?php elseif ($child->status === 'pending'): ?>
-                                <div class="jgk-payment-status-pending">
-                                    <span class="dashicons dashicons-clock"></span>
-                                    Awaiting Admin Approval
+                            <?php elseif ($child->status === 'approved' || $child->status === 'pending'): ?>
+                                <div class="jgk-payment-status-approved">
+                                    <span class="dashicons dashicons-money-alt"></span>
+                                    Payment Required
                                 </div>
+                                <small class="jgk-payment-note">Complete payment to activate membership</small>
                             <?php endif; ?>
                         </div>
 
@@ -550,7 +551,8 @@ $parent_info = JuniorGolfKenya_Parent_Dashboard::get_parent_info($parent_email);
 }
 
 .jgk-payment-status-active,
-.jgk-payment-status-pending {
+.jgk-payment-status-pending,
+.jgk-payment-status-approved {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -569,6 +571,20 @@ $parent_info = JuniorGolfKenya_Parent_Dashboard::get_parent_info($parent_email);
 .jgk-payment-status-pending {
     background: #f3f4f6;
     color: #374151;
+}
+
+.jgk-payment-status-approved {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.jgk-payment-note {
+    display: block;
+    text-align: center;
+    margin-top: 8px;
+    color: #92400e;
+    font-size: 12px;
+    font-weight: 500;
 }
 
 .jgk-expiry-date {

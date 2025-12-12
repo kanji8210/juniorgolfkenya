@@ -2,6 +2,52 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.1] - 2025-12-12
+
+### Changed - Removed Admin Approval Stage from Member Dashboard
+**Update:** Streamlined member and parent dashboards to remove "pending approval" messaging and provide direct access to payment.
+
+#### What Changed:
+
+1. **Member Dashboard**
+   - Removed "Membership Pending Approval" blocking screen
+   - Members with "approved" status now see dashboard immediately
+   - Payment banner displays directly for approved members
+   - No waiting for admin approval message
+
+2. **Parent Dashboard**
+   - Changed "Awaiting Admin Approval" to "Payment Required"
+   - Added clear call-to-action for payment
+   - Updated status styling for better visibility
+   - Shows payment button immediately for approved children
+
+3. **User Experience**
+   - Registration → Auto-Approval → Redirect to Payment → Access Dashboard
+   - No intermediate "waiting for approval" stage
+   - Members can immediately see their dashboard after registration
+   - Clear payment status for all children in family view
+
+#### Technical Changes:
+
+**File: `public/class-juniorgolfkenya-public.php`**
+- Lines 628-738: Removed entire "pending approval" display block
+- Member dashboard now shows directly for approved members
+
+**File: `public/partials/juniorgolfkenya-parent-dashboard.php`**
+- Line 233: Changed status display from "Awaiting Admin Approval" to "Payment Required"
+- Lines 554-570: Added CSS styling for "approved" status
+- Unified handling of "approved" and "pending" statuses to show payment option
+
+#### Benefits:
+
+✅ **Immediate Access**: Members see their dashboard right after registration
+✅ **Clear Payment Status**: Obvious call-to-action for payment
+✅ **No Confusion**: No "waiting for approval" messages
+✅ **Streamlined Flow**: Register → Pay → Activate
+✅ **Better UX**: Parents see clear payment requirements for all children
+
+---
+
 ## [1.2.0] - 2025-12-12
 
 ### Changed - Multiple Children Support Without Individual Emails
