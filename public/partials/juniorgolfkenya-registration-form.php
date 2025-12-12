@@ -222,7 +222,7 @@ if (isset($_POST['jgk_register_member'])) {
                             'phone' => $phone,
                             'address' => $address,
                             'membership_type' => $membership_type,
-                            'status' => 'pending', // Await manual approval before activation
+                            'status' => 'approved', // Auto-approved - direct to payment
                             'date_joined' => current_time('mysql'),
                             'expiry_date' => date('Y-m-d', strtotime('+1 year')),
                             'club_affiliation' => $club_affiliation,
@@ -287,10 +287,11 @@ if (isset($_POST['jgk_register_member'])) {
                         $message .= "- Membership Number: {$membership_number}\n";
                         $message .= "- Username: {$username}\n";
                         $message .= "- Email: {$email}\n\n";
-                        $message .= "You can now log in and access your member dashboard:\n";
+                        $message .= "Next Step: Complete Your Payment\n";
+                        $message .= "To activate your membership, please complete the payment process. You will be redirected to our secure payment page.\n\n";
+                        $message .= "After completing payment, you can log in and access your member dashboard:\n";
                         $message .= "Login URL: " . wp_login_url() . "\n\n";
                         $message .= "Dashboard URL: " . $dashboard_url . "\n\n";
-                        $message .= "Your application is currently pending review. We'll notify you once it's approved and active.\n\n";
                         $message .= "If you have any questions, please don't hesitate to contact us.\n\n";
                         $message .= "Best regards,\n";
                         $message .= "Junior Golf Kenya Team";
@@ -305,26 +306,39 @@ if (isset($_POST['jgk_register_member'])) {
                         $admin_message .= "Email: {$email}\n";
                         $admin_message .= "Membership Number: {$membership_number}\n";
                         $admin_message .= "Membership Type: " . ucfirst($membership_type) . "\n";
-                        $admin_message .= "Status: Pending approval\n\n";
+                        $admin_message .= "Status: Approved - Pending payment\n\n";
+                        $admin_message .= "The member has been redirected to complete payment.\n\n";
                         $admin_message .= "View member details in the admin panel:\n";
                         $admin_message .= admin_url('admin.php?page=juniorgolfkenya-members&action=edit&id=' . $member_id);
 
                         wp_mail($admin_email, $admin_subject, $admin_message);
 
-                        // Set registration success flag and redirect
+                        // Set registration success flag
                         $registration_success = true;
                         
                         // Auto-login the user after successful registration  
                         wp_set_current_user($user_id);
                         wp_set_auth_cookie($user_id);
 
-                        // Determine redirect URL
-                        $portal_page_id = get_option('jgk_page_member_portal');
-                        if ($portal_page_id) {
-                            $redirect_url = get_permalink($portal_page_id);
+                        // Get membership product ID for payment
+                        $membership_product_id = get_option('jgk_membership_product_id', 0);
+                        
+                        if ($membership_product_id && class_exists('WooCommerce')) {
+                            // Clear cart first
+                            WC()->cart->empty_cart();
+                            
+                            // Add membership product to cart
+                            WC()->cart->add_to_cart($membership_product_id, 1);
+                            
+                            // Store member ID in session for payment tracking
+                            WC()->session->set('jgk_member_id', $member_id);
+                            
+                            // Redirect to checkout page
+                            $redirect_url = wc_get_checkout_url();
                         } else {
+                            // Fallback: redirect to member dashboard if WooCommerce not configured
                             $dashboard_page_id = get_option('jgk_page_member_dashboard');
-                            $redirect_url = $dashboard_page_id ? get_permalink($dashboard_page_id) : home_url('/member-portal');
+                            $redirect_url = $dashboard_page_id ? get_permalink($dashboard_page_id) : home_url('/member-dashboard');
                         }
 
                         // Perform redirect
