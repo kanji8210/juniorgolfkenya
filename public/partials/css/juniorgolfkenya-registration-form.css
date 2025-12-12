@@ -74,7 +74,7 @@ html,body{font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'H
     border-radius: 2px;
 }
 
-.jgk-step {
+.jgk-progress-step {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -98,11 +98,11 @@ html,body{font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'H
     position: relative;
 }
 
-.jgk-step.active .jgk-step-number {
-    background: linear-gradient(180deg, var(--jgk-accent), var(--jgk-accent-2));
+.jgk-progress-step.active .jgk-step-number {
+    background: linear-gradient(180deg, #10b981, #059669);
     color: #fff;
     transform: translateY(-4px);
-    box-shadow: 0 8px 20px rgba(14,165,122,0.18);
+    box-shadow: 0 8px 20px rgba(16, 185, 129, 0.25);
 }
 
 .jgk-step-label {
@@ -113,8 +113,8 @@ html,body{font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'H
     margin-top: 8px;
 }
 
-.jgk-step.active .jgk-step-label {
-    color: var(--jgk-accent);
+.jgk-progress-step.active .jgk-step-label {
+    color: #10b981;
 }
 
 /* Form Steps: subtle entrance */
