@@ -120,7 +120,31 @@ document.addEventListener('DOMContentLoaded', function() {
         debugLog(`Found ${requiredFields.length} required fields in step ${stepNumber}`, 'info');
 
         requiredFields.forEach(field => {
-            if (!field.value.trim()) {
+            // Special handling for file inputs
+            if (field.type === 'file') {
+                if (!field.files || field.files.length === 0) {
+                    isValid = false;
+                    validationErrors.push(`File '${field.name}' is required`);
+                    field.style.borderColor = '#ef4444';
+                    
+                    // Add error message
+                    if (!field.parentNode.querySelector('.field-error')) {
+                        const errorMsg = document.createElement('small');
+                        errorMsg.className = 'field-error';
+                        errorMsg.style.color = '#ef4444';
+                        errorMsg.textContent = 'Please select a file';
+                        field.parentNode.appendChild(errorMsg);
+                        debugLog(`Added error message for file field: ${field.name}`, 'error');
+                    }
+                } else {
+                    field.style.borderColor = '#d1d5db';
+                    const errorMsg = field.parentNode.querySelector('.field-error');
+                    if (errorMsg) {
+                        errorMsg.remove();
+                        debugLog(`Removed error message for file field: ${field.name}`, 'info');
+                    }
+                }
+            } else if (!field.value.trim()) {
                 isValid = false;
                 validationErrors.push(`Field '${field.name}' is required`);
                 field.style.borderColor = '#ef4444';
