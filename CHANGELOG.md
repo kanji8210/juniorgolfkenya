@@ -2,6 +2,76 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2025-12-12
+
+### Changed - Multiple Children Support Without Individual Emails
+**Major Update:** Enhanced registration system to allow families to register multiple children using the parent's email address.
+
+#### What Changed:
+
+1. **Optional Child Email**
+   - Child email is now optional during registration
+   - If no email provided, system generates unique email based on parent email
+   - Uses email aliasing format: `parent+child.name.123@domain.com`
+
+2. **Required Parent Email**
+   - Parent email is now mandatory (previously optional)
+   - Parent email serves as primary family identifier
+   - All children linked to parent via email in `jgk_parents_guardians` table
+
+3. **Automatic Email Generation**
+   - System automatically creates unique email for children without email
+   - Format: parent email + child's name + random suffix
+   - Ensures no duplicate emails in WordPress user system
+
+4. **Enhanced Validation**
+   - Removed "email already exists" error that blocked families
+   - If generated email exists, adds additional random suffix
+   - Parent phone now required for emergency contact
+
+#### Technical Changes:
+
+**File: `public/partials/juniorgolfkenya-registration-form.php`**
+
+- Lines 54-62: Made child email optional, added `$use_parent_email` flag
+- Lines 95-109: Required parent email validation, automatic email generation logic
+- Line 111-114: Removed blocking check for existing emails, added smart suffix generation
+- Line 514: Updated form label to indicate child email is optional
+- Lines 620-632: Made parent email and phone required fields with clear messaging
+
+#### Benefits:
+
+✅ **Family-Friendly**: Parents can register multiple children without needing individual emails
+✅ **Simplified Process**: One parent email manages all children
+✅ **No Email Barriers**: Children without email addresses can still register
+✅ **Parent Dashboard**: Single login to manage all family members
+✅ **Unique Accounts**: Each child gets their own unique WordPress account
+
+#### Use Cases:
+
+**Scenario 1: Family with 3 children, no individual emails**
+- Parent registers Child 1: No email → System generates `parent+child1.john.456@email.com`
+- Parent registers Child 2: No email → System generates `parent+child2.jane.789@email.com`
+- Parent registers Child 3: No email → System generates `parent+child3.mike.123@email.com`
+- Parent logs in with `parent@email.com` → Sees all 3 children in dashboard
+
+**Scenario 2: Mixed family (some children have email, some don't)**
+- Child 1 (teenager): Has email `teen@email.com` → Uses own email
+- Child 2 (younger): No email → System generates from parent email
+- Parent logs in → Manages both children from parent dashboard
+
+#### Migration Notes:
+
+- Existing members with email addresses are not affected
+- Parent email is now required for all new registrations
+- System handles email conflicts automatically
+
+#### Configuration:
+
+No configuration required - changes are automatic.
+
+---
+
 ## [1.1.0] - 2025-12-12
 
 ### Changed - Streamlined Registration Process

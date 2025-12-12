@@ -39,10 +39,15 @@
 ### 2. Multi-Step Registration
 The registration form includes 5 comprehensive steps:
 1. **Basic Information**: Name, date of birth, gender, nationality
-2. **Contact Details**: Email, phone, address
-3. **Guardian Information**: Parent/guardian details
+2. **Contact Details**: Child's email (optional - can use parent's email), phone, address
+3. **Guardian Information**: Parent/guardian details (email required)
 4. **Membership Selection**: Choose membership type
 5. **Document Upload**: Profile photo and birth certificate (required)
+
+**Important Notes:**
+- **Child Email is Optional**: If a child doesn't have an email, the system will automatically generate a unique email based on the parent's email
+- **Multiple Children Per Family**: Parents can register multiple children using the same parent email
+- **Parent Email Required**: The parent's email is mandatory and used for dashboard access to manage all children
 
 ### 3. Member Management
 - Create and edit member profiles
@@ -256,20 +261,24 @@ All payments are logged in the `jgk_payments` table with:
    - Click "Next"
 
 3. **Complete Step 2: Contact Details**
-   - Enter email address
-   - Enter phone number
+   - Enter child's email address (OPTIONAL - leave empty to use parent's email)
+   - Enter phone number (optional)
    - Enter physical address
    - Enter city
    - Enter postal code
    - Click "Next"
+   
+   **Note:** If you have multiple children without individual email addresses, you can leave the child email blank. The system will automatically create a unique account using the parent's email.
 
 4. **Complete Step 3: Guardian Information**
    - Enter parent/guardian first name
    - Enter parent/guardian last name
-   - Enter parent email (important for parent dashboard access)
-   - Enter parent phone number
+   - Enter parent email (REQUIRED - used for parent dashboard access)
+   - Enter parent phone number (REQUIRED)
    - Select relationship (Mother/Father/Guardian)
    - Click "Next"
+   
+   **Important:** The parent email is used to access the parent dashboard where you can manage all your children's memberships.
 
 5. **Complete Step 4: Membership Selection**
    - View available membership types
@@ -992,6 +1001,15 @@ Minimum requirements:
 
 ## Frequently Asked Questions (FAQ)
 
+**Q: Can I register multiple children with the same email address?**
+A: Yes! You can register multiple children using your parent email. The child's email is optional - if you leave it blank, the system will automatically create a unique account based on your parent email. This allows you to manage all your children from one parent dashboard.
+
+**Q: My children don't have email addresses. Can they still register?**
+A: Absolutely! The child email is optional. Simply leave the child email field blank during registration, and provide your parent email. The system will generate unique accounts for each child automatically.
+
+**Q: How do I access my children's accounts if they don't have email?**
+A: You access all your children's information through the Parent Dashboard using your parent email. You don't need to log in to individual child accounts - everything is managed from your single parent account.
+
 **Q: Can a parent manage children with different membership types?**
 A: Yes, each child can have a different membership type, and parents can manage all types from one dashboard.
 
@@ -1049,6 +1067,13 @@ A: Administrators can manually adjust membership status and process refunds thro
 - Removed admin approval requirement for new members
 - Improved payment flow for better user experience
 
+**Version 1.2.0**
+- Child email now optional during registration
+- Multiple children can be registered using parent's email
+- Automatic unique email generation for children without email
+- Enhanced parent dashboard for multi-child management
+- Parent email now required and used as primary family identifier
+
 ---
 
 ## Support & Contact
@@ -1058,12 +1083,12 @@ For technical support or questions:
 - **Admin Dashboard**: Junior Golf Kenya → Support
 - **Issue Reporting**: Contact system administrator
 - **Feature Requests**: Submit through admin panel
-
 ---
 
-## License
-
-This plugin is proprietary software developed for Junior Golf Kenya. All rights reserved.
+**Last Updated:** December 12, 2025  
+**Plugin Version:** 1.2.0  
+**WordPress Compatibility:** 5.0+  
+**WooCommerce Compatibility:** 4.0+ developed for Junior Golf Kenya. All rights reserved.
 
 ---
 

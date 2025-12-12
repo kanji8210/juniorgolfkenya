@@ -56,9 +56,16 @@ if (isset($_POST['jgk_register_member'])) {
         if (empty($last_name)) {
             $registration_errors[] = 'Last name is required.';
         }
-        if (empty($email) || !is_email($email)) {
-            $registration_errors[] = 'Valid email address is required.';
+        
+        // Email is optional for children - can use parent's email
+        $use_parent_email = false;
+        if (empty($email)) {
+            // If no child email provided, we'll use parent's email with unique suffix
+            $use_parent_email = true;
+        } elseif (!is_email($email)) {
+            $registration_errors[] = 'Please provide a valid email address or leave empty to use parent email.';
         }
+        
         if (empty($password)) {
             $registration_errors[] = 'Password is required.';
         }
@@ -90,18 +97,33 @@ if (isset($_POST['jgk_register_member'])) {
             }
         }
         
-        // Check if email already exists
-        if (email_exists($email)) {
-            $registration_errors[] = 'This email address is already registered.';
-        }
-        
         // Parent/guardian information REQUIRED for all juniors
         if (empty($parent_first_name) || empty($parent_last_name)) {
             $registration_errors[] = 'Parent/guardian information is required (first name and last name).';
         }
         
-        if (empty($parent_email) && empty($parent_phone)) {
-            $registration_errors[] = 'At least one parent contact method is required (email or phone).';
+        // Validate parent email
+        if (empty($parent_email) || !is_email($parent_email)) {
+            $registration_errors[] = 'Valid parent/guardian email is required.';
+        }
+        
+        // If child has no email, generate unique email based on parent email
+        if ($use_parent_email && !empty($parent_email)) {
+            // Generate unique email: parent+child.firstname.lastname@domain.com
+            $parent_email_parts = explode('@', $parent_email);
+            $child_suffix = strtolower($first_name . '.' . $last_name . '.' . rand(100, 999));
+            $email = $parent_email_parts[0] . '+' . $child_suffix . '@' . $parent_email_parts[1];
+        }
+        
+        // Check if email already exists in WordPress users
+        if (email_exists($email)) {
+            // If email exists, add random suffix to make it unique
+            $email_parts = explode('@', $email);
+            $email = $email_parts[0] . '.' . rand(1000, 9999) . '@' . $email_parts[1];
+        }
+        
+        if (empty($parent_phone)) {
+            $registration_errors[] = 'Parent/guardian phone number is required.';
         }
         
         if (empty($parent_relationship)) {
@@ -483,9 +505,9 @@ if (isset($_POST['jgk_register_member'])) {
                         <input type="text" id="last_name" name="last_name" value="<?php echo esc_attr($_POST['last_name'] ?? ''); ?>" required>
                     </div>
                     <div class="jgk-form-group">
-                        <label for="email">Email Address *</label>
-                        <input type="email" id="email" name="email" value="<?php echo esc_attr($_POST['email'] ?? ''); ?>" required>
-                        <small>This will be used for login</small>
+                        <label for="email">Child's Email (optional)</label>
+                        <input type="email" id="email" name="email" value="<?php echo esc_attr($_POST['email'] ?? ''); ?>">
+                        <small>Leave empty to use parent's email. This will be used for login if provided.</small>
                     </div>
                     <div class="jgk-form-group">
                         <label for="phone">Phone Number</label>
@@ -596,7 +618,7 @@ if (isset($_POST['jgk_register_member'])) {
                     <span class="dashicons dashicons-info"></span>
                     <div>
                         <strong>Required Information</strong>
-                        <p>Parent or legal guardian information is mandatory for all junior members.</p>
+                        <p>Parent or legal guardian information is mandatory for all junior members. The parent email will be used to access the parent dashboard and manage all children.</p>
                     </div>
                 </div>
 
@@ -611,13 +633,13 @@ if (isset($_POST['jgk_register_member'])) {
                     </div>
                     <div class="jgk-form-group">
                         <label for="parent_email">Email *</label>
-                        <input type="email" id="parent_email" name="parent_email" value="<?php echo esc_attr($_POST['parent_email'] ?? ''); ?>">
-                        <small>At least email OR phone required</small>
+                        <input type="email" id="parent_email" name="parent_email" value="<?php echo esc_attr($_POST['parent_email'] ?? ''); ?>" required>
+                        <small>Required - Used for parent dashboard access and managing all children</small>
                     </div>
                     <div class="jgk-form-group">
                         <label for="parent_phone">Phone *</label>
-                        <input type="tel" id="parent_phone" name="parent_phone" value="<?php echo esc_attr($_POST['parent_phone'] ?? ''); ?>" placeholder="+254...">
-                        <small>At least email OR phone required</small>
+                        <input type="tel" id="parent_phone" name="parent_phone" value="<?php echo esc_attr($_POST['parent_phone'] ?? ''); ?>" placeholder="+254..." required>
+                        <small>Required for emergency contact</small>
                     </div>
                     <div class="jgk-form-group full-width jgk-select-group">
                         <label for="parent_relationship">Relationship to Child *</label>
