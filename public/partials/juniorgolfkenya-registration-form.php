@@ -159,7 +159,10 @@ if (isset($_POST['jgk_register_member'])) {
 
                 $profile_image_id = 0;
 
-                if (!empty($_FILES['profile_image']['name'])) {
+                // Profile image is required
+                if (empty($_FILES['profile_image']['name'])) {
+                    $registration_errors[] = 'Profile photo is required.';
+                } elseif (!empty($_FILES['profile_image']['name'])) {
                     if ($_FILES['profile_image']['error'] !== UPLOAD_ERR_OK) {
                         $registration_errors[] = 'Profile image upload failed. Please try again.';
                     } else {
@@ -543,13 +546,13 @@ if (isset($_POST['jgk_register_member'])) {
                 </div>
 
                 <div class="jgk-form-group">
-                    <label for="profile_image">Profile Photo (optional)</label>
+                    <label for="profile_image">Profile Photo *</label>
                     <div class="jgk-file-upload">
                         <span class="dashicons dashicons-upload"></span>
                         <span id="profile_image_label">Choose an image</span>
-                        <input type="file" id="profile_image" name="profile_image" accept="image/*">
+                        <input type="file" id="profile_image" name="profile_image" accept="image/*" required>
                     </div>
-                    <small>Supported formats: JPG, PNG, GIF, or WebP. Maximum size 5MB.</small>
+                    <small>Required. Supported formats: JPG, PNG, GIF, or WebP. Maximum size 5MB.</small>
                 </div>
 
                 <div class="jgk-form-group">
