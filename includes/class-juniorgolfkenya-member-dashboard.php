@@ -45,7 +45,7 @@ class JuniorGolfKenya_Member_Dashboard {
         $member = $wpdb->get_row($wpdb->prepare("
             SELECT 
                 m.*,
-                u.user_email,
+                COALESCE(m.email, u.user_email) as user_email,
                 u.display_name,
                 u.user_registered
             FROM {$members_table} m
@@ -336,18 +336,29 @@ class JuniorGolfKenya_Member_Dashboard {
         
         $members_table = $wpdb->prefix . 'jgk_members';
         
-        $user_id = $wpdb->get_var($wpdb->prepare("
-            SELECT user_id FROM {$members_table} WHERE id = %d
+        $member_row = $wpdb->get_row($wpdb->prepare("
+            SELECT user_id, profile_image_id FROM {$members_table} WHERE id = %d
         ", $member_id));
-        
-        if ($user_id) {
-            $avatar_id = get_user_meta($user_id, 'jgk_profile_image', true);
-            if ($avatar_id) {
-                $image = wp_get_attachment_image_src($avatar_id, $size);
-                return $image ? $image[0] : '';
-            }
+
+        if (!$member_row) {
+            return '';
         }
-        
+
+        $avatar_id = '';
+
+        if (!empty($member_row->user_id)) {
+            $avatar_id = get_user_meta($member_row->user_id, 'jgk_profile_image', true);
+        }
+
+        if (!$avatar_id && !empty($member_row->profile_image_id)) {
+            $avatar_id = $member_row->profile_image_id;
+        }
+
+        if ($avatar_id) {
+            $image = wp_get_attachment_image_src($avatar_id, $size);
+            return $image ? $image[0] : '';
+        }
+
         return '';
     }
 }

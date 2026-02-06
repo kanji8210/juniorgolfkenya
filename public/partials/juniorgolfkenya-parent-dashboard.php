@@ -33,6 +33,9 @@ if (!JuniorGolfKenya_Parent_Dashboard::is_parent($parent_email)) {
 $children = JuniorGolfKenya_Parent_Dashboard::get_parent_children($parent_email);
 $payment_summary = JuniorGolfKenya_Parent_Dashboard::get_payment_summary($parent_email);
 $parent_info = JuniorGolfKenya_Parent_Dashboard::get_parent_info($parent_email);
+$membership_fee = JuniorGolfKenya_Settings_Helper::get_default_membership_fee();
+$membership_currency = JuniorGolfKenya_Settings_Helper::get_general_currency();
+$membership_fee_display = $membership_currency . ' ' . number_format($membership_fee, 0);
 ?>
 
 <link rel="stylesheet" href="<?php echo JUNIORGOLFKENYA_PLUGIN_URL; ?>public/partials/css/juniorgolfkenya-member-dashboard.css">
@@ -79,7 +82,7 @@ $parent_info = JuniorGolfKenya_Parent_Dashboard::get_parent_info($parent_email);
                    <?php echo $payment_summary['pending_payments'] === 1 ? 'membership needs' : 'memberships need'; ?> 
                    payment to be activated.</p>
                 <div class="jgk-payment-banner-amount">
-                    <span class="jgk-amount-highlight">KES <?php echo number_format($payment_summary['pending_payments'] * 5000); ?></span>
+                    <span class="jgk-amount-highlight"><?php echo esc_html($membership_currency . ' ' . number_format($payment_summary['pending_payments'] * $membership_fee, 0)); ?></span>
                     <span class="jgk-period-highlight">Total Due</span>
                 </div>
             </div>
@@ -178,8 +181,12 @@ $parent_info = JuniorGolfKenya_Parent_Dashboard::get_parent_info($parent_email);
                                 </span>
                                 <span class="jgk-detail-value">
                                     <?php 
-                                    $age = date_diff(date_create($child->date_of_birth), date_create('today'))->y;
-                                    echo $age . ' years';
+                                    if (!empty($child->date_of_birth)) {
+                                        $age = date_diff(date_create($child->date_of_birth), date_create('today'))->y;
+                                        echo $age . ' years';
+                                    } else {
+                                        echo 'N/A';
+                                    }
                                     ?>
                                 </span>
                             </div>
@@ -198,7 +205,7 @@ $parent_info = JuniorGolfKenya_Parent_Dashboard::get_parent_info($parent_email);
                                     Joined:
                                 </span>
                                 <span class="jgk-detail-value">
-                                    <?php echo date('M Y', strtotime($child->joined_date)); ?>
+                                    <?php echo $child->joined_date ? date('M Y', strtotime($child->joined_date)) : 'N/A'; ?>
                                 </span>
                             </div>
                             <?php if ($child_stats['coach']): ?>
@@ -218,7 +225,7 @@ $parent_info = JuniorGolfKenya_Parent_Dashboard::get_parent_info($parent_email);
                             <?php if ($child->status === 'approved'): ?>
                                 <a href="#pay-<?php echo $child->id; ?>" class="jgk-button jgk-button-pay" data-member-id="<?php echo $child->id; ?>">
                                     <span class="dashicons dashicons-money-alt"></span>
-                                    Pay Now (KES 5,000)
+                                    Pay Now (<?php echo esc_html($membership_fee_display); ?>)
                                 </a>
                             <?php elseif ($child->status === 'active'): ?>
                                 <div class="jgk-payment-status-active">
@@ -272,7 +279,7 @@ $parent_info = JuniorGolfKenya_Parent_Dashboard::get_parent_info($parent_email);
                                 <span class="jgk-membership-number"><?php echo esc_html($child->membership_number); ?></span>
                             </div>
                             <div class="jgk-pending-amount">
-                                <span class="jgk-amount">KES 5,000</span>
+                                <span class="jgk-amount"><?php echo esc_html($membership_fee_display); ?></span>
                                 <span class="jgk-period">/ Year</span>
                             </div>
                         </div>
@@ -280,7 +287,7 @@ $parent_info = JuniorGolfKenya_Parent_Dashboard::get_parent_info($parent_email);
 
                         <div class="jgk-payment-total">
                             <strong>Total Amount Due:</strong>
-                            <span class="jgk-total-amount">KES <?php echo number_format($payment_summary['pending_payments'] * 5000); ?></span>
+                            <span class="jgk-total-amount"><?php echo esc_html($membership_currency . ' ' . number_format($payment_summary['pending_payments'] * $membership_fee, 0)); ?></span>
                         </div>
                     </div>
 
@@ -290,6 +297,7 @@ $parent_info = JuniorGolfKenya_Parent_Dashboard::get_parent_info($parent_email);
                             <?php if (class_exists('WooCommerce')): 
                                 $membership_product_id = get_option('jgk_membership_product_id');
                                 if ($membership_product_id):
+                                    JuniorGolfKenya_WooCommerce::ensure_membership_product_price($membership_product_id);
                                     $add_to_cart_url = wc_get_cart_url() . '?add-to-cart=' . $membership_product_id;
                             ?>
                                 <a href="<?php echo esc_url($add_to_cart_url); ?>" class="jgk-payment-btn jgk-payment-mpesa">

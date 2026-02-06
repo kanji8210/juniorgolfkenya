@@ -79,8 +79,9 @@ class JuniorGolfKenya_Settings_Helper {
      * @return array Pricing settings with defaults
      */
     public static function get_pricing_settings() {
+        $default_fee = self::get_default_membership_fee();
         $defaults = array(
-            'subscription_price' => 5000,
+            'subscription_price' => $default_fee,
             'currency' => 'KSH',
             'currency_symbol' => 'KSh',
             'payment_frequency' => 'yearly'
@@ -137,6 +138,30 @@ class JuniorGolfKenya_Settings_Helper {
         $symbol = self::get_currency_symbol();
         return $symbol . ' ' . number_format($price, 2);
     }
+
+    /**
+     * Get default membership fee from general settings
+     *
+     * @since  1.0.0
+     * @return float Default membership fee
+     */
+    public static function get_default_membership_fee() {
+        $settings = self::get_general_settings();
+        $fee = isset($settings['default_membership_fee']) ? (float)$settings['default_membership_fee'] : 0;
+
+        return $fee > 0 ? $fee : 1050;
+    }
+
+    /**
+     * Get currency code from general settings
+     *
+     * @since  1.0.0
+     * @return string Currency code
+     */
+    public static function get_general_currency() {
+        $settings = self::get_general_settings();
+        return !empty($settings['currency']) ? $settings['currency'] : 'KSH';
+    }
     
     /**
      * Get general settings
@@ -150,6 +175,8 @@ class JuniorGolfKenya_Settings_Helper {
             'organization_email' => get_option('admin_email'),
             'organization_phone' => '',
             'organization_address' => '',
+            'default_membership_fee' => 1050,
+            'currency' => 'KSH',
             'timezone' => 'Africa/Nairobi'
         );
         

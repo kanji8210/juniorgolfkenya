@@ -34,15 +34,16 @@ if (isset($_POST['verify_membership']) && !empty($_POST['search_query'])) {
         $member = $wpdb->get_row($wpdb->prepare("
             SELECT 
                 m.*,
-                u.user_email,
+                COALESCE(m.email, u.user_email) as user_email,
                 u.display_name
             FROM {$members_table} m
             LEFT JOIN {$users_table} u ON m.user_id = u.ID
             WHERE m.membership_number = %s
             OR CONCAT(m.first_name, ' ', m.last_name) LIKE %s
+            OR m.email = %s
             OR u.user_email = %s
             LIMIT 1
-        ", $search_query, '%' . $wpdb->esc_like($search_query) . '%', $search_query));
+        ", $search_query, '%' . $wpdb->esc_like($search_query) . '%', $search_query, $search_query));
         
         if ($member) {
             $verification_result = $member;

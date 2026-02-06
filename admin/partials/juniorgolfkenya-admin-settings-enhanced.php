@@ -96,7 +96,7 @@ if (isset($_POST['save_settings']) && check_admin_referer('jgk_settings', 'jgk_s
 // Get current settings
 $junior_settings = get_option('jgk_junior_settings', array('min_age' => 2, 'max_age' => 17));
 $pricing_settings = get_option('jgk_pricing_settings', array(
-    'subscription_price' => 5000,
+    'subscription_price' => 1050,
     'currency' => 'KSH',
     'currency_symbol' => 'KSh',
     'payment_frequency' => 'yearly'
@@ -108,6 +108,28 @@ $general_settings = get_option('jgk_general_settings', array(
     'organization_address' => '',
     'timezone' => 'Africa/Nairobi',
 ));
+
+$membership_fee_warning = '';
+if (class_exists('WooCommerce')) {
+    $payment_settings = get_option('jgk_payment_settings', array());
+    $membership_product_id = intval($payment_settings['membership_product_id'] ?? 0);
+    if ($membership_product_id > 0) {
+        $product = wc_get_product($membership_product_id);
+        if ($product) {
+            $settings_fee = JuniorGolfKenya_Settings_Helper::get_default_membership_fee();
+            $product_price = (float) $product->get_regular_price();
+            if ($settings_fee > 0 && $product_price !== (float) $settings_fee) {
+                $membership_fee_warning = sprintf(
+                    'Membership product price (%s) differs from Default Membership Fee (%s). Checkout will use the settings fee.',
+                    wc_price($product_price),
+                    wc_price($settings_fee)
+                );
+            }
+        } else {
+            $membership_fee_warning = 'Membership product ID does not exist in WooCommerce. Please check the Membership Product ID.';
+        }
+    }
+}
 
 // Check for test data
 $has_test_data = JuniorGolfKenya_Test_Data::has_test_data();
@@ -124,6 +146,12 @@ $test_counts = JuniorGolfKenya_Test_Data::count_test_data();
     <?php if ($message): ?>
     <div class="notice notice-<?php echo esc_attr($message_type); ?> is-dismissible">
         <p><?php echo esc_html($message); ?></p>
+    </div>
+    <?php endif; ?>
+
+    <?php if ($membership_fee_warning): ?>
+    <div class="notice notice-warning">
+        <p><?php echo esc_html($membership_fee_warning); ?></p>
     </div>
     <?php endif; ?>
 
@@ -352,7 +380,7 @@ $test_counts = JuniorGolfKenya_Test_Data::count_test_data();
                             <input type="number" id="subscription_price" name="subscription_price" 
                                    value="<?php echo esc_attr($pricing_settings['subscription_price']); ?>" 
                                    min="0" step="0.01" required style="width: 200px;">
-                            <p class="description">Membership fee amount (numbers only, e.g., 5000).</p>
+                            <p class="description">Membership fee amount (numbers only, e.g., 1050).</p>
                         </td>
                     </tr>
                     <tr>

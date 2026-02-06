@@ -388,6 +388,9 @@
     border-radius: 12px;
     box-shadow: 0 4px 12px rgba(13, 20, 30, 0.04);
     overflow: hidden;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 .jgk-table-container h2 {

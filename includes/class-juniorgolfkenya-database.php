@@ -31,7 +31,7 @@ class JuniorGolfKenya_Database {
         $users_table = $wpdb->users;
         
         $query = "
-            SELECT m.*, u.user_email, u.display_name, u.user_login,
+            SELECT m.*, COALESCE(m.email, u.user_email) as user_email, u.display_name, u.user_login,
                    TIMESTAMPDIFF(YEAR, m.date_of_birth, CURDATE()) as age,
                    CONCAT(u.display_name, ' (', m.membership_number, ')') as member_name,
                    c.display_name as coach_name
@@ -84,7 +84,7 @@ class JuniorGolfKenya_Database {
         if ($coach_members_exists && $coach_members_count > 0) {
             // Use full query with coach JOINs
             $query = "
-                SELECT m.*, u.user_email, u.display_name, u.user_login,
+                SELECT m.*, COALESCE(m.email, u.user_email) as user_email, u.display_name, u.user_login,
                        TIMESTAMPDIFF(YEAR, m.date_of_birth, CURDATE()) as age,
                        CONCAT(m.first_name, ' ', m.last_name) as full_name,
                        c.display_name as primary_coach_name,
@@ -98,7 +98,7 @@ class JuniorGolfKenya_Database {
         } else {
             // Fallback query without coach_members JOIN
             $query = "
-                SELECT m.*, u.user_email, u.display_name, u.user_login,
+                SELECT m.*, COALESCE(m.email, u.user_email) as user_email, u.display_name, u.user_login,
                        TIMESTAMPDIFF(YEAR, m.date_of_birth, CURDATE()) as age,
                        CONCAT(m.first_name, ' ', m.last_name) as full_name,
                        c.display_name as primary_coach_name,
@@ -172,7 +172,7 @@ class JuniorGolfKenya_Database {
         $offset = ($page - 1) * $per_page;
         
         $query = "
-            SELECT m.*, u.user_email, u.display_name, u.user_login,
+            SELECT m.*, COALESCE(m.email, u.user_email) as user_email, u.display_name, u.user_login,
                    TIMESTAMPDIFF(YEAR, m.date_of_birth, CURDATE()) as age,
                    c.display_name as coach_name
             FROM $table m 
@@ -180,7 +180,7 @@ class JuniorGolfKenya_Database {
             LEFT JOIN $coaches_table c ON m.coach_id = c.ID
             WHERE (
                 u.display_name LIKE %s OR 
-                u.user_email LIKE %s OR 
+                COALESCE(m.email, u.user_email) LIKE %s OR 
                 m.membership_number LIKE %s OR
                 m.phone LIKE %s OR
                 CONCAT(m.first_name, ' ', m.last_name) LIKE %s
@@ -213,6 +213,7 @@ class JuniorGolfKenya_Database {
         $defaults = array(
             'membership_number' => self::generate_membership_number(),
             'status' => 'pending',
+            'date_joined' => current_time('mysql'),
             'join_date' => current_time('Y-m-d'),
             'expiry_date' => date('Y-m-d', strtotime('+1 year')),
             'created_at' => current_time('mysql'),

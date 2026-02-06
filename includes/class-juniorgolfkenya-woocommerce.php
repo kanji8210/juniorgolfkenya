@@ -34,6 +34,112 @@ class JuniorGolfKenya_WooCommerce {
 
         // Add custom order meta for JGK member linking
         add_action('woocommerce_checkout_create_order', array(__CLASS__, 'add_order_meta'), 10, 1);
+
+        // Redirect membership payments to member dashboard after checkout
+        add_filter('woocommerce_get_checkout_order_received_url', array(__CLASS__, 'filter_order_received_url'), 10, 2);
+
+        // Ensure membership fee is authoritative at checkout
+        add_action('woocommerce_before_calculate_totals', array(__CLASS__, 'sync_cart_membership_price'), 10, 1);
+    }
+
+    /**
+     * Ensure membership product price matches settings
+     *
+     * @since    1.0.0
+     * @param    int|null $product_id Optional product ID override
+     * @return   int|null
+     */
+    public static function ensure_membership_product_price($product_id = null) {
+        if (!class_exists('WooCommerce')) {
+            return null;
+        }
+
+        $membership_product_id = $product_id ?: get_option('jgk_membership_product_id', 0);
+        if (!$membership_product_id) {
+            return null;
+        }
+
+        $product = wc_get_product($membership_product_id);
+        if (!$product) {
+            return null;
+        }
+
+        $fee = JuniorGolfKenya_Settings_Helper::get_default_membership_fee();
+        $current_price = (float) $product->get_regular_price();
+
+        if ($fee > 0 && $current_price !== (float) $fee) {
+            $product->set_regular_price($fee);
+            $product->set_price($fee);
+            $product->save();
+        }
+
+        return $membership_product_id;
+    }
+
+    /**
+     * Sync membership product price in the cart to match settings
+     *
+     * @since    1.0.0
+     * @param    WC_Cart $cart WooCommerce cart instance
+     */
+    public static function sync_cart_membership_price($cart) {
+        if (!class_exists('WooCommerce') || is_admin() && !defined('DOING_AJAX')) {
+            return;
+        }
+
+        if (!$cart || $cart->is_empty()) {
+            return;
+        }
+
+        $membership_product_id = get_option('jgk_membership_product_id', 0);
+        if (!$membership_product_id) {
+            return;
+        }
+
+        $fee = JuniorGolfKenya_Settings_Helper::get_default_membership_fee();
+        if ($fee <= 0) {
+            return;
+        }
+
+        foreach ($cart->get_cart() as $cart_item) {
+            if (empty($cart_item['data'])) {
+                continue;
+            }
+
+            $product = $cart_item['data'];
+            if ((int) $product->get_id() !== (int) $membership_product_id) {
+                continue;
+            }
+
+            $product->set_price($fee);
+        }
+    }
+
+    /**
+     * Redirect membership orders to the member dashboard after checkout
+     *
+     * @since    1.0.0
+     * @param    string   $url    Default order received URL
+     * @param    mixed    $order  WooCommerce order object or ID
+     * @return   string
+     */
+    public static function filter_order_received_url($url, $order) {
+        $order = is_a($order, 'WC_Order') ? $order : wc_get_order($order);
+        if (!$order) {
+            return $url;
+        }
+
+        if (!self::order_contains_membership_product($order)) {
+            return $url;
+        }
+
+        $status = $order->get_status();
+        if (!in_array($status, array('processing', 'completed'), true)) {
+            return $url;
+        }
+
+        $dashboard_page_id = get_option('jgk_page_member_dashboard');
+        return $dashboard_page_id ? get_permalink($dashboard_page_id) : home_url('/member-dashboard');
     }
 
     /**
@@ -114,8 +220,8 @@ class JuniorGolfKenya_WooCommerce {
         if (self::order_contains_membership_product($order)) {
             error_log("JGK IPAY DEBUG: 📋 Membership order {$order_id} status changed from {$old_status} to {$new_status}");
 
-            // If order is completed, process the membership
-            if ($new_status === 'completed') {
+            // If order is completed or processing, process the membership
+            if (in_array($new_status, array('completed', 'processing'), true)) {
                 error_log("JGK IPAY DEBUG: ✅ Processing completed membership payment for order {$order_id}");
                 self::process_membership_payment($order);
             } elseif ($new_status === 'failed') {
@@ -206,9 +312,10 @@ class JuniorGolfKenya_WooCommerce {
         $customer_id = $order->get_customer_id();
         $payment_method = $order->get_payment_method();
         $transaction_id = $order->get_transaction_id();
+        $order_id = $order->get_id();
 
         error_log("JGK IPAY DEBUG: === MEMBERSHIP PAYMENT PROCESSING STARTED ===");
-        error_log("JGK IPAY DEBUG: Processing order ID: " . $order->get_id() . " for customer ID: " . ($customer_id ?: 'GUEST'));
+        error_log("JGK IPAY DEBUG: Processing order ID: " . $order_id . " for customer ID: " . ($customer_id ?: 'GUEST'));
         error_log("JGK IPAY DEBUG: Membership Product ID: " . ($membership_product_id ?: 'NOT SET'));
         error_log("JGK IPAY DEBUG: Payment Method: {$payment_method} | Transaction ID: " . ($transaction_id ?: 'Not set'));
         error_log("JGK IPAY DEBUG: iPay/eLipa Payment: " . (self::is_ipay_payment($payment_method) ? 'YES' : 'NO'));
@@ -221,7 +328,7 @@ class JuniorGolfKenya_WooCommerce {
         if (!$membership_product_id || !$customer_id) {
             error_log("JGK IPAY DEBUG: ❌ Payment processing failed - Missing product ID or customer ID");
             error_log("JGK IPAY DEBUG: === PAYMENT PROCESSING ABORTED ===");
-            error_log("JGK: Missing membership product ID or customer ID for order {$order->get_id()}");
+            error_log("JGK: Missing membership product ID or customer ID for order {$order_id}");
 
             // Store error for debug display
             $errors = get_transient('jgk_payment_errors_' . $customer_id) ?: array();
@@ -243,23 +350,41 @@ class JuniorGolfKenya_WooCommerce {
             $errors[] = 'No member record found for user';
             set_transient('jgk_payment_errors_' . $customer_id, array_slice($errors, -5), HOUR_IN_SECONDS);
 
-            error_log("JGK: No member found for user ID {$customer_id} in order {$order->get_id()}");
+            error_log("JGK: No member found for user ID {$customer_id} in order {$order_id}");
             return;
         }
 
         error_log("JGK IPAY DEBUG: ✅ Member found - ID: {$member->id}, Name: {$member->first_name} {$member->last_name}, Status: {$member->status}");
 
-        // Check if member is approved (should be before payment)
-        if ($member->status !== 'approved') {
-            error_log("JGK IPAY DEBUG: ❌ Member status is '{$member->status}' - must be 'approved' for payment processing");
-            error_log("JGK IPAY DEBUG: === PAYMENT PROCESSING ABORTED - MEMBER NOT APPROVED ===");
+        // Avoid double-processing the same order
+        global $wpdb;
+        $existing_payment_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM {$wpdb->prefix}jgk_payments WHERE order_id = %d LIMIT 1",
+            $order_id
+        ));
+
+        if ($existing_payment_id) {
+            if ($member->status !== 'active') {
+                $user_manager = new JuniorGolfKenya_User_Manager();
+                $user_manager->update_member_status($member->id, 'active');
+            }
+
+            error_log("JGK IPAY DEBUG: ✅ Order {$order_id} already recorded (Payment ID: {$existing_payment_id})");
+            return;
+        }
+
+        // Allow payment processing for pending/approved statuses
+        $allowed_statuses = array('approved', 'pending', 'pending_approval', 'active');
+        if (!in_array($member->status, $allowed_statuses, true)) {
+            error_log("JGK IPAY DEBUG: ❌ Member status is '{$member->status}' - not eligible for payment processing");
+            error_log("JGK IPAY DEBUG: === PAYMENT PROCESSING ABORTED - MEMBER STATUS NOT ELIGIBLE ===");
 
             // Store error for debug display
             $errors = get_transient('jgk_payment_errors_' . $customer_id) ?: array();
-            $errors[] = "Member status is '{$member->status}' - must be approved";
+            $errors[] = "Member status is '{$member->status}' - not eligible for payment processing";
             set_transient('jgk_payment_errors_' . $customer_id, array_slice($errors, -5), HOUR_IN_SECONDS);
 
-            error_log("JGK: Member {$member->id} is not approved for payment processing in order {$order->get_id()}");
+            error_log("JGK: Member {$member->id} status not eligible for payment processing in order {$order_id}");
             return;
         }
 
@@ -285,7 +410,7 @@ class JuniorGolfKenya_WooCommerce {
             $errors[] = 'Invalid membership amount: ' . $membership_amount;
             set_transient('jgk_payment_errors_' . $customer_id, array_slice($errors, -5), HOUR_IN_SECONDS);
 
-            error_log("JGK: Invalid membership amount for order {$order->get_id()}");
+            error_log("JGK: Invalid membership amount for order {$order_id}");
             return;
         }
 
@@ -294,7 +419,7 @@ class JuniorGolfKenya_WooCommerce {
         // Record the payment in JGK system
         $payment_id = JuniorGolfKenya_Database::record_payment(
             $member->id,
-            $order->get_id(),
+            $order_id,
             $membership_amount,
             $order->get_payment_method_title(),
             'completed',
@@ -303,7 +428,7 @@ class JuniorGolfKenya_WooCommerce {
                 'payment_type' => 'membership',
                 'payment_gateway' => 'woocommerce',
                 'currency' => $order->get_currency(),
-                'notes' => 'WooCommerce order #' . $order->get_id(),
+                'notes' => 'WooCommerce order #' . $order_id,
                 'payment_date' => ($order->get_date_paid() ? $order->get_date_paid()->date_i18n('Y-m-d H:i:s') : $order->get_date_created()->date_i18n('Y-m-d H:i:s'))
             )
         );
@@ -317,7 +442,7 @@ class JuniorGolfKenya_WooCommerce {
             $errors[] = 'Failed to record payment in database';
             set_transient('jgk_payment_errors_' . $customer_id, array_slice($errors, -5), HOUR_IN_SECONDS);
 
-            error_log("JGK: Failed to record payment for member {$member->id} in order {$order->get_id()}");
+            error_log("JGK: Failed to record payment for member {$member->id} in order {$order_id}");
             return;
         }
 

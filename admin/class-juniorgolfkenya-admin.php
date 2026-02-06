@@ -63,10 +63,11 @@ class JuniorGolfKenya_Admin {
      * @since    1.0.0
      */
     public function enqueue_scripts() {
-        // Debug: Log current screen
-        $screen = get_current_screen();
-        error_log('JGK Enqueue Debug - Screen ID: ' . ($screen ? $screen->id : 'null'));
-        error_log('JGK Enqueue Debug - Page: ' . (isset($_GET['page']) ? $_GET['page'] : 'null'));
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            $screen = get_current_screen();
+            error_log('JGK Enqueue Debug - Screen ID: ' . ($screen ? $screen->id : 'null'));
+            error_log('JGK Enqueue Debug - Page: ' . (isset($_GET['page']) ? $_GET['page'] : 'null'));
+        }
 
         wp_enqueue_script($this->plugin_name, JUNIORGOLFKENYA_PLUGIN_URL . 'admin/js/juniorgolfkenya-admin.js', array('jquery'), $this->version, false);
 
@@ -82,7 +83,9 @@ class JuniorGolfKenya_Admin {
             'reports_nonce' => wp_create_nonce('jgk_reports_action')
         ));
 
-        error_log('JGK Enqueue Debug - Script enqueued and localized successfully');
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('JGK Enqueue Debug - Script enqueued and localized successfully');
+        }
     }
 
     /**
@@ -92,7 +95,7 @@ class JuniorGolfKenya_Admin {
      */
     public function export_reports_pdf() {
         // Verify nonce
-        if (!wp_verify_nonce($_POST['nonce'], 'jgk_reports_action')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'jgk_reports_action')) {
             wp_die('Security check failed');
         }
 

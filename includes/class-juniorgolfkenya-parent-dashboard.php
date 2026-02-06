@@ -39,9 +39,9 @@ class JuniorGolfKenya_Parent_Dashboard {
                 m.gender,
                 m.phone,
                 m.profile_photo,
-                m.joined_date,
+                COALESCE(m.date_joined, m.join_date) as joined_date,
                 m.expiry_date,
-                u.user_email,
+                COALESCE(m.email, u.user_email) as user_email,
                 pg.relationship,
                 pg.is_primary_contact
             FROM {$parents_table} pg
@@ -69,7 +69,7 @@ class JuniorGolfKenya_Parent_Dashboard {
         
         // Get member details
         $member = $wpdb->get_row($wpdb->prepare(
-            "SELECT m.*, u.user_email 
+            "SELECT m.*, COALESCE(m.email, u.user_email) as user_email 
              FROM {$members_table} m 
              LEFT JOIN {$wpdb->users} u ON m.user_id = u.ID 
              WHERE m.id = %d",

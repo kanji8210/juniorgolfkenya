@@ -118,6 +118,10 @@ class JuniorGolfKenya_Media {
             );
         }
 
+        if (!empty($member->user_id)) {
+            update_user_meta($member->user_id, 'jgk_profile_image', $attachment_id);
+        }
+
         // Log the action
         JuniorGolfKenya_Database::log_audit(array(
             'action' => 'profile_image_uploaded',

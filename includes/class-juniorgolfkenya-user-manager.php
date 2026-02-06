@@ -339,12 +339,15 @@ class JuniorGolfKenya_User_Manager {
         }
 
         $subject = 'Your Junior Golf Kenya membership has been approved!';
+        $fee = JuniorGolfKenya_Settings_Helper::get_default_membership_fee();
+        $currency = JuniorGolfKenya_Settings_Helper::get_general_currency();
+        $fee_text = $currency . ' ' . number_format($fee, 0);
         $message = sprintf(
             'Dear %s,
 
 Congratulations! Your membership application has been approved!
 
-To activate your membership and start enjoying all the benefits of Junior Golf Kenya, please complete your payment of KES 5,000 (annual fee).
+To activate your membership and start enjoying all the benefits of Junior Golf Kenya, please complete your payment of %s (annual fee).
 
 You can make your payment securely through:
 • M-Pesa mobile payment
@@ -361,6 +364,7 @@ Once payment is confirmed, your membership will be fully activated and you\'ll h
 Best regards,
 Junior Golf Kenya Team',
             $user->display_name,
+        $fee_text,
             home_url('/jgk-member-portal/')
         );
 

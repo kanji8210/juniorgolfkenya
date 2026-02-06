@@ -98,12 +98,33 @@ $general_defaults = array(
     'organization_email' => get_option('admin_email'),
     'organization_phone' => '',
     'organization_address' => '',
-    'default_membership_fee' => 5000,
+    'default_membership_fee' => 1050,
     'currency' => 'KSH',
     'timezone' => 'Africa/Nairobi',
 );
 
 $general_settings = wp_parse_args($general_settings, $general_defaults);
+
+$membership_fee_warning = '';
+if (class_exists('WooCommerce')) {
+    $membership_product_id = intval($payment_settings['membership_product_id'] ?? 0);
+    if ($membership_product_id > 0) {
+        $product = wc_get_product($membership_product_id);
+        if ($product) {
+            $settings_fee = JuniorGolfKenya_Settings_Helper::get_default_membership_fee();
+            $product_price = (float) $product->get_regular_price();
+            if ($settings_fee > 0 && $product_price !== (float) $settings_fee) {
+                $membership_fee_warning = sprintf(
+                    'Membership product price (%s) differs from Default Membership Fee (%s). Checkout will use the settings fee.',
+                    wc_price($product_price),
+                    wc_price($settings_fee)
+                );
+            }
+        } else {
+            $membership_fee_warning = 'Membership product ID does not exist in WooCommerce. Please check the Membership Product ID.';
+        }
+    }
+}
 ?>
 
 <div class="wrap jgk-admin-container">
@@ -113,6 +134,12 @@ $general_settings = wp_parse_args($general_settings, $general_defaults);
     <?php if ($message): ?>
     <div class="notice notice-<?php echo $message_type; ?> is-dismissible">
         <p><?php echo esc_html($message); ?></p>
+    </div>
+    <?php endif; ?>
+
+    <?php if ($membership_fee_warning): ?>
+    <div class="notice notice-warning">
+        <p><?php echo esc_html($membership_fee_warning); ?></p>
     </div>
     <?php endif; ?>
 

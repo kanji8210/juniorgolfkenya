@@ -91,9 +91,19 @@ class JuniorGolfKenya {
         require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-database.php';
 
         /**
+         * Settings helper utilities
+         */
+        require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-settings-helper.php';
+
+        /**
          * User management operations
          */
         require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-user-manager.php';
+
+        /**
+         * Parents/guardians management
+         */
+        require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-parents.php';
 
         /**
          * WooCommerce integration

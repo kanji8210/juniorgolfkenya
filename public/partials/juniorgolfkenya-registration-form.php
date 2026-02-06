@@ -17,6 +17,9 @@ if (!defined('ABSPATH')) {
 // Handle form submission
 $registration_success = false;
 $registration_errors = array();
+$membership_fee = JuniorGolfKenya_Settings_Helper::get_default_membership_fee();
+$membership_currency = JuniorGolfKenya_Settings_Helper::get_general_currency();
+$membership_fee_display = $membership_currency . ' ' . number_format($membership_fee, 0);
 
 if (isset($_POST['jgk_register_member'])) {
     // Verify nonce
@@ -48,6 +51,9 @@ if (isset($_POST['jgk_register_member'])) {
         $parent_email = sanitize_email($_POST['parent_email'] ?? '');
         $parent_phone = sanitize_text_field($_POST['parent_phone'] ?? '');
         $parent_relationship = sanitize_text_field($_POST['parent_relationship'] ?? '');
+        $membership_fee = JuniorGolfKenya_Settings_Helper::get_default_membership_fee();
+        $membership_currency = JuniorGolfKenya_Settings_Helper::get_general_currency();
+        $membership_fee_display = $membership_currency . ' ' . number_format($membership_fee, 0);
         
         // Validate required fields
         if (empty($first_name)) {
@@ -107,19 +113,17 @@ if (isset($_POST['jgk_register_member'])) {
             $registration_errors[] = 'Valid parent/guardian email is required.';
         }
         
-        // If child has no email, generate unique email based on parent email
+        $member_email = $email;
         if ($use_parent_email && !empty($parent_email)) {
-            // Generate unique email: parent+child.firstname.lastname@domain.com
-            $parent_email_parts = explode('@', $parent_email);
-            $child_suffix = strtolower($first_name . '.' . $last_name . '.' . rand(100, 999));
-            $email = $parent_email_parts[0] . '+' . $child_suffix . '@' . $parent_email_parts[1];
+            $member_email = $parent_email;
         }
-        
-        // Check if email already exists in WordPress users
-        if (email_exists($email)) {
-            // If email exists, add random suffix to make it unique
-            $email_parts = explode('@', $email);
-            $email = $email_parts[0] . '.' . rand(1000, 9999) . '@' . $email_parts[1];
+
+        $wp_email = $member_email;
+        if (email_exists($wp_email)) {
+            $placeholder_domain = 'jgk.invalid';
+            do {
+                $wp_email = 'jgk-member-' . wp_generate_uuid4() . '@' . $placeholder_domain;
+            } while (email_exists($wp_email));
         }
         
         if (empty($parent_phone)) {
@@ -137,7 +141,7 @@ if (isset($_POST['jgk_register_member'])) {
             // Create WordPress user account
             $username = sanitize_user($first_name . '.' . $last_name . rand(100, 999));
             
-            $user_id = wp_create_user($username, $password, $email);
+            $user_id = wp_create_user($username, $password, $wp_email);
             
             if (is_wp_error($user_id)) {
                 $registration_errors[] = 'Failed to create user account: ' . $user_id->get_error_message();
@@ -245,6 +249,7 @@ if (isset($_POST['jgk_register_member'])) {
                             'date_of_birth' => !empty($date_of_birth) ? $date_of_birth : null,
                             'gender' => $gender,
                             'phone' => $phone,
+                            'email' => $member_email,
                             'address' => $address,
                             'membership_type' => $membership_type,
                             'status' => 'approved', // Auto-approved - direct to payment
@@ -257,12 +262,13 @@ if (isset($_POST['jgk_register_member'])) {
                             'emergency_contact_phone' => $emergency_contact_phone,
                             'consent_photography' => $consent_photography,
                             'parental_consent' => $parental_consent,
+                            'profile_image_id' => $profile_image_id,
                             'created_at' => current_time('mysql'),
                             'updated_at' => current_time('mysql'),
                         ),
                         array(
                             '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s',
-                            '%s', '%s', '%s', '%f', '%s', '%s', '%s', '%s', '%d', '%s', '%s'
+                            '%s', '%s', '%s', '%f', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s', '%s'
                         )
                     );
 
@@ -299,7 +305,7 @@ if (isset($_POST['jgk_register_member'])) {
                         }
 
                         // Send notification email to user
-                        $to = $email;
+                        $to = $member_email;
                         $subject = 'Welcome to Junior Golf Kenya - Account Created Successfully';
 
                         // Get dashboard URL from saved page ID
@@ -311,8 +317,9 @@ if (isset($_POST['jgk_register_member'])) {
                         $message .= "Membership Details:\n";
                         $message .= "- Membership Number: {$membership_number}\n";
                         $message .= "- Username: {$username}\n";
-                        $message .= "- Email: {$email}\n\n";
+                        $message .= "- Email: {$member_email}\n\n";
                         $message .= "Next Step: Complete Your Payment\n";
+                        $message .= "Membership Fee: {$membership_fee_display}\n";
                         $message .= "To activate your membership, please complete the payment process. You will be redirected to our secure payment page.\n\n";
                         $message .= "After completing payment, you can log in and access your member dashboard:\n";
                         $message .= "Login URL: " . wp_login_url() . "\n\n";
@@ -328,9 +335,10 @@ if (isset($_POST['jgk_register_member'])) {
                         $admin_subject = 'New Member Registration - Junior Golf Kenya';
                         $admin_message = "A new member has registered:\n\n";
                         $admin_message .= "Name: {$first_name} {$last_name}\n";
-                        $admin_message .= "Email: {$email}\n";
+                        $admin_message .= "Email: {$member_email}\n";
                         $admin_message .= "Membership Number: {$membership_number}\n";
                         $admin_message .= "Membership Type: " . ucfirst($membership_type) . "\n";
+                        $admin_message .= "Membership Fee: {$membership_fee_display}\n";
                         $admin_message .= "Status: Approved - Pending payment\n\n";
                         $admin_message .= "The member has been redirected to complete payment.\n\n";
                         $admin_message .= "View member details in the admin panel:\n";
@@ -349,6 +357,7 @@ if (isset($_POST['jgk_register_member'])) {
                         $membership_product_id = get_option('jgk_membership_product_id', 0);
                         
                         if ($membership_product_id && class_exists('WooCommerce')) {
+                            JuniorGolfKenya_WooCommerce::ensure_membership_product_price($membership_product_id);
                             // Clear cart first
                             WC()->cart->empty_cart();
                             
@@ -580,7 +589,7 @@ if (isset($_POST['jgk_register_member'])) {
                 <div class="jgk-membership-card">
                     <div class="jgk-membership-header">
                         <h4>Junior Golf Kenya Membership</h4>
-                        <span class="jgk-membership-price">KES 5,000 / Year</span>
+                        <span class="jgk-membership-price"><?php echo esc_html($membership_fee_display); ?> / Year</span>
                     </div>
                     <p>Join Kenya's premier junior golf development program with access to coaching, tournaments, and exclusive training facilities.</p>
                 </div>

@@ -15,8 +15,10 @@ if (!defined('ABSPATH')) {
 }
 
 // Helper function to safely get object property
-function jgk_get_prop($obj, $prop, $default = 'N/A') {
-    return isset($obj->$prop) && !empty($obj->$prop) ? $obj->$prop : $default;
+if (!function_exists('jgk_get_prop')) {
+    function jgk_get_prop($obj, $prop, $default = 'N/A') {
+        return isset($obj->$prop) && !empty($obj->$prop) ? $obj->$prop : $default;
+    }
 }
 
 // Get current user
@@ -45,6 +47,9 @@ $assigned_coaches = JuniorGolfKenya_Member_Dashboard::get_assigned_coaches($memb
 $recent_activities = JuniorGolfKenya_Member_Dashboard::get_recent_activities($member_id, 10);
 $parents = JuniorGolfKenya_Member_Dashboard::get_parents($member_id);
 $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id, 'medium');
+$membership_fee = JuniorGolfKenya_Settings_Helper::get_default_membership_fee();
+$membership_currency = JuniorGolfKenya_Settings_Helper::get_general_currency();
+$membership_fee_display = $membership_currency . ' ' . number_format($membership_fee, 0);
 ?>
 
 <div class="jgk-member-dashboard">
@@ -91,7 +96,7 @@ $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id,
                 <h3>🎉 Your Membership is Approved!</h3>
                 <p>Complete your payment to activate your membership and start enjoying all the benefits.</p>
                 <div class="jgk-payment-banner-amount">
-                    <span class="jgk-amount-highlight">KES 5,000</span>
+                    <span class="jgk-amount-highlight"><?php echo esc_html($membership_fee_display); ?></span>
                     <span class="jgk-period-highlight">/ Year</span>
                 </div>
             </div>
@@ -259,7 +264,7 @@ $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id,
                         <h3>Complete Your Membership</h3>
                         <p>Your membership application has been approved! Please complete your payment to activate your membership.</p>
                         <div class="jgk-payment-amount">
-                            <span class="jgk-amount">KES 5,000</span>
+                            <span class="jgk-amount"><?php echo esc_html($membership_fee_display); ?></span>
                             <span class="jgk-period">/ Year</span>
                         </div>
                         <p class="jgk-payment-description">
@@ -278,7 +283,7 @@ $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id,
                                     // Create product if it doesn't exist
                                     $product = new WC_Product_Simple();
                                     $product->set_name('Junior Golf Kenya Annual Membership');
-                                    $product->set_regular_price(5000);
+                                    $product->set_regular_price($membership_fee);
                                     $product->set_description('Annual membership fee for Junior Golf Kenya');
                                     $product->set_short_description('Complete your membership payment');
                                     $product->set_sku('JGK-MEMBERSHIP-2025');
@@ -290,6 +295,8 @@ $profile_image = JuniorGolfKenya_Member_Dashboard::get_profile_image($member_id,
                                     
                                     $membership_product_id = $product->get_id();
                                     update_option('jgk_membership_product_id', $membership_product_id);
+                                } else {
+                                    JuniorGolfKenya_WooCommerce::ensure_membership_product_price($membership_product_id);
                                 }
                                 
                                 if ($membership_product_id) {

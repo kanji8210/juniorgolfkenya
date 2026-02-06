@@ -157,18 +157,19 @@ function jgk_ajax_search_members() {
             CONCAT(m.first_name, ' ', m.last_name) as name,
             m.membership_type as type,
             m.membership_number,
-            u.user_email
+            COALESCE(m.email, u.user_email) as user_email
         FROM {$members_table} m
         LEFT JOIN {$users_table} u ON m.user_id = u.ID
         WHERE m.status IN ('active', 'approved', 'pending')
         AND (
             CONCAT(m.first_name, ' ', m.last_name) LIKE %s
+            OR m.email LIKE %s
             OR u.user_email LIKE %s
             OR m.membership_number LIKE %s
         )
         ORDER BY m.first_name, m.last_name
         LIMIT 50
-    ", $like, $like, $like);
+    ", $like, $like, $like, $like);
     
     $results = $wpdb->get_results($query);
     

@@ -99,12 +99,12 @@ class JuniorGolfKenya_Parents {
         
         // If setting as primary contact, unset other primary contacts for this member
         if (!empty($data['is_primary_contact']) && $data['is_primary_contact'] == 1) {
-            $wpdb->update(
-                $table,
-                array('is_primary_contact' => 0),
-                array('member_id' => $old_data->member_id, 'id !=' => $parent_id),
-                array('%d'),
-                array('%d', '%d')
+            $wpdb->query(
+                $wpdb->prepare(
+                    "UPDATE {$table} SET is_primary_contact = 0 WHERE member_id = %d AND id != %d",
+                    $old_data->member_id,
+                    $parent_id
+                )
             );
         }
         
