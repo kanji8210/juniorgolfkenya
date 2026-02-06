@@ -167,6 +167,8 @@
 /* Admin container */
 .jgk-admin-container {
     margin: 20px 0;
+    width: 100%;
+    max-width: none;
 }
 
 /* Responsive adjustments */
