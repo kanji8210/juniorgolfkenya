@@ -193,6 +193,9 @@ function jgk_ajax_search_members() {
 require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-member-details.php';
 new JuniorGolfKenya_Member_Details();
 
+// Diagnostics shortcode (read-only)
+require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-diagnostics.php';
+
 /**
  * Register AJAX handler for coach role request submission
  */
