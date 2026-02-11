@@ -495,4 +495,110 @@ class JuniorGolfKenya_Media {
         
         return !empty($attachment_id) ? $attachment_id : false;
     }
+
+    /**
+     * Upload membership card for a user
+     *
+     * @since    1.0.1
+     * @param    int      $user_id    User ID
+     * @param    array    $file       $_FILES array entry
+     * @return   array                Result with attachment_id or error
+     */
+    public static function upload_membership_card($user_id, $file) {
+        // Validate user exists
+        $user = get_user_by('id', $user_id);
+        if (!$user) {
+            return array('success' => false, 'message' => 'User not found');
+        }
+
+        if (!isset($file['error']) || is_array($file['error'])) {
+            return array('success' => false, 'message' => 'Invalid file upload');
+        }
+
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            return array('success' => false, 'message' => self::get_upload_error_message($file['error']));
+        }
+
+        $allowed_types = array('application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp');
+        $file_type = mime_content_type($file['tmp_name']);
+        if (!in_array($file_type, $allowed_types)) {
+            return array('success' => false, 'message' => 'Invalid file type. Only PDF and image files are allowed.');
+        }
+
+        // Validate file size (max 5MB)
+        $max_size = 5 * 1024 * 1024;
+        if ($file['size'] > $max_size) {
+            return array('success' => false, 'message' => 'File too large. Maximum size is 5MB.');
+        }
+
+        if (!function_exists('media_handle_upload')) {
+            require_once(ABSPATH . 'wp-admin/includes/image.php');
+            require_once(ABSPATH . 'wp-admin/includes/file.php');
+            require_once(ABSPATH . 'wp-admin/includes/media.php');
+        }
+
+        $upload_overrides = array('test_form' => false, 'test_type' => true);
+        if (!isset($_FILES['membership_card'])) {
+            $_FILES['membership_card'] = $file;
+        }
+
+        $attachment_id = media_handle_upload('membership_card', 0, array(), $upload_overrides);
+        if (is_wp_error($attachment_id)) {
+            return array('success' => false, 'message' => $attachment_id->get_error_message());
+        }
+
+        // Delete old card if exists
+        $old = get_user_meta($user_id, 'jgk_membership_card', true);
+        if (!empty($old)) {
+            wp_delete_attachment($old, true);
+        }
+
+        update_user_meta($user_id, 'jgk_membership_card', $attachment_id);
+
+        JuniorGolfKenya_Database::log_audit(array(
+            'action' => 'membership_card_uploaded',
+            'object_type' => 'user',
+            'object_id' => $user_id,
+            'old_values' => json_encode(array('membership_card_id' => $old)),
+            'new_values' => json_encode(array('membership_card_id' => $attachment_id))
+        ));
+
+        return array('success' => true, 'attachment_id' => $attachment_id, 'url' => wp_get_attachment_url($attachment_id), 'message' => 'Membership card uploaded successfully');
+    }
+
+    /**
+     * Delete membership card
+     */
+    public static function delete_membership_card($user_id) {
+        $old = get_user_meta($user_id, 'jgk_membership_card', true);
+        if (empty($old)) {
+            return false;
+        }
+
+        delete_user_meta($user_id, 'jgk_membership_card');
+        wp_delete_attachment($old, true);
+
+        JuniorGolfKenya_Database::log_audit(array(
+            'action' => 'membership_card_deleted',
+            'object_type' => 'user',
+            'object_id' => $user_id,
+            'old_values' => json_encode(array('membership_card_id' => $old)),
+            'new_values' => json_encode(array('membership_card_id' => null))
+        ));
+
+        return true;
+    }
+
+    /**
+     * Get membership card URL
+     */
+    public static function get_membership_card_url($user_id) {
+        $id = get_user_meta($user_id, 'jgk_membership_card', true);
+        return !empty($id) ? wp_get_attachment_url($id) : false;
+    }
+
+    public static function get_membership_card_id($user_id) {
+        $id = get_user_meta($user_id, 'jgk_membership_card', true);
+        return !empty($id) ? $id : false;
+    }
 }

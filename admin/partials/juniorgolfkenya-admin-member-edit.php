@@ -112,6 +112,50 @@ if (!defined('ABSPATH')) {
                 </div>
             </div>
 
+            <!-- Membership Card Section -->
+            <h2>Membership Card</h2>
+            <div class="jgk-form-row">
+                <div class="jgk-form-field">
+                    <label>Current Membership Card</label>
+                    <div style="margin: 10px 0;">
+                        <?php
+                        $membership_card_id = get_user_meta($edit_member->user_id, 'jgk_membership_card', true);
+                        if (!empty($membership_card_id)) {
+                            $attachment_url = wp_get_attachment_url($membership_card_id);
+                            $file_type = get_post_mime_type($membership_card_id);
+                            $file_name = basename(get_attached_file($membership_card_id));
+                            echo '<div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: #f8f9fa; border-radius: 5px;">';
+                            if (strpos($file_type, 'image/') === 0) {
+                                echo '<img src="' . esc_url($attachment_url) . '" style="max-width: 100px; max-height: 100px; border-radius: 5px;" alt="Membership Card">';
+                            } else {
+                                echo '<span class="dashicons dashicons-media-document" style="font-size: 48px; color: #666;"></span>';
+                            }
+                            echo '<div>';
+                            echo '<strong>' . esc_html($file_name) . '</strong><br>';
+                            echo '<small>' . esc_html($file_type) . '</small><br>';
+                            echo '<a href="' . esc_url($attachment_url) . '" target="_blank" class="button button-small">View/Download</a>';
+                            echo '</div>';
+                            echo '</div>';
+                        } else {
+                            echo '<p style="color: #666; font-style: italic;">No membership card uploaded</p>';
+                        }
+                        ?>
+                    </div>
+                    <?php if (!empty($membership_card_id)): ?>
+                    <label style="display: flex; align-items: center; gap: 5px; margin-top: 10px;">
+                        <input type="checkbox" name="delete_membership_card" value="1">
+                        Delete current membership card
+                    </label>
+                    <?php endif; ?>
+                </div>
+                <div class="jgk-form-field">
+                    <label for="membership_card">Upload Membership Card</label>
+                    <input type="file" id="membership_card" name="membership_card" accept=".pdf,image/*">
+                    <small>Max 5MB. PDF, JPG, PNG, GIF or WebP format.</small>
+                    <div id="membership_card_preview" style="margin-top: 10px;"></div>
+                </div>
+            </div>
+
             <h2>Personal Information</h2>
             <div class="jgk-form-row">
                 <div class="jgk-form-field">

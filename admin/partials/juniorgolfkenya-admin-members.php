@@ -241,6 +241,20 @@ if (isset($_POST['action'])) {
                     if (isset($_POST['delete_birth_certificate']) && $_POST['delete_birth_certificate'] === '1') {
                         JuniorGolfKenya_Media::delete_birth_certificate($member->user_id);
                     }
+
+                    // Handle membership card upload
+                    if (isset($_FILES['membership_card']) && $_FILES['membership_card']['error'] === UPLOAD_ERR_OK) {
+                        $upload_result = JuniorGolfKenya_Media::upload_membership_card($member->user_id, $_FILES['membership_card']);
+                        if (!$upload_result['success']) {
+                            $message = 'Member updated but membership card failed: ' . $upload_result['message'];
+                            $message_type = 'warning';
+                        }
+                    }
+
+                    // Handle membership card deletion
+                    if (isset($_POST['delete_membership_card']) && $_POST['delete_membership_card'] === '1') {
+                        JuniorGolfKenya_Media::delete_membership_card($member->user_id);
+                    }
                     
                     if (empty($message)) {
                         $message = 'Member updated successfully!';
