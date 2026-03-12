@@ -226,7 +226,7 @@ class JuniorGolfKenya_Settings_Helper {
      */
     public static function get_birthdate_min() {
         $max_age = self::get_max_age();
-        // Add 1 year because if max is 17, we want birthdates from 18 years ago forward
+        // For age validation in date inputs (e.g. if max age is 21, we want birthdates from 22 years ago forward)
         return date('Y-m-d', strtotime("-" . ($max_age + 1) . " years +1 day"));
     }
     

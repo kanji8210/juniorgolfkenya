@@ -289,7 +289,7 @@ if ($action === 'edit' && $member_id_to_edit > 0) {
         wp_die(__('Member not found.'));
     }
     
-    // Load parents if member is under 18
+    // Load parents if member requires parent information (calculated dynamically)
     require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-parents.php';
     $parents_manager = new JuniorGolfKenya_Parents();
     $member_parents = $parents_manager->get_member_parents($member_id_to_edit);

@@ -60,7 +60,8 @@ class JuniorGolfKenya_Test_Data {
                 $first_name = $first_names[array_rand($first_names)];
                 $last_name = $last_names[array_rand($last_names)];
                 $gender = $genders[array_rand($genders)];
-                $age = rand(5, 17); // Within junior age range
+                $max_age = JuniorGolfKenya_Settings_Helper::get_max_age();
+                $age = rand(5, $max_age); // Within junior age range
                 $birth_year = date('Y') - $age;
                 $birth_month = str_pad(rand(1, 12), 2, '0', STR_PAD_LEFT);
                 $birth_day = str_pad(rand(1, 28), 2, '0', STR_PAD_LEFT);

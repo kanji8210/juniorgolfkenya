@@ -84,7 +84,7 @@ if (isset($_POST['jgk_register_member'])) {
             $registration_errors[] = 'Passwords do not match.';
         }
         
-        // Age validation (2-17 years) - REQUIRED for juniors
+        // Age validation - REQUIRED for juniors
         if (empty($date_of_birth)) {
             $registration_errors[] = 'Date of birth is required to verify eligibility.';
         } else {

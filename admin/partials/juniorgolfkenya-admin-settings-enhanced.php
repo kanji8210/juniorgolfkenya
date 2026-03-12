@@ -334,7 +334,7 @@ $test_counts = JuniorGolfKenya_Test_Data::count_test_data();
                                    value="<?php echo esc_attr($junior_settings['max_age']); ?>" 
                                    min="10" max="21" required style="width: 100px;">
                             <span class="description">years old</span>
-                            <p class="description">Maximum age for junior membership (default: 17 years, must be < 18).</p>
+                            <p class="description">Maximum age for junior membership (default: 21 years).</p>
                         </td>
                     </tr>
                 </table>
