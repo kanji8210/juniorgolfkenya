@@ -262,7 +262,7 @@ class JuniorGolfKenya_Parents {
 
     /**
      * Check if a member requires parent/guardian information
-     * (based on age - under 18)
+     * (based on age - under dynamic max age + 1)
      *
      * @since    1.0.0
      * @param    int     $member_id    Member ID
@@ -279,7 +279,9 @@ class JuniorGolfKenya_Parents {
         $today = new DateTime();
         $age = $today->diff($dob)->y;
         
-        return $age < 18;
+        $parent_age_limit = JuniorGolfKenya_Settings_Helper::get_max_age() + 1;
+        
+        return $age < $parent_age_limit;
     }
 
     /**

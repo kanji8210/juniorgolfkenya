@@ -34,7 +34,7 @@ class JuniorGolfKenya_Settings_Helper {
         
         return array(
             'min' => isset($settings['min_age']) ? (int)$settings['min_age'] : 2,
-            'max' => isset($settings['max_age']) ? (int)$settings['max_age'] : 17
+            'max' => isset($settings['max_age']) ? (int)$settings['max_age'] : 21
         );
     }
     
@@ -53,7 +53,7 @@ class JuniorGolfKenya_Settings_Helper {
      * Get maximum age for junior membership
      *
      * @since  1.0.0
-     * @return int Maximum age (default: 17)
+     * @return int Maximum age (default: 21)
      */
     public static function get_max_age() {
         $restrictions = self::get_age_restrictions();

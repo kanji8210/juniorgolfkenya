@@ -24,6 +24,10 @@ if (!defined('ABSPATH')) {
 require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-database.php';
 require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-user-manager.php';
 require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-media.php';
+require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-settings-helper.php';
+
+$min_age = JuniorGolfKenya_Settings_Helper::get_min_age();
+$max_age = JuniorGolfKenya_Settings_Helper::get_max_age();
 
 // Check user permissions
 if (!current_user_can('edit_members')) {
@@ -68,7 +72,7 @@ if (isset($_POST['action'])) {
             break;
 
         case 'create_member':
-            // Age validation (2-17 years)
+            // Age validation ({$min_age}-{$max_age} years)
             $date_of_birth = sanitize_text_field($_POST['date_of_birth'] ?? '');
             $create_error = false;
             
@@ -78,14 +82,14 @@ if (isset($_POST['action'])) {
                     $today = new DateTime();
                     $age = $today->diff($birthdate)->y;
                     
-                    if ($age < 2) {
-                        $message = 'Error: The minimum age is 2 years.';
+                    if ($age < $min_age) {
+                        $message = "Error: The minimum age is {$min_age} years.";
                         $message_type = 'error';
                         $create_error = true;
                     }
                     
-                    if ($age >= 18) {
-                        $message = 'Error: This program is reserved for juniors under 18 years old.';
+                    if ($age > $max_age) {
+                        $message = "Error: This program is reserved for juniors {$max_age} years or younger.";
                         $message_type = 'error';
                         $create_error = true;
                     }
@@ -111,7 +115,7 @@ if (isset($_POST['action'])) {
                 );
                 
                 $member_data = array(
-                    'membership_type' => 'junior', // Forced: junior program only
+                    'membership_type' => 'junior', // Forced: junior program only ({$min_age}-{$max_age} years)
                     'status' => sanitize_text_field($_POST['status']),
                     'date_of_birth' => $date_of_birth,
                     'gender' => sanitize_text_field($_POST['gender']),
@@ -179,7 +183,7 @@ if (isset($_POST['action'])) {
                 $member_data = array(
                     'first_name' => sanitize_text_field($_POST['first_name']),
                     'last_name' => sanitize_text_field($_POST['last_name']),
-                    'membership_type' => 'junior', // Forced: junior program only
+                    'membership_type' => 'junior', // Forced: junior program only ({$min_age}-{$max_age} years)
                     'status' => sanitize_text_field($_POST['status']),
                     'date_of_birth' => sanitize_text_field($_POST['date_of_birth']),
                     'gender' => sanitize_text_field($_POST['gender']),
@@ -410,9 +414,9 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
                     <label for="date_of_birth">Date of birth *</label>
                     <input type="date" id="date_of_birth" name="date_of_birth" 
                            required 
-                           max="<?php echo date('Y-m-d', strtotime('-2 years')); ?>"
-                           min="<?php echo date('Y-m-d', strtotime('-18 years')); ?>">
-                    <small style="color: #666;">Âge requis : 2-17 ans</small>
+                           max="<?php echo JuniorGolfKenya_Settings_Helper::get_birthdate_max(); ?>"
+                           min="<?php echo JuniorGolfKenya_Settings_Helper::get_birthdate_min(); ?>">
+                    <small style="color: #666;">Âge requis : <?php echo $min_age; ?>-<?php echo $max_age; ?> ans</small>
                 </div>
                 <div class="jgk-form-field">
                     <label for="gender">Gender</label>
@@ -445,7 +449,7 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
                             Membership Type
                         </label>
                         <p style="margin: 0; color: #555;">
-                            <strong>Junior Golf Kenya</strong> - Program reserved for 2-17 years old
+                            <strong>Junior Golf Kenya</strong> - Program reserved for <?php echo $min_age; ?>-<?php echo $max_age; ?> years old
                         </p>
                         <input type="hidden" name="membership_type" value="junior">
                     </div>
@@ -484,7 +488,7 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
                 </div>
             </div>
             
-            <h3>Parent/Guardian Information <span style="font-weight: normal; font-size: 14px;">(Required for members under 18)</span></h3>
+            <h3>Parent/Guardian Information <span style="font-weight: normal; font-size: 14px;">(Required for members under <?php echo ($max_age + 1); ?>)</span></h3>
             <div id="parents-container">
                 <div class="parent-entry" data-parent-index="0">
                     <h4>Parent/Guardian 1</h4>
@@ -674,7 +678,7 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
         
         const parentsSection = document.querySelector('h3:has(+ #parents-container)');
         if (parentsSection) {
-            if (age < 18) {
+            if (age < <?php echo ($max_age + 1); ?>) {
                 parentsSection.style.display = 'block';
                 document.getElementById('parents-container').style.display = 'block';
                 document.querySelector('button[onclick="addParentEntry()"]').parentElement.style.display = 'block';

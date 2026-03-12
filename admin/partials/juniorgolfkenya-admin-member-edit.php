@@ -182,12 +182,12 @@ if (!defined('ABSPATH')) {
             <div class="jgk-form-row">
                 <div class="jgk-form-field">
                     <label for="date_of_birth">Date de naissance *</label>
-                    <input type="date" id="date_of_birth" name="date_of_birth" 
-                           value="<?php echo esc_attr($edit_member->date_of_birth ?? ''); ?>" 
-                           required 
-                           max="<?php echo date('Y-m-d', strtotime('-2 years')); ?>"
-                           min="<?php echo date('Y-m-d', strtotime('-18 years')); ?>">
-                    <small style="color: #666;">Âge requis : 2-17 ans</small>
+                        <input type="date" id="date_of_birth" name="date_of_birth" 
+                               value="<?php echo esc_attr($edit_member->date_of_birth ?? ''); ?>" 
+                               class="regular-text" 
+                               max="<?php echo JuniorGolfKenya_Settings_Helper::get_birthdate_max(); ?>"
+                               min="<?php echo JuniorGolfKenya_Settings_Helper::get_birthdate_min(); ?>">
+                        <p class="description">Required for junior membership. Must be between <?php echo JuniorGolfKenya_Settings_Helper::get_min_junior_age(); ?> and <?php echo JuniorGolfKenya_Settings_Helper::get_max_junior_age(); ?> years old.</p>
                 </div>   
                 <div class="jgk-form-field">
                     <label for="gender">Gender</label>

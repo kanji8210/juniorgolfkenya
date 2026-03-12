@@ -94,7 +94,7 @@ if (isset($_POST['save_settings']) && check_admin_referer('jgk_settings', 'jgk_s
 }
 
 // Get current settings
-$junior_settings = get_option('jgk_junior_settings', array('min_age' => 2, 'max_age' => 17));
+$junior_settings = get_option('jgk_junior_settings', array('min_age' => 2, 'max_age' => 21));
 $pricing_settings = get_option('jgk_pricing_settings', array(
     'subscription_price' => 1050,
     'currency' => 'KSH',

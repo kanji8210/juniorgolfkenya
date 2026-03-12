@@ -35,7 +35,9 @@ if (isset($_POST['jgk_register_member'])) {
         $phone = sanitize_text_field($_POST['phone'] ?? '');
         $date_of_birth = sanitize_text_field($_POST['date_of_birth'] ?? '');
         $gender = sanitize_text_field($_POST['gender'] ?? '');
-        $membership_type = 'junior'; // Forced: junior program only (2-17 years)
+        $min_age = JuniorGolfKenya_Settings_Helper::get_min_age();
+        $max_age = JuniorGolfKenya_Settings_Helper::get_max_age();
+        $membership_type = 'junior'; // Forced: junior program only ({$min_age}-{$max_age} years)
         $club_affiliation = sanitize_text_field($_POST['club_affiliation'] ?? '');
         $address = sanitize_textarea_field($_POST['address'] ?? '');
         $medical_conditions = sanitize_textarea_field($_POST['medical_conditions'] ?? '');
@@ -91,12 +93,12 @@ if (isset($_POST['jgk_register_member'])) {
                 $today = new DateTime();
                 $age = $today->diff($birthdate)->y;
                 
-                if ($age < 2) {
-                    $registration_errors[] = 'The minimum age for registration is 2 years.';
+                if ($age < $min_age) {
+                    $registration_errors[] = "The minimum age for registration is {$min_age} years.";
                 }
                 
-                if ($age >= 18) {
-                    $registration_errors[] = 'This program is reserved for juniors under 18 years old. If you are 18 years or older, please contact us directly.';
+                if ($age > $max_age) {
+                    $registration_errors[] = "This program is reserved for juniors {$max_age} years or younger. If you are older than {$max_age}, please contact us directly.";
                 }
             } catch (Exception $e) {
                 $registration_errors[] = 'Invalid date of birth format.';
@@ -530,9 +532,9 @@ if (isset($_POST['jgk_register_member'])) {
                         <input type="date" id="date_of_birth" name="date_of_birth" 
                                value="<?php echo esc_attr($_POST['date_of_birth'] ?? ''); ?>" 
                                required 
-                               max="<?php echo date('Y-m-d', strtotime('-2 years')); ?>"
-                               min="<?php echo date('Y-m-d', strtotime('-18 years')); ?>">
-                        <small style="color: #666;">Must be between 2 and 17 years old</small>
+                               max="<?php echo JuniorGolfKenya_Settings_Helper::get_birthdate_max(); ?>"
+                               min="<?php echo JuniorGolfKenya_Settings_Helper::get_birthdate_min(); ?>">
+                        <small style="color: #666;">Must be between <?php echo $min_age; ?> and <?php echo $max_age; ?> years old</small>
                         <div id="age-validation-message" style="margin-top: 10px;"></div>
                     </div>
                     <div class="jgk-form-group jgk-select-group">
@@ -623,7 +625,7 @@ if (isset($_POST['jgk_register_member'])) {
             <div class="jgk-form-step" data-step="3">
                 <div class="jgk-step-header">
                     <h3>Parent/Guardian Information</h3>
-                    <p>Required for all junior members under 18</p>
+                    <p>Required for all junior members under <?php echo ($max_age + 1); ?></p>
                 </div>
 
                 <div class="jgk-alert-box">

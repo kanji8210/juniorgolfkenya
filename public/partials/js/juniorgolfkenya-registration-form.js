@@ -251,14 +251,14 @@ document.addEventListener('DOMContentLoaded', function() {
             messageDiv.innerHTML = '❌ The child must be at least 2 years old to register.';
             debugLog('Age validation failed: under 2 years', 'error');
             return false;
-        } else if (age >= 18) {
+        } else if (age > 21) {
             messageDiv.style.background = '#fef2f2';
             messageDiv.style.color = '#dc2626';
             messageDiv.style.padding = '12px';
             messageDiv.style.borderRadius = '8px';
             messageDiv.style.border = '1px solid #fecaca';
-            messageDiv.innerHTML = '❌ This program is reserved for juniors under 18 years old.';
-            debugLog('Age validation failed: 18 years or older', 'error');
+            messageDiv.innerHTML = '❌ This program is reserved for juniors 21 years or younger.';
+            debugLog('Age validation failed: older than 21', 'error');
             return false;
         } else {
             messageDiv.style.background = '#f0fdf4';

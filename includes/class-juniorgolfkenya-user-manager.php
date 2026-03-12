@@ -23,7 +23,7 @@ class JuniorGolfKenya_User_Manager {
      * @since    1.0.0
      * @param    array    $user_data      User data
      * @param    array    $member_data    Member-specific data
-     * @param    array    $parent_data    Optional parent/guardian data for members under 18
+     * @param    array    $parent_data    Optional parent/guardian data for minors
      * @return   array                    Result with user_id and member_id or error
      */
     public static function create_member_user($user_data, $member_data = array(), $parent_data = array()) {
@@ -70,7 +70,7 @@ class JuniorGolfKenya_User_Manager {
             return array('success' => false, 'message' => 'Failed to create member record');
         }
 
-        // Handle parent/guardian data if member is under 18
+        // Handle parent/guardian data if member requires it (based on age)
         $parents_manager = new JuniorGolfKenya_Parents();
         $parent_errors = array();
         
@@ -80,7 +80,8 @@ class JuniorGolfKenya_User_Manager {
                 // Rollback member and user creation
                 JuniorGolfKenya_Database::delete_member($member_id);
                 wp_delete_user($user_id);
-                return array('success' => false, 'message' => 'Parent/guardian information is required for members under 18');
+                $parent_age_limit = JuniorGolfKenya_Settings_Helper::get_max_age() + 1;
+                return array('success' => false, 'message' => "Parent/guardian information is required for members under {$parent_age_limit}");
             }
             
             // Add parent/guardian records
@@ -103,7 +104,7 @@ class JuniorGolfKenya_User_Manager {
                 );
             }
         } else if (!empty($parent_data)) {
-            // Add parent data even if not required (member is 18+)
+            // Add parent data even if not required
             foreach ($parent_data as $parent) {
                 $parents_manager->add_parent($member_id, $parent);
             }
