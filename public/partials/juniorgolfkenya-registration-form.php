@@ -74,6 +74,10 @@ if (isset($_POST['jgk_register_member'])) {
             $registration_errors[] = 'Please provide a valid email address or leave empty to use parent email.';
         }
         
+        if (empty($address)) {
+            $registration_errors[] = 'Address is required.';
+        }
+
         if (empty($password)) {
             $registration_errors[] = 'Password is required.';
         }
@@ -551,8 +555,8 @@ if (isset($_POST['jgk_register_member'])) {
 
                 <div class="jgk-textarea-section">
                     <div class="jgk-form-group full-width">
-                        <label for="address">Address</label>
-                        <textarea id="address" name="address" rows="3" placeholder="Enter complete address"><?php echo esc_textarea($_POST['address'] ?? ''); ?></textarea>
+                        <label for="address">Address *</label>
+                        <textarea id="address" name="address" rows="3" placeholder="Enter complete address" required><?php echo esc_textarea($_POST['address'] ?? ''); ?></textarea>
                     </div>
                 </div>
 
