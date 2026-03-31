@@ -83,7 +83,7 @@ class JuniorGolfKenya_Activator {
             $wpdb->query("
                 ALTER TABLE {$members_table} 
                 ADD COLUMN is_public tinyint(1) NOT NULL DEFAULT 1 
-                COMMENT 'Visibilité publique: 0=privé, 1=public (DEFAULT: PUBLIC)'
+                COMMENT 'Public visibility: 0=private, 1=public (DEFAULT: PUBLIC)'
                 AFTER parental_consent
             ");
             
@@ -100,7 +100,7 @@ class JuniorGolfKenya_Activator {
             $wpdb->query("
                 ALTER TABLE {$members_table} 
                 ADD COLUMN club_name varchar(100) 
-                COMMENT 'Nom du club de golf'
+                COMMENT 'Golf club name'
                 AFTER handicap
             ");
             

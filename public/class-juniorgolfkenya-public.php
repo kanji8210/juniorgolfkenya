@@ -388,7 +388,7 @@ class JuniorGolfKenya_Public {
         // Get current user
         $current_user = wp_get_current_user();
         
-        // TEMPORAIRE : Permission check désactivée pour test
+        // TEMPORARY: Permission check disabled for testing
         // Check if user has coach role
         // if (!in_array('jgk_coach', $current_user->roles)) {
         //     return '<div class="jgk-notice jgk-notice-error">You do not have permission to view this page.</div>';
@@ -604,7 +604,7 @@ class JuniorGolfKenya_Public {
             return $this->parent_dashboard_shortcode($atts);
         }
         
-        // TEMPORAIRE : Permission check désactivée pour test
+        // TEMPORARY: Permission check disabled for testing
         // Check if user has member role
         // if (!in_array('jgk_member', $current_user->roles)) {
         //     return '<div class="jgk-notice jgk-notice-error">You do not have permission to view this page.</div>';

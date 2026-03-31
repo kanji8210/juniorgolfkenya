@@ -16,8 +16,8 @@
      */
     $(document).ready(function() {
         
-        // Form validation for member portal
-        $('.jgk-form').on('submit', function(e) {
+        // Form validation for member portal and registration flow
+        $('.jgk-form, .jgk-member-form').on('submit', function(e) {
             var isValid = true;
             var firstInvalidField = null;
 
