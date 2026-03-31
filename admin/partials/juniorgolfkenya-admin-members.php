@@ -941,6 +941,7 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
                                             <div class="detail-row"><span class="detail-label">Full Name:</span><span class="detail-value"><?php echo esc_html($member->first_name . ' ' . $member->last_name); ?></span></div>
                                             <div class="detail-row"><span class="detail-label">Email:</span><span class="detail-value"><?php echo esc_html($member->user_email); ?></span></div>
                                             <div class="detail-row"><span class="detail-label">Phone:</span><span class="detail-value"><?php echo esc_html($member->phone ?: 'Not provided'); ?></span></div>
+                                            <div class="detail-row"><span class="detail-label">Address:</span><span class="detail-value"><?php echo nl2br(esc_html($member->address ?: 'Not provided')); ?></span></div>
                                             <div class="detail-row"><span class="detail-label">Date of Birth:</span><span class="detail-value"><?php echo esc_html($member->date_of_birth ?: 'Not provided'); ?></span></div>
                                             <div class="detail-row"><span class="detail-label">Age:</span><span class="detail-value"><?php echo esc_html($age ?: 'Not calculated'); ?></span></div>
                                             <div class="detail-row"><span class="detail-label">Gender:</span><span class="detail-value"><?php echo esc_html($member->gender ?: 'Not specified'); ?></span></div>
