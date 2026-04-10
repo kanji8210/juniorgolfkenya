@@ -146,19 +146,19 @@ function jgk_ajax_search_members() {
     }
     
     global $wpdb;
-    $members_table = $wpdb->prefix . 'jgk_members';
     $users_table = $wpdb->users;
+    $member_table = JuniorGolfKenya_Database::get_deduplicated_members_subquery();
     
     // Search members by name, email, or membership number
     $like = '%' . $wpdb->esc_like($search) . '%';
-    $query = $wpdb->prepare("
+    $query = $wpdb->prepare(" 
         SELECT 
             m.id,
             CONCAT(m.first_name, ' ', m.last_name) as name,
             m.membership_type as type,
             m.membership_number,
             COALESCE(m.email, u.user_email) as user_email
-        FROM {$members_table} m
+        FROM {$member_table}
         LEFT JOIN {$users_table} u ON m.user_id = u.ID
         WHERE m.status IN ('active', 'approved', 'pending')
         AND (

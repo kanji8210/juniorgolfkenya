@@ -210,10 +210,11 @@ class JuniorGolfKenya_Admin {
         );
 
         // Total members
-        $stats['total_members'] = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}jgk_members");
+        $member_table = JuniorGolfKenya_Database::get_deduplicated_members_subquery();
+        $stats['total_members'] = $wpdb->get_var("SELECT COUNT(*) FROM {$member_table}");
 
         // Active members
-        $stats['active_members'] = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}jgk_members WHERE status = 'active'");
+        $stats['active_members'] = $wpdb->get_var("SELECT COUNT(*) FROM {$member_table} WHERE m.status = 'active'");
 
         // Total revenue and payments
         $query = $wpdb->prepare(
@@ -323,19 +324,21 @@ class JuniorGolfKenya_Admin {
         );
 
         // Total members
-        $stats['total_members'] = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}jgk_members");
+        $member_table = JuniorGolfKenya_Database::get_deduplicated_members_subquery();
+        $stats['total_members'] = $wpdb->get_var("SELECT COUNT(*) FROM {$member_table}");
 
         // Active members
-        $stats['active_members'] = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}jgk_members WHERE status = 'active'");
+        $stats['active_members'] = $wpdb->get_var("SELECT COUNT(*) FROM {$member_table} WHERE m.status = 'active'");
 
         // New members in period
         $stats['new_members'] = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}jgk_members WHERE DATE(created_at) BETWEEN %s AND %s",
+            "SELECT COUNT(*) FROM {$member_table} WHERE DATE(m.created_at) BETWEEN %s AND %s",
             $start_date, $end_date
         ));
 
         // Members by status
-        $status_results = $wpdb->get_results("SELECT status, COUNT(*) as count FROM {$wpdb->prefix}jgk_members GROUP BY status");
+        $member_table = JuniorGolfKenya_Database::get_deduplicated_members_subquery();
+        $status_results = $wpdb->get_results("SELECT m.status, COUNT(*) as count FROM {$member_table} GROUP BY m.status");
         foreach ($status_results as $row) {
             $stats['by_status'][$row->status] = $row->count;
         }

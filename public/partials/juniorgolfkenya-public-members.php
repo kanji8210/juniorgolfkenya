@@ -39,19 +39,19 @@ $atts = shortcode_atts(array(
 ), $atts);
 
 // Build query
-$table_name = $wpdb->prefix . 'jgk_members';
-$query = "SELECT * FROM {$table_name} WHERE is_public = 1 AND status = 'active'";
+$member_table = JuniorGolfKenya_Database::get_deduplicated_members_subquery();
+$query = "SELECT * FROM {$member_table} WHERE m.is_public = 1 AND m.status = 'active'";
 
 // Add type filter if specified
 if (!empty($atts['type'])) {
-    $query .= $wpdb->prepare(" AND membership_type = %s", sanitize_text_field($atts['type']));
+    $query .= $wpdb->prepare(" AND m.membership_type = %s", sanitize_text_field($atts['type']));
 }
 
 // Add ordering
 $allowed_orderby = array('first_name', 'last_name', 'handicap', 'created_at');
 $orderby = in_array($atts['orderby'], $allowed_orderby) ? $atts['orderby'] : 'first_name';
 $order = strtoupper($atts['order']) === 'DESC' ? 'DESC' : 'ASC';
-$query .= " ORDER BY {$orderby} {$order}";
+$query .= " ORDER BY m.{$orderby} {$order}";
 
 // Add limit
 $limit = intval($atts['limit']);
