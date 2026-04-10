@@ -949,4 +949,115 @@ class JuniorGolfKenya_Database {
             )
         );
     }
+
+    /**
+     * Sync missing members from WooCommerce orders and ARMember into jgk_members table.
+     *
+     * Finds users who paid for membership via WooCommerce or exist in ARMember
+     * but do not yet have a row in jgk_members, and creates one for each.
+     *
+     * @since  1.0.0
+     * @return array  Summary with 'wc_synced', 'arm_synced', 'errors' counts
+     */
+    public static function sync_missing_members() {
+        global $wpdb;
+
+        $table   = $wpdb->prefix . 'jgk_members';
+        $results = array('wc_synced' => 0, 'arm_synced' => 0, 'skipped' => 0, 'errors' => 0);
+
+        // ── 1. WooCommerce customers with completed membership orders ──
+        if (class_exists('WooCommerce')) {
+            $membership_product_id = get_option('jgk_membership_product_id', 0);
+
+            if ($membership_product_id) {
+                // Use HPOS-compatible approach: query order items for the membership product
+                // then check which customers are missing from jgk_members
+                $missing_customers = $wpdb->get_results($wpdb->prepare("
+                    SELECT DISTINCT pm_customer.meta_value AS customer_id
+                    FROM {$wpdb->prefix}woocommerce_order_items oi
+                    INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta oim
+                        ON oi.order_item_id = oim.order_item_id AND oim.meta_key = '_product_id' AND oim.meta_value = %s
+                    INNER JOIN {$wpdb->postmeta} pm_customer
+                        ON oi.order_id = pm_customer.post_id AND pm_customer.meta_key = '_customer_user'
+                    INNER JOIN {$wpdb->posts} o
+                        ON oi.order_id = o.ID AND o.post_status IN ('wc-completed','wc-processing')
+                    WHERE pm_customer.meta_value > 0
+                      AND pm_customer.meta_value NOT IN (SELECT user_id FROM {$table} WHERE user_id IS NOT NULL)
+                ", $membership_product_id));
+
+                foreach ($missing_customers as $row) {
+                    $uid = intval($row->customer_id);
+                    if ($uid <= 0) {
+                        continue;
+                    }
+
+                    $wp_user = get_userdata($uid);
+                    if (!$wp_user) {
+                        $results['errors']++;
+                        continue;
+                    }
+
+                    // Build member data from WP user + billing meta
+                    $member_data = array(
+                        'user_id'         => $uid,
+                        'first_name'      => $wp_user->first_name ?: get_user_meta($uid, 'billing_first_name', true),
+                        'last_name'       => $wp_user->last_name ?: get_user_meta($uid, 'billing_last_name', true),
+                        'email'           => $wp_user->user_email,
+                        'phone'           => get_user_meta($uid, 'billing_phone', true),
+                        'membership_type' => 'junior',
+                        'status'          => 'active',
+                        'date_joined'     => current_time('mysql'),
+                        'join_date'       => current_time('Y-m-d'),
+                        'expiry_date'     => date('Y-m-d', strtotime('+1 year')),
+                    );
+
+                    $member_id = self::create_member($member_data);
+
+                    if ($member_id) {
+                        // Ensure jgk_member role
+                        $user_obj = new WP_User($uid);
+                        if (!in_array('jgk_member', $user_obj->roles, true)) {
+                            $user_obj->add_role('jgk_member');
+                        }
+                        $results['wc_synced']++;
+                    } else {
+                        $results['errors']++;
+                    }
+                }
+            }
+        }
+
+        // ── 2. ARMember users ──
+        if (class_exists('JuniorGolfKenya_ARMember_Importer') && JuniorGolfKenya_ARMember_Importer::is_armember_active()) {
+            $arm_count = JuniorGolfKenya_ARMember_Importer::get_armember_members_count();
+            $batch     = 50;
+
+            for ($offset = 0; $offset < $arm_count; $offset += $batch) {
+                $arm_members = JuniorGolfKenya_ARMember_Importer::get_armember_members($offset, $batch);
+
+                foreach ($arm_members as $arm) {
+                    // Skip if already in jgk_members
+                    $exists = $wpdb->get_var($wpdb->prepare(
+                        "SELECT id FROM {$table} WHERE user_id = %d LIMIT 1",
+                        $arm->user_id
+                    ));
+
+                    if ($exists) {
+                        $results['skipped']++;
+                        continue;
+                    }
+
+                    $import_result = JuniorGolfKenya_ARMember_Importer::import_member($arm);
+
+                    if (!empty($import_result['success'])) {
+                        $results['arm_synced']++;
+                    } else {
+                        $results['skipped']++;
+                    }
+                }
+            }
+        }
+
+        return $results;
+    }
 }

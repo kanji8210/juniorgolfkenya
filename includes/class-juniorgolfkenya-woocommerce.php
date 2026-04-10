@@ -342,16 +342,49 @@ class JuniorGolfKenya_WooCommerce {
         $member = JuniorGolfKenya_Database::get_member_by_user_id($customer_id);
 
         if (!$member) {
-            error_log("JGK IPAY DEBUG: ❌ No member found for customer ID {$customer_id}");
-            error_log("JGK IPAY DEBUG: === PAYMENT PROCESSING ABORTED - NO MEMBER ===");
+            error_log("JGK IPAY DEBUG: ⚠️ No member found for customer ID {$customer_id} - auto-creating from order data");
 
-            // Store error for debug display
-            $errors = get_transient('jgk_payment_errors_' . $customer_id) ?: array();
-            $errors[] = 'No member record found for user';
-            set_transient('jgk_payment_errors_' . $customer_id, array_slice($errors, -5), HOUR_IN_SECONDS);
+            // Auto-create jgk_members record from WP user + order data
+            $wp_user = get_userdata($customer_id);
+            if (!$wp_user) {
+                error_log("JGK IPAY DEBUG: ❌ WordPress user {$customer_id} not found - cannot auto-create member");
+                return;
+            }
 
-            error_log("JGK: No member found for user ID {$customer_id} in order {$order_id}");
-            return;
+            $member_data = array(
+                'user_id'         => $customer_id,
+                'first_name'      => $wp_user->first_name ?: $order->get_billing_first_name(),
+                'last_name'       => $wp_user->last_name ?: $order->get_billing_last_name(),
+                'email'           => $wp_user->user_email,
+                'phone'           => $order->get_billing_phone(),
+                'membership_type' => 'junior',
+                'status'          => 'approved',
+                'date_joined'     => current_time('mysql'),
+                'join_date'       => current_time('Y-m-d'),
+                'expiry_date'     => date('Y-m-d', strtotime('+1 year')),
+            );
+
+            $new_member_id = JuniorGolfKenya_Database::create_member($member_data);
+
+            if (!$new_member_id) {
+                error_log("JGK IPAY DEBUG: ❌ Failed to auto-create member for customer {$customer_id}");
+                return;
+            }
+
+            // Assign jgk_member role if missing
+            $user_obj = new WP_User($customer_id);
+            if (!in_array('jgk_member', $user_obj->roles, true)) {
+                $user_obj->add_role('jgk_member');
+            }
+
+            error_log("JGK IPAY DEBUG: ✅ Auto-created member ID {$new_member_id} for customer {$customer_id}");
+
+            // Re-fetch the newly created member
+            $member = JuniorGolfKenya_Database::get_member_by_user_id($customer_id);
+            if (!$member) {
+                error_log("JGK IPAY DEBUG: ❌ Could not retrieve auto-created member");
+                return;
+            }
         }
 
         error_log("JGK IPAY DEBUG: ✅ Member found - ID: {$member->id}, Name: {$member->first_name} {$member->last_name}, Status: {$member->status}");
