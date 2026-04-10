@@ -164,7 +164,7 @@ class JuniorGolfKenya_Database {
     public static function get_members($page = 1, $per_page = 20, $status = '') {
         global $wpdb;
 
-        $member_table = self::get_deduplicated_members_subquery();
+        $table = $wpdb->prefix . 'jgk_members';
         $users_table = $wpdb->users;
         $coaches_table = $wpdb->users;
         $coach_members_table = $wpdb->prefix . 'jgk_coach_members';
@@ -176,18 +176,26 @@ class JuniorGolfKenya_Database {
         $coach_members_count = $coach_members_exists ? $wpdb->get_var("SELECT COUNT(*) FROM {$coach_members_table}") : 0;
 
         if ($coach_members_exists && $coach_members_count > 0) {
-            // Use full query with coach JOINs
+            // Use full query with coach JOINs and aggregated coach list in a subquery
+            $coach_list_subquery = "(
+                SELECT cm.member_id,
+                       GROUP_CONCAT(DISTINCT c2.display_name ORDER BY c2.display_name SEPARATOR ', ') AS all_coaches
+                FROM $coach_members_table cm
+                LEFT JOIN $coaches_table c2 ON cm.coach_id = c2.ID
+                WHERE cm.status = 'active'
+                GROUP BY cm.member_id
+            ) cm";
+
             $query = "
                 SELECT m.*, COALESCE(m.email, u.user_email) as user_email, u.display_name, u.user_login,
                        TIMESTAMPDIFF(YEAR, m.date_of_birth, CURDATE()) as age,
                        CONCAT(m.first_name, ' ', m.last_name) as full_name,
                        c.display_name as primary_coach_name,
-                       GROUP_CONCAT(DISTINCT c2.display_name ORDER BY c2.display_name SEPARATOR ', ') as all_coaches
-                FROM {$member_table}
+                       cm.all_coaches
+                FROM $table m
                 LEFT JOIN $users_table u ON m.user_id = u.ID
                 LEFT JOIN $coaches_table c ON m.coach_id = c.ID
-                LEFT JOIN $coach_members_table cm ON m.id = cm.member_id AND cm.status = 'active'
-                LEFT JOIN $coaches_table c2 ON cm.coach_id = c2.ID
+                LEFT JOIN {$coach_list_subquery} ON m.id = cm.member_id
             ";
         } else {
             // Fallback query without coach_members JOIN
@@ -197,7 +205,7 @@ class JuniorGolfKenya_Database {
                        CONCAT(m.first_name, ' ', m.last_name) as full_name,
                        c.display_name as primary_coach_name,
                        NULL as all_coaches
-                FROM {$member_table}
+                FROM $table m
                 LEFT JOIN $users_table u ON m.user_id = u.ID
                 LEFT JOIN $coaches_table c ON m.coach_id = c.ID
             ";
@@ -236,11 +244,11 @@ class JuniorGolfKenya_Database {
     public static function get_members_count($status = '') {
         global $wpdb;
 
-        $member_table = self::get_deduplicated_members_subquery();
-        $query = "SELECT COUNT(*) FROM {$member_table}";
+        $table = $wpdb->prefix . 'jgk_members';
+        $query = "SELECT COUNT(*) FROM $table";
 
         if ($status) {
-            $query .= " WHERE m.status = %s";
+            $query .= " WHERE status = %s";
             return $wpdb->get_var($wpdb->prepare($query, $status));
         }
 
@@ -259,7 +267,7 @@ class JuniorGolfKenya_Database {
     public static function search_members($search_term, $page = 1, $per_page = 20) {
         global $wpdb;
         
-$member_table = self::get_deduplicated_members_subquery();
+        $table = $wpdb->prefix . 'jgk_members';
         $users_table = $wpdb->users;
         $coaches_table = $wpdb->users;
 
@@ -269,7 +277,7 @@ $member_table = self::get_deduplicated_members_subquery();
             SELECT m.*, COALESCE(m.email, u.user_email) as user_email, u.display_name, u.user_login,
                    TIMESTAMPDIFF(YEAR, m.date_of_birth, CURDATE()) as age,
                    c.display_name as coach_name
-            FROM {$member_table}
+            FROM $table m
             LEFT JOIN $users_table u ON m.user_id = u.ID 
             LEFT JOIN $coaches_table c ON m.coach_id = c.ID
             WHERE (
