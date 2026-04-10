@@ -153,7 +153,118 @@ class JuniorGolfKenya_Database {
     }
 
     /**
-     * Get all members with pagination and filters
+     * Centralized member query builder and executor.
+     *
+     * All member listing, counting, and statistics methods use this
+     * to guarantee consistent deduplicated results from one source of truth.
+     *
+     * @since    1.0.0
+     * @access   private
+     * @param    array    $options {
+     *     @type bool   $count_only       Return a single COUNT(*) integer. Default false.
+     *     @type bool   $count_by_status  Return rows grouped by status with counts. Default false.
+     *     @type string $where            Additional WHERE clause (without the WHERE keyword). Default ''.
+     *     @type array  $params           Prepared-statement parameters for $where. Default [].
+     *     @type string $order_by         ORDER BY expression. Default 'm.created_at DESC'.
+     *     @type int    $limit            LIMIT value (0 = no limit). Default 0.
+     *     @type int    $offset           OFFSET value. Default 0.
+     * }
+     * @return   mixed   Array of member objects, integer count, or status-count rows.
+     */
+    private static function query_members($options = array()) {
+        global $wpdb;
+
+        $defaults = array(
+            'count_only'      => false,
+            'count_by_status' => false,
+            'where'           => '',
+            'params'          => array(),
+            'order_by'        => 'm.created_at DESC',
+            'limit'           => 0,
+            'offset'          => 0,
+        );
+        $opts = array_merge($defaults, $options);
+
+        $member_source = self::get_deduplicated_members_subquery();
+        $users_table   = $wpdb->users;
+        $coach_members_table = $wpdb->prefix . 'jgk_coach_members';
+
+        // --- Build SELECT + FROM + JOINs ---
+        if ($opts['count_only']) {
+            $query = "SELECT COUNT(*) FROM {$member_source}";
+
+        } elseif ($opts['count_by_status']) {
+            $query = "SELECT m.status, COUNT(*) as count FROM {$member_source}";
+
+        } else {
+            // Full row query with user + coach joins
+            $coach_members_exists = $wpdb->get_var("SHOW TABLES LIKE '{$coach_members_table}'");
+            $has_coaches = $coach_members_exists
+                ? (int) $wpdb->get_var("SELECT COUNT(*) FROM {$coach_members_table}") > 0
+                : false;
+
+            $select = "SELECT m.*, COALESCE(m.email, u.user_email) as user_email,
+                       u.display_name, u.user_login,
+                       TIMESTAMPDIFF(YEAR, m.date_of_birth, CURDATE()) as age,
+                       CONCAT(m.first_name, ' ', m.last_name) as full_name,
+                       c.display_name as primary_coach_name";
+
+            $joins = "LEFT JOIN {$users_table} u ON m.user_id = u.ID
+                      LEFT JOIN {$users_table} c ON m.coach_id = c.ID";
+
+            if ($has_coaches) {
+                $select .= ", cm.all_coaches";
+                $joins .= " LEFT JOIN (
+                    SELECT cm.member_id,
+                           GROUP_CONCAT(DISTINCT c2.display_name ORDER BY c2.display_name SEPARATOR ', ') AS all_coaches
+                    FROM {$coach_members_table} cm
+                    LEFT JOIN {$users_table} c2 ON cm.coach_id = c2.ID
+                    WHERE cm.status = 'active'
+                    GROUP BY cm.member_id
+                ) cm ON m.id = cm.member_id";
+            } else {
+                $select .= ", NULL as all_coaches";
+            }
+
+            $query = "{$select} FROM {$member_source} {$joins}";
+        }
+
+        // --- WHERE ---
+        $params = $opts['params'];
+        if (!empty($opts['where'])) {
+            $query .= " WHERE " . $opts['where'];
+        }
+
+        // --- GROUP BY (for count_by_status) ---
+        if ($opts['count_by_status']) {
+            $query .= " GROUP BY m.status";
+        }
+
+        // --- ORDER BY ---
+        if (!$opts['count_only'] && !$opts['count_by_status'] && !empty($opts['order_by'])) {
+            $query .= " ORDER BY " . $opts['order_by'];
+        }
+
+        // --- LIMIT / OFFSET ---
+        if (!$opts['count_only'] && !$opts['count_by_status'] && $opts['limit'] > 0) {
+            $query .= " LIMIT %d OFFSET %d";
+            $params[] = $opts['limit'];
+            $params[] = $opts['offset'];
+        }
+
+        // --- Execute ---
+        if (!empty($params)) {
+            $query = $wpdb->prepare($query, $params);
+        }
+
+        if ($opts['count_only']) {
+            return (int) $wpdb->get_var($query);
+        }
+        return $wpdb->get_results($query);
+    }
+
+    /**
+     * Get all members with pagination and filters (deduplicated)
      *
      * @since    1.0.0
      * @param    int       $page         Current page
@@ -162,101 +273,35 @@ class JuniorGolfKenya_Database {
      * @return   array
      */
     public static function get_members($page = 1, $per_page = 20, $status = '') {
-        global $wpdb;
-
-        $table = $wpdb->prefix . 'jgk_members';
-        $users_table = $wpdb->users;
-        $coaches_table = $wpdb->users;
-        $coach_members_table = $wpdb->prefix . 'jgk_coach_members';
-
-        $offset = ($page - 1) * $per_page;
-
-        // Check if coach_members table exists and has data
-        $coach_members_exists = $wpdb->get_var("SHOW TABLES LIKE '{$coach_members_table}'");
-        $coach_members_count = $coach_members_exists ? $wpdb->get_var("SELECT COUNT(*) FROM {$coach_members_table}") : 0;
-
-        if ($coach_members_exists && $coach_members_count > 0) {
-            // Use full query with coach JOINs and aggregated coach list in a subquery
-            $coach_list_subquery = "(
-                SELECT cm.member_id,
-                       GROUP_CONCAT(DISTINCT c2.display_name ORDER BY c2.display_name SEPARATOR ', ') AS all_coaches
-                FROM $coach_members_table cm
-                LEFT JOIN $coaches_table c2 ON cm.coach_id = c2.ID
-                WHERE cm.status = 'active'
-                GROUP BY cm.member_id
-            ) cm";
-
-            $query = "
-                SELECT m.*, COALESCE(m.email, u.user_email) as user_email, u.display_name, u.user_login,
-                       TIMESTAMPDIFF(YEAR, m.date_of_birth, CURDATE()) as age,
-                       CONCAT(m.first_name, ' ', m.last_name) as full_name,
-                       c.display_name as primary_coach_name,
-                       cm.all_coaches
-                FROM $table m
-                LEFT JOIN $users_table u ON m.user_id = u.ID
-                LEFT JOIN $coaches_table c ON m.coach_id = c.ID
-                LEFT JOIN {$coach_list_subquery} ON m.id = cm.member_id
-            ";
-        } else {
-            // Fallback query without coach_members JOIN
-            $query = "
-                SELECT m.*, COALESCE(m.email, u.user_email) as user_email, u.display_name, u.user_login,
-                       TIMESTAMPDIFF(YEAR, m.date_of_birth, CURDATE()) as age,
-                       CONCAT(m.first_name, ' ', m.last_name) as full_name,
-                       c.display_name as primary_coach_name,
-                       NULL as all_coaches
-                FROM $table m
-                LEFT JOIN $users_table u ON m.user_id = u.ID
-                LEFT JOIN $coaches_table c ON m.coach_id = c.ID
-            ";
-        }
-
-        $where_conditions = array();
-        $params = array();
-
+        $options = array(
+            'limit'  => $per_page,
+            'offset' => ($page - 1) * $per_page,
+        );
         if ($status) {
-            $where_conditions[] = "m.status = %s";
-            $params[] = $status;
+            $options['where']  = "m.status = %s";
+            $options['params'] = array($status);
         }
-
-        if (!empty($where_conditions)) {
-            $query .= " WHERE " . implode(" AND ", $where_conditions);
-        }
-
-        if ($coach_members_exists && $coach_members_count > 0) {
-            $query .= " GROUP BY m.id";
-        }
-
-        $query .= " ORDER BY m.created_at DESC LIMIT %d OFFSET %d";
-        $params[] = $per_page;
-        $params[] = $offset;
-
-        return $wpdb->get_results($wpdb->prepare($query, $params));
+        return self::query_members($options);
     }
 
     /**
-     * Get members count
+     * Get members count (deduplicated)
      *
      * @since    1.0.0
      * @param    string    $status    Status filter
      * @return   int
      */
     public static function get_members_count($status = '') {
-        global $wpdb;
-
-        $table = $wpdb->prefix . 'jgk_members';
-        $query = "SELECT COUNT(*) FROM $table";
-
+        $options = array('count_only' => true);
         if ($status) {
-            $query .= " WHERE status = %s";
-            return $wpdb->get_var($wpdb->prepare($query, $status));
+            $options['where']  = "m.status = %s";
+            $options['params'] = array($status);
         }
-
-        return $wpdb->get_var($query);
+        return self::query_members($options);
     }
 
     /**
-     * Search members
+     * Search members (deduplicated)
      *
      * @since    1.0.0
      * @param    string    $search_term    Search term
@@ -266,37 +311,14 @@ class JuniorGolfKenya_Database {
      */
     public static function search_members($search_term, $page = 1, $per_page = 20) {
         global $wpdb;
-        
-        $table = $wpdb->prefix . 'jgk_members';
-        $users_table = $wpdb->users;
-        $coaches_table = $wpdb->users;
 
-        $offset = ($page - 1) * $per_page;
-        
-        $query = "
-            SELECT m.*, COALESCE(m.email, u.user_email) as user_email, u.display_name, u.user_login,
-                   TIMESTAMPDIFF(YEAR, m.date_of_birth, CURDATE()) as age,
-                   c.display_name as coach_name
-            FROM $table m
-            LEFT JOIN $users_table u ON m.user_id = u.ID 
-            LEFT JOIN $coaches_table c ON m.coach_id = c.ID
-            WHERE (
-                u.display_name LIKE %s OR 
-                COALESCE(m.email, u.user_email) LIKE %s OR 
-                m.membership_number LIKE %s OR
-                m.phone LIKE %s OR
-                CONCAT(m.first_name, ' ', m.last_name) LIKE %s
-            )
-            ORDER BY m.created_at DESC 
-            LIMIT %d OFFSET %d
-        ";
-        
-        $like_term = '%' . $wpdb->esc_like($search_term) . '%';
-        
-        return $wpdb->get_results($wpdb->prepare(
-            $query, 
-            $like_term, $like_term, $like_term, $like_term, $like_term,
-            $per_page, $offset
+        $like = '%' . $wpdb->esc_like($search_term) . '%';
+
+        return self::query_members(array(
+            'where'  => "(m.first_name LIKE %s OR m.last_name LIKE %s OR m.email LIKE %s OR m.membership_number LIKE %s OR m.phone LIKE %s)",
+            'params' => array($like, $like, $like, $like, $like),
+            'limit'  => $per_page,
+            'offset' => ($page - 1) * $per_page,
         ));
     }
 
@@ -392,18 +414,22 @@ class JuniorGolfKenya_Database {
      * @return   array
      */
     public static function get_membership_stats() {
-        global $wpdb;
-        
-        $member_table = self::get_deduplicated_members_subquery();
-        
+        // Single query: count members grouped by status from the same dedup source
+        $rows = self::query_members(array('count_by_status' => true));
+
         $stats = array(
-            'total' => $wpdb->get_var("SELECT COUNT(*) FROM {$member_table}"),
-            'active' => $wpdb->get_var("SELECT COUNT(*) FROM {$member_table} WHERE m.status = 'active'"),
-            'pending' => $wpdb->get_var("SELECT COUNT(*) FROM {$member_table} WHERE m.status = 'pending'"),
-            'expired' => $wpdb->get_var("SELECT COUNT(*) FROM {$member_table} WHERE m.status = 'expired'"),
-            'suspended' => $wpdb->get_var("SELECT COUNT(*) FROM {$member_table} WHERE m.status = 'suspended'")
+            'total'     => 0,
+            'active'    => 0,
+            'pending'   => 0,
+            'expired'   => 0,
+            'suspended' => 0,
         );
-        
+        foreach ($rows as $row) {
+            $stats['total'] += (int) $row->count;
+            if (isset($stats[$row->status])) {
+                $stats[$row->status] = (int) $row->count;
+            }
+        }
         return $stats;
     }
 
@@ -722,10 +748,10 @@ class JuniorGolfKenya_Database {
         
         $stats = array();
         
-        // Member statistics
-        $member_table = self::get_deduplicated_members_subquery();
-        $stats['total_members'] = $wpdb->get_var("SELECT COUNT(*) FROM {$member_table}");
-        $stats['active_members'] = $wpdb->get_var("SELECT COUNT(*) FROM {$member_table} WHERE m.status = 'active'");
+        // Member statistics (from centralized dedup source)
+        $member_stats = self::get_membership_stats();
+        $stats['total_members'] = $member_stats['total'];
+        $stats['active_members'] = $member_stats['active'];
         
         // Coach statistics
         $stats['total_coaches'] = $wpdb->get_var("
