@@ -124,43 +124,31 @@ class JuniorGolfKenya_Database {
         global $wpdb;
 
         $table = $wpdb->prefix . 'jgk_members';
+        $status_rank_t = self::get_member_status_rank_sql('t');
+        $status_rank_b = self::get_member_status_rank_sql('b');
 
         return "(
-            SELECT m.*
-            FROM $table m
-            LEFT JOIN (
+            SELECT t.*
+            FROM $table t
+            INNER JOIN (
                 SELECT user_id, MAX(CONCAT(
-                    LPAD(
-                        CASE
-                            WHEN status = 'active' THEN 5
-                            WHEN status = 'approved' THEN 4
-                            WHEN status = 'pending' THEN 3
-                            WHEN status = 'pending_approval' THEN 2
-                            WHEN status = 'expired' THEN 1
-                            WHEN status = 'suspended' THEN 0
-                            ELSE -1
-                        END, 2, '0'),
+                    LPAD($status_rank_b, 2, '0'),
                     DATE_FORMAT(created_at, '%Y%m%d%H%i%s'),
                     LPAD(id, 10, '0')
                 )) as best_key
                 FROM $table
                 WHERE user_id IS NOT NULL
                 GROUP BY user_id
-            ) best ON m.user_id = best.user_id
-            WHERE best.user_id IS NULL OR CONCAT(
-                LPAD(
-                    CASE
-                        WHEN m.status = 'active' THEN 5
-                        WHEN m.status = 'approved' THEN 4
-                        WHEN m.status = 'pending' THEN 3
-                        WHEN m.status = 'pending_approval' THEN 2
-                        WHEN m.status = 'expired' THEN 1
-                        WHEN m.status = 'suspended' THEN 0
-                        ELSE -1
-                    END, 2, '0'),
-                DATE_FORMAT(m.created_at, '%Y%m%d%H%i%s'),
-                LPAD(m.id, 10, '0')
+            ) best ON t.user_id = best.user_id
+            AND CONCAT(
+                LPAD($status_rank_t, 2, '0'),
+                DATE_FORMAT(t.created_at, '%Y%m%d%H%i%s'),
+                LPAD(t.id, 10, '0')
             ) = best.best_key
+            UNION ALL
+            SELECT t2.*
+            FROM $table t2
+            WHERE t2.user_id IS NULL
         ) as m";
     }
 
