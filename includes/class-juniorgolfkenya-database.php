@@ -115,41 +115,230 @@ class JuniorGolfKenya_Database {
     }
 
     /**
-     * Get a deduplicated members subquery that prefers active or latest records per user_id.
+     * Get a combined member source query that includes JGK members, WooCommerce customers, and ARMember users.
      *
      * @since    1.0.0
      * @return   string
      */
-    public static function get_deduplicated_members_subquery() {
+    private static function get_combined_member_source_query() {
         global $wpdb;
 
         $table = $wpdb->prefix . 'jgk_members';
-        $status_rank_t = self::get_member_status_rank_sql('t');
-        $status_rank_b = self::get_member_status_rank_sql('b');
+        $users_table = $wpdb->users;
+        $coaches_table = $wpdb->users;
+        $coach_members_table = $wpdb->prefix . 'jgk_coach_members';
 
-        return "(
+        $coach_list_subquery = "(
+            SELECT cm.member_id,
+                   GROUP_CONCAT(DISTINCT c2.display_name ORDER BY c2.display_name SEPARATOR ', ') AS all_coaches
+            FROM {$coach_members_table} cm
+            LEFT JOIN {$coaches_table} c2 ON cm.coach_id = c2.ID
+            WHERE cm.status = 'active'
+            GROUP BY cm.member_id
+        ) cm";
+
+        $member_status_rank = self::get_member_status_rank_sql('t');
+        $member_status_rank_m = self::get_member_status_rank_sql('m');
+        $deduped_members_subquery = "(
             SELECT t.*
-            FROM $table t
+            FROM {$table} t
             INNER JOIN (
                 SELECT user_id, MAX(CONCAT(
-                    LPAD($status_rank_b, 2, '0'),
+                    LPAD({$member_status_rank}, 2, '0'),
                     DATE_FORMAT(created_at, '%Y%m%d%H%i%s'),
                     LPAD(id, 10, '0')
                 )) as best_key
-                FROM $table
+                FROM {$table}
                 WHERE user_id IS NOT NULL
                 GROUP BY user_id
             ) best ON t.user_id = best.user_id
             AND CONCAT(
-                LPAD($status_rank_t, 2, '0'),
+                LPAD({$member_status_rank_m}, 2, '0'),
                 DATE_FORMAT(t.created_at, '%Y%m%d%H%i%s'),
                 LPAD(t.id, 10, '0')
             ) = best.best_key
             UNION ALL
             SELECT t2.*
-            FROM $table t2
+            FROM {$table} t2
             WHERE t2.user_id IS NULL
-        ) as m";
+        ) deduped_members";
+
+        $base_query = "
+            SELECT
+                m.id,
+                m.user_id,
+                m.membership_number,
+                m.membership_type,
+                m.status,
+                m.coach_id,
+                m.date_joined,
+                m.date_expires,
+                m.expiry_date,
+                m.join_date,
+                m.date_of_birth,
+                m.gender,
+                m.first_name,
+                m.last_name,
+                m.phone,
+                m.email,
+                m.address,
+                m.biography,
+                m.parents_guardians,
+                m.profile_image_url,
+                m.profile_image_id,
+                m.consent_photography,
+                m.emergency_contact_name,
+                m.emergency_contact_phone,
+                m.club_affiliation,
+                m.handicap,
+                m.medical_conditions,
+                m.parental_consent,
+                m.is_public,
+                m.created_at,
+                m.updated_at,
+                COALESCE(m.email, u.user_email) as user_email,
+                u.display_name,
+                u.user_login,
+                TIMESTAMPDIFF(YEAR, m.date_of_birth, CURDATE()) as age,
+                CONCAT(m.first_name, ' ', m.last_name) as full_name,
+                c.display_name as primary_coach_name,
+                cm.all_coaches
+            FROM {$deduped_members_subquery} m
+            LEFT JOIN {$users_table} u ON m.user_id = u.ID
+            LEFT JOIN {$coaches_table} c ON m.coach_id = c.ID
+            LEFT JOIN {$coach_list_subquery} ON m.id = cm.member_id
+        ";
+
+        $customer_query = "
+            SELECT
+                NULL as id,
+                u.ID as user_id,
+                CONCAT('CUS', u.ID) as membership_number,
+                'customer' as membership_type,
+                'active' as status,
+                NULL as coach_id,
+                NULL as date_joined,
+                NULL as date_expires,
+                NULL as expiry_date,
+                NULL as join_date,
+                NULL as date_of_birth,
+                NULL as gender,
+                COALESCE(um_first.meta_value, '') as first_name,
+                COALESCE(um_last.meta_value, '') as last_name,
+                COALESCE(um_phone.meta_value, '') as phone,
+                u.user_email as email,
+                '' as address,
+                '' as biography,
+                '' as parents_guardians,
+                '' as profile_image_url,
+                NULL as profile_image_id,
+                'no' as consent_photography,
+                '' as emergency_contact_name,
+                '' as emergency_contact_phone,
+                '' as club_affiliation,
+                NULL as handicap,
+                '' as medical_conditions,
+                0 as parental_consent,
+                0 as is_public,
+                u.user_registered as created_at,
+                u.user_registered as updated_at,
+                u.user_email as user_email,
+                u.display_name as display_name,
+                u.user_login as user_login,
+                NULL as age,
+                CONCAT(COALESCE(um_first.meta_value, ''), ' ', COALESCE(um_last.meta_value, '')) as full_name,
+                NULL as primary_coach_name,
+                NULL as all_coaches
+            FROM {$users_table} u
+            INNER JOIN {$wpdb->usermeta} um_role ON u.ID = um_role.user_id
+                AND um_role.meta_key = 'wp_capabilities'
+                AND um_role.meta_value LIKE '%%customer%%'
+            LEFT JOIN {$table} m_existing ON u.ID = m_existing.user_id
+            LEFT JOIN {$wpdb->usermeta} um_first ON u.ID = um_first.user_id AND um_first.meta_key = 'first_name'
+            LEFT JOIN {$wpdb->usermeta} um_last ON u.ID = um_last.user_id AND um_last.meta_key = 'last_name'
+            LEFT JOIN {$wpdb->usermeta} um_phone ON u.ID = um_phone.user_id AND um_phone.meta_key = 'phone'
+            WHERE m_existing.user_id IS NULL
+        ";
+
+        $armember_query = '';
+        if (self::is_armember_active()) {
+            $tables = JuniorGolfKenya_ARMember_Importer::get_armember_tables();
+            $armember_table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$tables['members']}'");
+            if ($armember_table_exists) {
+                $armember_query = "
+                    SELECT
+                        NULL as id,
+                        u.ID as user_id,
+                        CONCAT('ARM', u.ID) as membership_number,
+                        'armember' as membership_type,
+                        CASE am.arm_primary_status
+                            WHEN 1 THEN 'active'
+                            WHEN 2 THEN 'suspended'
+                            WHEN 3 THEN 'pending'
+                            WHEN 4 THEN 'suspended'
+                            WHEN 5 THEN 'expired'
+                            ELSE 'active'
+                        END as status,
+                        NULL as coach_id,
+                        NULL as date_joined,
+                        NULL as date_expires,
+                        NULL as expiry_date,
+                        NULL as join_date,
+                        am.date_of_birth as date_of_birth,
+                        am.gender as gender,
+                        COALESCE(um_first.meta_value, '') as first_name,
+                        COALESCE(um_last.meta_value, '') as last_name,
+                        COALESCE(um_phone.meta_value, '') as phone,
+                        u.user_email as email,
+                        '' as address,
+                        '' as biography,
+                        '' as parents_guardians,
+                        '' as profile_image_url,
+                        NULL as profile_image_id,
+                        'no' as consent_photography,
+                        '' as emergency_contact_name,
+                        '' as emergency_contact_phone,
+                        '' as club_affiliation,
+                        NULL as handicap,
+                        '' as medical_conditions,
+                        0 as parental_consent,
+                        0 as is_public,
+                        u.user_registered as created_at,
+                        u.user_registered as updated_at,
+                        u.user_email as user_email,
+                        u.display_name as display_name,
+                        u.user_login as user_login,
+                        NULL as age,
+                        CONCAT(COALESCE(um_first.meta_value, ''), ' ', COALESCE(um_last.meta_value, '')) as full_name,
+                        NULL as primary_coach_name,
+                        NULL as all_coaches
+                    FROM {$users_table} u
+                    INNER JOIN {$tables['members']} am ON u.ID = am.arm_user_id
+                    LEFT JOIN {$table} m_existing ON u.ID = m_existing.user_id
+                    LEFT JOIN {$wpdb->usermeta} um_first ON u.ID = um_first.user_id AND um_first.meta_key = 'first_name'
+                    LEFT JOIN {$wpdb->usermeta} um_last ON u.ID = um_last.user_id AND um_last.meta_key = 'last_name'
+                    LEFT JOIN {$wpdb->usermeta} um_phone ON u.ID = um_phone.user_id AND um_phone.meta_key = 'phone'
+                    WHERE m_existing.user_id IS NULL
+                ";
+            }
+        }
+
+        $source = $base_query . " UNION ALL " . $customer_query;
+        if (!empty($armember_query)) {
+            $source .= " UNION ALL " . $armember_query;
+        }
+
+        return "({$source})";
+    }
+
+    /**
+     * Check if ARMember plugin is active
+     *
+     * @since    1.0.0
+     * @return   bool
+     */
+    private static function is_armember_active() {
+        return class_exists('ARMember');
     }
 
     /**
@@ -164,55 +353,12 @@ class JuniorGolfKenya_Database {
     public static function get_members($page = 1, $per_page = 20, $status = '') {
         global $wpdb;
 
-        $table = $wpdb->prefix . 'jgk_members';
-        $users_table = $wpdb->users;
-        $coaches_table = $wpdb->users;
-        $coach_members_table = $wpdb->prefix . 'jgk_coach_members';
-
         $offset = ($page - 1) * $per_page;
+        $source_query = self::get_combined_member_source_query();
 
-        // Check if coach_members table exists and has data
-        $coach_members_exists = $wpdb->get_var("SHOW TABLES LIKE '{$coach_members_table}'");
-        $coach_members_count = $coach_members_exists ? $wpdb->get_var("SELECT COUNT(*) FROM {$coach_members_table}") : 0;
-
-        if ($coach_members_exists && $coach_members_count > 0) {
-            // Use full query with coach JOINs and aggregated coach list in a subquery
-            $coach_list_subquery = "(
-                SELECT cm.member_id,
-                       GROUP_CONCAT(DISTINCT c2.display_name ORDER BY c2.display_name SEPARATOR ', ') AS all_coaches
-                FROM $coach_members_table cm
-                LEFT JOIN $coaches_table c2 ON cm.coach_id = c2.ID
-                WHERE cm.status = 'active'
-                GROUP BY cm.member_id
-            ) cm";
-
-            $query = "
-                SELECT m.*, COALESCE(m.email, u.user_email) as user_email, u.display_name, u.user_login,
-                       TIMESTAMPDIFF(YEAR, m.date_of_birth, CURDATE()) as age,
-                       CONCAT(m.first_name, ' ', m.last_name) as full_name,
-                       c.display_name as primary_coach_name,
-                       cm.all_coaches
-                FROM $table m
-                LEFT JOIN $users_table u ON m.user_id = u.ID
-                LEFT JOIN $coaches_table c ON m.coach_id = c.ID
-                LEFT JOIN {$coach_list_subquery} ON m.id = cm.member_id
-            ";
-        } else {
-            // Fallback query without coach_members JOIN
-            $query = "
-                SELECT m.*, COALESCE(m.email, u.user_email) as user_email, u.display_name, u.user_login,
-                       TIMESTAMPDIFF(YEAR, m.date_of_birth, CURDATE()) as age,
-                       CONCAT(m.first_name, ' ', m.last_name) as full_name,
-                       c.display_name as primary_coach_name,
-                       NULL as all_coaches
-                FROM $table m
-                LEFT JOIN $users_table u ON m.user_id = u.ID
-                LEFT JOIN $coaches_table c ON m.coach_id = c.ID
-            ";
-        }
-
-        $where_conditions = array();
+        $query = "SELECT * FROM {$source_query} m";
         $params = array();
+        $where_conditions = array();
 
         if ($status) {
             $where_conditions[] = "m.status = %s";
@@ -221,10 +367,6 @@ class JuniorGolfKenya_Database {
 
         if (!empty($where_conditions)) {
             $query .= " WHERE " . implode(" AND ", $where_conditions);
-        }
-
-        if ($coach_members_exists && $coach_members_count > 0) {
-            $query .= " GROUP BY m.id";
         }
 
         $query .= " ORDER BY m.created_at DESC LIMIT %d OFFSET %d";
@@ -244,12 +386,17 @@ class JuniorGolfKenya_Database {
     public static function get_members_count($status = '') {
         global $wpdb;
 
-        $table = $wpdb->prefix . 'jgk_members';
-        $query = "SELECT COUNT(*) FROM $table";
+        $source_query = self::get_combined_member_source_query();
+        $query = "SELECT COUNT(*) FROM {$source_query} m";
+        $params = array();
 
         if ($status) {
-            $query .= " WHERE status = %s";
-            return $wpdb->get_var($wpdb->prepare($query, $status));
+            $query .= " WHERE m.status = %s";
+            $params[] = $status;
+        }
+
+        if (!empty($params)) {
+            return $wpdb->get_var($wpdb->prepare($query, $params));
         }
 
         return $wpdb->get_var($query);
@@ -266,35 +413,28 @@ class JuniorGolfKenya_Database {
      */
     public static function search_members($search_term, $page = 1, $per_page = 20) {
         global $wpdb;
-        
-        $table = $wpdb->prefix . 'jgk_members';
-        $users_table = $wpdb->users;
-        $coaches_table = $wpdb->users;
 
         $offset = ($page - 1) * $per_page;
-        
+        $source_query = self::get_combined_member_source_query();
+
         $query = "
-            SELECT m.*, COALESCE(m.email, u.user_email) as user_email, u.display_name, u.user_login,
-                   TIMESTAMPDIFF(YEAR, m.date_of_birth, CURDATE()) as age,
-                   c.display_name as coach_name
-            FROM $table m
-            LEFT JOIN $users_table u ON m.user_id = u.ID 
-            LEFT JOIN $coaches_table c ON m.coach_id = c.ID
+            SELECT *
+            FROM {$source_query} m
             WHERE (
-                u.display_name LIKE %s OR 
-                COALESCE(m.email, u.user_email) LIKE %s OR 
+                m.display_name LIKE %s OR
+                m.user_email LIKE %s OR
                 m.membership_number LIKE %s OR
                 m.phone LIKE %s OR
-                CONCAT(m.first_name, ' ', m.last_name) LIKE %s
+                m.full_name LIKE %s
             )
-            ORDER BY m.created_at DESC 
+            ORDER BY m.created_at DESC
             LIMIT %d OFFSET %d
         ";
-        
+
         $like_term = '%' . $wpdb->esc_like($search_term) . '%';
-        
+
         return $wpdb->get_results($wpdb->prepare(
-            $query, 
+            $query,
             $like_term, $like_term, $like_term, $like_term, $like_term,
             $per_page, $offset
         ));
@@ -393,17 +533,17 @@ class JuniorGolfKenya_Database {
      */
     public static function get_membership_stats() {
         global $wpdb;
-        
-        $member_table = self::get_deduplicated_members_subquery();
-        
+
+        $member_table = self::get_combined_member_source_query();
+
         $stats = array(
-            'total' => $wpdb->get_var("SELECT COUNT(*) FROM {$member_table}"),
-            'active' => $wpdb->get_var("SELECT COUNT(*) FROM {$member_table} WHERE m.status = 'active'"),
-            'pending' => $wpdb->get_var("SELECT COUNT(*) FROM {$member_table} WHERE m.status = 'pending'"),
-            'expired' => $wpdb->get_var("SELECT COUNT(*) FROM {$member_table} WHERE m.status = 'expired'"),
-            'suspended' => $wpdb->get_var("SELECT COUNT(*) FROM {$member_table} WHERE m.status = 'suspended'")
+            'total' => $wpdb->get_var("SELECT COUNT(*) FROM {$member_table} m"),
+            'active' => $wpdb->get_var("SELECT COUNT(*) FROM {$member_table} m WHERE m.status = 'active'"),
+            'pending' => $wpdb->get_var("SELECT COUNT(*) FROM {$member_table} m WHERE m.status = 'pending'"),
+            'expired' => $wpdb->get_var("SELECT COUNT(*) FROM {$member_table} m WHERE m.status = 'expired'"),
+            'suspended' => $wpdb->get_var("SELECT COUNT(*) FROM {$member_table} m WHERE m.status = 'suspended'")
         );
-        
+
         return $stats;
     }
 
@@ -723,9 +863,9 @@ class JuniorGolfKenya_Database {
         $stats = array();
         
         // Member statistics
-        $member_table = self::get_deduplicated_members_subquery();
-        $stats['total_members'] = $wpdb->get_var("SELECT COUNT(*) FROM {$member_table}");
-        $stats['active_members'] = $wpdb->get_var("SELECT COUNT(*) FROM {$member_table} WHERE m.status = 'active'");
+        $member_table = self::get_combined_member_source_query();
+        $stats['total_members'] = $wpdb->get_var("SELECT COUNT(*) FROM {$member_table} m");
+        $stats['active_members'] = $wpdb->get_var("SELECT COUNT(*) FROM {$member_table} m WHERE m.status = 'active'");
         
         // Coach statistics
         $stats['total_coaches'] = $wpdb->get_var("
