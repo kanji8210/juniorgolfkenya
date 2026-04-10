@@ -133,12 +133,12 @@ class JuniorGolfKenya_Database {
             INNER JOIN (
                 SELECT user_id, MAX(CONCAT(
                     LPAD($status_rank_b, 2, '0'),
-                    DATE_FORMAT(created_at, '%Y%m%d%H%i%s'),
-                    LPAD(id, 10, '0')
+                    DATE_FORMAT(b.created_at, '%Y%m%d%H%i%s'),
+                    LPAD(b.id, 10, '0')
                 )) as best_key
-                FROM $table
-                WHERE user_id IS NOT NULL
-                GROUP BY user_id
+                FROM $table b
+                WHERE b.user_id IS NOT NULL
+                GROUP BY b.user_id
             ) best ON t.user_id = best.user_id
             AND CONCAT(
                 LPAD($status_rank_t, 2, '0'),
