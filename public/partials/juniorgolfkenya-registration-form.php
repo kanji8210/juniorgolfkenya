@@ -26,6 +26,29 @@ if (isset($_POST['jgk_register_member'])) {
     if (!isset($_POST['jgk_register_nonce']) || !wp_verify_nonce($_POST['jgk_register_nonce'], 'jgk_member_registration')) {
         $registration_errors[] = 'Security check failed. Please try again.';
     } else {
+        // Duplicate member check (same first name, last name, date of birth)
+        global $wpdb;
+        $members_table = $wpdb->prefix . 'jgk_members';
+        if (!empty($_POST['first_name']) && !empty($_POST['last_name']) && !empty($_POST['date_of_birth'])) {
+            $existing_members = $wpdb->get_results($wpdb->prepare(
+                "SELECT id, status FROM $members_table WHERE first_name = %s AND last_name = %s AND date_of_birth = %s",
+                sanitize_text_field($_POST['first_name']), sanitize_text_field($_POST['last_name']), sanitize_text_field($_POST['date_of_birth'])
+            ));
+            if ($existing_members) {
+                $has_active = false;
+                foreach ($existing_members as $em) {
+                    if ($em->status === 'active') {
+                        $has_active = true;
+                        break;
+                    }
+                }
+                if ($has_active) {
+                    $registration_errors[] = 'A member with the same name and date of birth is already active. Please contact support if you believe this is an error.';
+                } else {
+                    $registration_errors[] = 'A member with the same name and date of birth already exists in the system. Please contact support or wait for admin approval.';
+                }
+            }
+        }
         // Sanitize and validate input
         $first_name = sanitize_text_field($_POST['first_name'] ?? '');
         $last_name = sanitize_text_field($_POST['last_name'] ?? '');
