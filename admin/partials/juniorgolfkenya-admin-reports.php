@@ -53,8 +53,9 @@ $overview_stats = array(
 );
 
 if ($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $members_table)) === $members_table) {
-    $overview_stats['total_members']  = intval($wpdb->get_var("SELECT COUNT(*) FROM $members_table"));
-    $overview_stats['active_members'] = intval($wpdb->get_var("SELECT COUNT(*) FROM $members_table WHERE status='active'"));
+    $member_table = JuniorGolfKenya_Database::get_deduplicated_members_subquery();
+    $overview_stats['total_members']  = intval($wpdb->get_var("SELECT COUNT(*) FROM {$member_table}"));
+    $overview_stats['active_members'] = intval($wpdb->get_var("SELECT COUNT(*) FROM {$member_table} WHERE m.status='active'"));
 }
 
 if ($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $payments_table)) === $payments_table) {
@@ -114,7 +115,8 @@ if ($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $members_table)) === $m
     // Simple type aggregation if column membership_type exists
     $maybe_col = $wpdb->get_results("SHOW COLUMNS FROM $members_table LIKE 'membership_type'");
     if ($maybe_col) {
-        $rows = $wpdb->get_results("SELECT membership_type AS t, COUNT(*) active_count FROM $members_table WHERE status='active' GROUP BY membership_type");
+        $member_table = JuniorGolfKenya_Database::get_deduplicated_members_subquery();
+        $rows = $wpdb->get_results("SELECT m.membership_type AS t, COUNT(*) active_count FROM {$member_table} WHERE m.status='active' GROUP BY m.membership_type");
         foreach ($rows as $r) {
             $membership_stats['by_type'][$r->t] = array(
                 'active' => intval($r->active_count),

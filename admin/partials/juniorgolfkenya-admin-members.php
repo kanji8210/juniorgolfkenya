@@ -45,6 +45,21 @@ if (isset($_POST['action'])) {
     }
 
     switch ($_POST['action']) {
+        case 'sync_members':
+            $sync_results = JuniorGolfKenya_Database::sync_missing_members();
+            $synced_total = $sync_results['wc_synced'] + $sync_results['arm_synced'];
+            if ($synced_total > 0) {
+                $message = "Sync complete: {$sync_results['wc_synced']} WooCommerce + {$sync_results['arm_synced']} ARMember members added.";
+                $message_type = 'success';
+            } elseif ($sync_results['errors'] > 0) {
+                $message = "Sync finished with {$sync_results['errors']} error(s). No new members added.";
+                $message_type = 'error';
+            } else {
+                $message = 'All members are already synced. No new members to add.';
+                $message_type = 'info';
+            }
+            break;
+
         case 'approve_member':
             if (isset($_POST['member_id'])) {
                 $result = JuniorGolfKenya_User_Manager::approve_member($_POST['member_id']);
@@ -329,6 +344,13 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
 <div class="wrap jgk-admin-container">
     <h1 class="wp-heading-inline">JGK Members</h1>
     <a href="#" class="page-title-action" onclick="toggleAddMemberForm()">Add New Member</a>
+    <form method="post" style="display:inline;">
+        <?php wp_nonce_field('jgk_members_action'); ?>
+        <input type="hidden" name="action" value="sync_members">
+        <button type="submit" class="page-title-action" onclick="return confirm('Sync missing members from WooCommerce orders and ARMember?');">
+            🔄 Sync Members
+        </button>
+    </form>
     <hr class="wp-header-end">
 
     <?php if ($message): ?>
@@ -941,6 +963,7 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
                                             <div class="detail-row"><span class="detail-label">Full Name:</span><span class="detail-value"><?php echo esc_html($member->first_name . ' ' . $member->last_name); ?></span></div>
                                             <div class="detail-row"><span class="detail-label">Email:</span><span class="detail-value"><?php echo esc_html($member->user_email); ?></span></div>
                                             <div class="detail-row"><span class="detail-label">Phone:</span><span class="detail-value"><?php echo esc_html($member->phone ?: 'Not provided'); ?></span></div>
+                                            <div class="detail-row"><span class="detail-label">Address:</span><span class="detail-value"><?php echo nl2br(esc_html($member->address ?: 'Not provided')); ?></span></div>
                                             <div class="detail-row"><span class="detail-label">Date of Birth:</span><span class="detail-value"><?php echo esc_html($member->date_of_birth ?: 'Not provided'); ?></span></div>
                                             <div class="detail-row"><span class="detail-label">Age:</span><span class="detail-value"><?php echo esc_html($age ?: 'Not calculated'); ?></span></div>
                                             <div class="detail-row"><span class="detail-label">Gender:</span><span class="detail-value"><?php echo esc_html($member->gender ?: 'Not specified'); ?></span></div>

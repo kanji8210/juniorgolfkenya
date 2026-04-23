@@ -32,20 +32,34 @@ class JuniorGolfKenya_User_Manager {
             return array('success' => false, 'message' => 'Email and username are required');
         }
 
-        // Check if user already exists
-        if (username_exists($user_data['user_login']) || email_exists($user_data['user_email'])) {
-            return array('success' => false, 'message' => 'User already exists');
+        // Check if user already exists by login and/or email
+        $existing_login_user_id = username_exists($user_data['user_login']);
+        $existing_email_user_id = email_exists($user_data['user_email']);
+
+        if ($existing_login_user_id && $existing_email_user_id && $existing_login_user_id !== $existing_email_user_id) {
+            return array('success' => false, 'message' => 'The username and email address belong to different existing users.');
         }
 
-        // Create WordPress user
-        $user_id = wp_create_user(
-            $user_data['user_login'],
-            $user_data['user_pass'] ?? wp_generate_password(),
-            $user_data['user_email']
-        );
+        $existing_user_id = $existing_login_user_id ?: $existing_email_user_id;
 
-        if (is_wp_error($user_id)) {
-            return array('success' => false, 'message' => $user_id->get_error_message());
+        if ($existing_user_id) {
+            // If this WP user already has a JGK member record, do not create another.
+            if (JuniorGolfKenya_Database::get_member_by_user_id($existing_user_id)) {
+                return array('success' => false, 'message' => 'A Junior Golf Kenya member already exists for this user.');
+            }
+
+            $user_id = $existing_user_id;
+        } else {
+            // Create WordPress user
+            $user_id = wp_create_user(
+                $user_data['user_login'],
+                $user_data['user_pass'] ?? wp_generate_password(),
+                $user_data['user_email']
+            );
+
+            if (is_wp_error($user_id)) {
+                return array('success' => false, 'message' => $user_id->get_error_message());
+            }
         }
 
         // Update user profile
@@ -58,15 +72,23 @@ class JuniorGolfKenya_User_Manager {
 
         // Assign member role
         $user = new WP_User($user_id);
-        $user->set_role('jgk_member'); // Fixed: Changed from jgf_member to jgk_member
+        if ($existing_user_id) {
+            if (!in_array('jgk_member', $user->roles, true)) {
+                $user->add_role('jgk_member');
+            }
+        } else {
+            $user->set_role('jgk_member');
+        }
 
         // Create member record
         $member_data['user_id'] = $user_id;
         $member_id = JuniorGolfKenya_Database::create_member($member_data);
 
         if (!$member_id) {
-            // Rollback user creation if member creation fails
-            wp_delete_user($user_id);
+            // Rollback user creation only if this was a newly created user
+            if (empty($existing_user_id)) {
+                wp_delete_user($user_id);
+            }
             return array('success' => false, 'message' => 'Failed to create member record');
         }
 
@@ -77,9 +99,11 @@ class JuniorGolfKenya_User_Manager {
         if ($parents_manager->requires_parent_info($member_id)) {
             // At least one parent/guardian is required for minors
             if (empty($parent_data)) {
-                // Rollback member and user creation
+                // Rollback member record; do not delete existing WP user
                 JuniorGolfKenya_Database::delete_member($member_id);
-                wp_delete_user($user_id);
+                if (empty($existing_user_id)) {
+                    wp_delete_user($user_id);
+                }
                 $parent_age_limit = JuniorGolfKenya_Settings_Helper::get_max_age() + 1;
                 return array('success' => false, 'message' => "Parent/guardian information is required for members under {$parent_age_limit}");
             }
@@ -95,9 +119,11 @@ class JuniorGolfKenya_User_Manager {
             // Check if at least one parent was added successfully
             $member_parents = $parents_manager->get_member_parents($member_id);
             if (empty($member_parents)) {
-                // Rollback member and user creation
+                // Rollback member record; do not delete existing WP user
                 JuniorGolfKenya_Database::delete_member($member_id);
-                wp_delete_user($user_id);
+                if (empty($existing_user_id)) {
+                    wp_delete_user($user_id);
+                }
                 return array(
                     'success' => false, 
                     'message' => 'Failed to add parent/guardian information: ' . implode(', ', $parent_errors)

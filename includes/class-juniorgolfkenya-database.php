@@ -53,9 +53,103 @@ class JuniorGolfKenya_Database {
      */
     public static function get_member_by_user_id($user_id) {
         global $wpdb;
-        
+
         $table = $wpdb->prefix . 'jgk_members';
-        return $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE user_id = %d", $user_id));
+
+        $query = "SELECT m.* FROM $table m
+            INNER JOIN (
+                SELECT user_id, MAX(CONCAT(
+                    LPAD(
+                        CASE
+                            WHEN status = 'active' THEN 5
+                            WHEN status = 'approved' THEN 4
+                            WHEN status = 'pending' THEN 3
+                            WHEN status = 'pending_approval' THEN 2
+                            WHEN status = 'expired' THEN 1
+                            WHEN status = 'suspended' THEN 0
+                            ELSE -1
+                        END, 2, '0'),
+                    DATE_FORMAT(created_at, '%Y%m%d%H%i%s'),
+                    LPAD(id, 10, '0')
+                )) as best_key
+                FROM $table
+                WHERE user_id = %d
+                GROUP BY user_id
+            ) best ON m.user_id = best.user_id
+            WHERE CONCAT(
+                LPAD(
+                    CASE
+                        WHEN m.status = 'active' THEN 5
+                        WHEN m.status = 'approved' THEN 4
+                        WHEN m.status = 'pending' THEN 3
+                        WHEN m.status = 'pending_approval' THEN 2
+                        WHEN m.status = 'expired' THEN 1
+                        WHEN m.status = 'suspended' THEN 0
+                        ELSE -1
+                    END, 2, '0'),
+                DATE_FORMAT(m.created_at, '%Y%m%d%H%i%s'),
+                LPAD(m.id, 10, '0')
+            ) = best.best_key
+            LIMIT 1";
+
+        return $wpdb->get_row($wpdb->prepare($query, $user_id));
+    }
+
+    /**
+     * Map member status to rank for duplicate selection
+     *
+     * @since    1.0.0
+     * @param    string    $alias    Table alias
+     * @return   string
+     */
+    private static function get_member_status_rank_sql($alias = 'm') {
+        return "CASE
+            WHEN {$alias}.status = 'active' THEN 5
+            WHEN {$alias}.status = 'approved' THEN 4
+            WHEN {$alias}.status = 'pending' THEN 3
+            WHEN {$alias}.status = 'pending_approval' THEN 2
+            WHEN {$alias}.status = 'expired' THEN 1
+            WHEN {$alias}.status = 'suspended' THEN 0
+            ELSE -1
+        END";
+    }
+
+    /**
+     * Get a deduplicated members subquery that prefers active or latest records per user_id.
+     *
+     * @since    1.0.0
+     * @return   string
+     */
+    public static function get_deduplicated_members_subquery() {
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'jgk_members';
+        $status_rank_t = self::get_member_status_rank_sql('t');
+        $status_rank_b = self::get_member_status_rank_sql('b');
+
+        return "(
+            SELECT t.*
+            FROM $table t
+            INNER JOIN (
+                SELECT user_id, MAX(CONCAT(
+                    LPAD($status_rank_b, 2, '0'),
+                    DATE_FORMAT(b.created_at, '%Y%m%d%H%i%s'),
+                    LPAD(b.id, 10, '0')
+                )) as best_key
+                FROM $table b
+                WHERE b.user_id IS NOT NULL
+                GROUP BY b.user_id
+            ) best ON t.user_id = best.user_id
+            AND CONCAT(
+                LPAD($status_rank_t, 2, '0'),
+                DATE_FORMAT(t.created_at, '%Y%m%d%H%i%s'),
+                LPAD(t.id, 10, '0')
+            ) = best.best_key
+            UNION ALL
+            SELECT t2.*
+            FROM $table t2
+            WHERE t2.user_id IS NULL
+        ) as m";
     }
 
     /**
@@ -82,21 +176,27 @@ class JuniorGolfKenya_Database {
         $coach_members_count = $coach_members_exists ? $wpdb->get_var("SELECT COUNT(*) FROM {$coach_members_table}") : 0;
 
         if ($coach_members_exists && $coach_members_count > 0) {
-            // Use full query with coach JOINs
+            $coach_list_subquery = "(
+                SELECT cm.member_id,
+                       GROUP_CONCAT(DISTINCT c2.display_name ORDER BY c2.display_name SEPARATOR ', ') AS all_coaches
+                FROM $coach_members_table cm
+                LEFT JOIN $coaches_table c2 ON cm.coach_id = c2.ID
+                WHERE cm.status = 'active'
+                GROUP BY cm.member_id
+            ) cm";
+
             $query = "
                 SELECT m.*, COALESCE(m.email, u.user_email) as user_email, u.display_name, u.user_login,
                        TIMESTAMPDIFF(YEAR, m.date_of_birth, CURDATE()) as age,
                        CONCAT(m.first_name, ' ', m.last_name) as full_name,
                        c.display_name as primary_coach_name,
-                       GROUP_CONCAT(DISTINCT c2.display_name ORDER BY c2.display_name SEPARATOR ', ') as all_coaches
+                       cm.all_coaches
                 FROM $table m
                 LEFT JOIN $users_table u ON m.user_id = u.ID
                 LEFT JOIN $coaches_table c ON m.coach_id = c.ID
-                LEFT JOIN $coach_members_table cm ON m.id = cm.member_id AND cm.status = 'active'
-                LEFT JOIN $coaches_table c2 ON cm.coach_id = c2.ID
+                LEFT JOIN {$coach_list_subquery} ON m.id = cm.member_id
             ";
         } else {
-            // Fallback query without coach_members JOIN
             $query = "
                 SELECT m.*, COALESCE(m.email, u.user_email) as user_email, u.display_name, u.user_login,
                        TIMESTAMPDIFF(YEAR, m.date_of_birth, CURDATE()) as age,
@@ -141,15 +241,15 @@ class JuniorGolfKenya_Database {
      */
     public static function get_members_count($status = '') {
         global $wpdb;
-        
+
         $table = $wpdb->prefix . 'jgk_members';
         $query = "SELECT COUNT(*) FROM $table";
-        
+
         if ($status) {
             $query .= " WHERE status = %s";
             return $wpdb->get_var($wpdb->prepare($query, $status));
         }
-        
+
         return $wpdb->get_var($query);
     }
 
@@ -168,14 +268,14 @@ class JuniorGolfKenya_Database {
         $table = $wpdb->prefix . 'jgk_members';
         $users_table = $wpdb->users;
         $coaches_table = $wpdb->users;
-        
+
         $offset = ($page - 1) * $per_page;
         
         $query = "
             SELECT m.*, COALESCE(m.email, u.user_email) as user_email, u.display_name, u.user_login,
                    TIMESTAMPDIFF(YEAR, m.date_of_birth, CURDATE()) as age,
                    c.display_name as coach_name
-            FROM $table m 
+            FROM $table m
             LEFT JOIN $users_table u ON m.user_id = u.ID 
             LEFT JOIN $coaches_table c ON m.coach_id = c.ID
             WHERE (
@@ -295,11 +395,11 @@ class JuniorGolfKenya_Database {
         $table = $wpdb->prefix . 'jgk_members';
         
         $stats = array(
-            'total' => $wpdb->get_var("SELECT COUNT(*) FROM $table"),
-            'active' => $wpdb->get_var("SELECT COUNT(*) FROM $table WHERE status = 'active'"),
-            'pending' => $wpdb->get_var("SELECT COUNT(*) FROM $table WHERE status = 'pending'"),
-            'expired' => $wpdb->get_var("SELECT COUNT(*) FROM $table WHERE status = 'expired'"),
-            'suspended' => $wpdb->get_var("SELECT COUNT(*) FROM $table WHERE status = 'suspended'")
+            'total' => (int) $wpdb->get_var("SELECT COUNT(*) FROM $table"),
+            'active' => (int) $wpdb->get_var("SELECT COUNT(*) FROM $table WHERE status = 'active'"),
+            'pending' => (int) $wpdb->get_var("SELECT COUNT(*) FROM $table WHERE status = 'pending'"),
+            'expired' => (int) $wpdb->get_var("SELECT COUNT(*) FROM $table WHERE status = 'expired'"),
+            'suspended' => (int) $wpdb->get_var("SELECT COUNT(*) FROM $table WHERE status = 'suspended'")
         );
         
         return $stats;
@@ -621,8 +721,8 @@ class JuniorGolfKenya_Database {
         $stats = array();
         
         // Member statistics
-        $stats['total_members'] = $wpdb->get_var("SELECT COUNT(*) FROM $members_table");
-        $stats['active_members'] = $wpdb->get_var("SELECT COUNT(*) FROM $members_table WHERE status = 'active'");
+        $stats['total_members'] = (int) $wpdb->get_var("SELECT COUNT(*) FROM $members_table");
+        $stats['active_members'] = (int) $wpdb->get_var("SELECT COUNT(*) FROM $members_table WHERE status = 'active'");
         
         // Coach statistics
         $stats['total_coaches'] = $wpdb->get_var("
@@ -848,5 +948,116 @@ class JuniorGolfKenya_Database {
                 'payment_date' => current_time('mysql')
             )
         );
+    }
+
+    /**
+     * Sync missing members from WooCommerce orders and ARMember into jgk_members table.
+     *
+     * Finds users who paid for membership via WooCommerce or exist in ARMember
+     * but do not yet have a row in jgk_members, and creates one for each.
+     *
+     * @since  1.0.0
+     * @return array  Summary with 'wc_synced', 'arm_synced', 'errors' counts
+     */
+    public static function sync_missing_members() {
+        global $wpdb;
+
+        $table   = $wpdb->prefix . 'jgk_members';
+        $results = array('wc_synced' => 0, 'arm_synced' => 0, 'skipped' => 0, 'errors' => 0);
+
+        // ── 1. WooCommerce customers with completed membership orders ──
+        if (class_exists('WooCommerce')) {
+            $membership_product_id = get_option('jgk_membership_product_id', 0);
+
+            if ($membership_product_id) {
+                // Use HPOS-compatible approach: query order items for the membership product
+                // then check which customers are missing from jgk_members
+                $missing_customers = $wpdb->get_results($wpdb->prepare("
+                    SELECT DISTINCT pm_customer.meta_value AS customer_id
+                    FROM {$wpdb->prefix}woocommerce_order_items oi
+                    INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta oim
+                        ON oi.order_item_id = oim.order_item_id AND oim.meta_key = '_product_id' AND oim.meta_value = %s
+                    INNER JOIN {$wpdb->postmeta} pm_customer
+                        ON oi.order_id = pm_customer.post_id AND pm_customer.meta_key = '_customer_user'
+                    INNER JOIN {$wpdb->posts} o
+                        ON oi.order_id = o.ID AND o.post_status IN ('wc-completed','wc-processing')
+                    WHERE pm_customer.meta_value > 0
+                      AND pm_customer.meta_value NOT IN (SELECT user_id FROM {$table} WHERE user_id IS NOT NULL)
+                ", $membership_product_id));
+
+                foreach ($missing_customers as $row) {
+                    $uid = intval($row->customer_id);
+                    if ($uid <= 0) {
+                        continue;
+                    }
+
+                    $wp_user = get_userdata($uid);
+                    if (!$wp_user) {
+                        $results['errors']++;
+                        continue;
+                    }
+
+                    // Build member data from WP user + billing meta
+                    $member_data = array(
+                        'user_id'         => $uid,
+                        'first_name'      => $wp_user->first_name ?: get_user_meta($uid, 'billing_first_name', true),
+                        'last_name'       => $wp_user->last_name ?: get_user_meta($uid, 'billing_last_name', true),
+                        'email'           => $wp_user->user_email,
+                        'phone'           => get_user_meta($uid, 'billing_phone', true),
+                        'membership_type' => 'junior',
+                        'status'          => 'active',
+                        'date_joined'     => current_time('mysql'),
+                        'join_date'       => current_time('Y-m-d'),
+                        'expiry_date'     => date('Y-m-d', strtotime('+1 year')),
+                    );
+
+                    $member_id = self::create_member($member_data);
+
+                    if ($member_id) {
+                        // Ensure jgk_member role
+                        $user_obj = new WP_User($uid);
+                        if (!in_array('jgk_member', $user_obj->roles, true)) {
+                            $user_obj->add_role('jgk_member');
+                        }
+                        $results['wc_synced']++;
+                    } else {
+                        $results['errors']++;
+                    }
+                }
+            }
+        }
+
+        // ── 2. ARMember users ──
+        if (class_exists('JuniorGolfKenya_ARMember_Importer') && JuniorGolfKenya_ARMember_Importer::is_armember_active()) {
+            $arm_count = JuniorGolfKenya_ARMember_Importer::get_armember_members_count();
+            $batch     = 50;
+
+            for ($offset = 0; $offset < $arm_count; $offset += $batch) {
+                $arm_members = JuniorGolfKenya_ARMember_Importer::get_armember_members($offset, $batch);
+
+                foreach ($arm_members as $arm) {
+                    // Skip if already in jgk_members
+                    $exists = $wpdb->get_var($wpdb->prepare(
+                        "SELECT id FROM {$table} WHERE user_id = %d LIMIT 1",
+                        $arm->user_id
+                    ));
+
+                    if ($exists) {
+                        $results['skipped']++;
+                        continue;
+                    }
+
+                    $import_result = JuniorGolfKenya_ARMember_Importer::import_member($arm);
+
+                    if (!empty($import_result['success'])) {
+                        $results['arm_synced']++;
+                    } else {
+                        $results['skipped']++;
+                    }
+                }
+            }
+        }
+
+        return $results;
     }
 }
