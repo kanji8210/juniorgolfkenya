@@ -580,6 +580,15 @@ class JuniorGolfKenya_Activator {
             ));
         }
 
+        // JGK Parent Role
+        if (!get_role('jgk_parent')) {
+            add_role('jgk_parent', 'JGK Parent', array(
+                'read' => true,
+                'view_member_dashboard' => true,
+                'manage_own_profile' => true,
+            ));
+        }
+
         // JGK Coach Role
         if (!get_role('jgk_coach')) {
             add_role('jgk_coach', 'JGK Coach', array(

@@ -20,6 +20,18 @@ $registration_errors = array();
 $membership_fee = JuniorGolfKenya_Settings_Helper::get_default_membership_fee();
 $membership_currency = JuniorGolfKenya_Settings_Helper::get_general_currency();
 $membership_fee_display = $membership_currency . ' ' . number_format($membership_fee, 0);
+$logged_in_parent_user = null;
+$logged_in_parent_can_register = false;
+
+if (is_user_logged_in()) {
+    require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-parent-dashboard.php';
+    $logged_in_parent_user = wp_get_current_user();
+    $logged_in_parent_can_register = in_array('jgk_parent', (array) $logged_in_parent_user->roles, true)
+        || (bool) get_user_meta($logged_in_parent_user->ID, 'jgk_is_parent_account', true)
+        || JuniorGolfKenya_Parent_Dashboard::is_parent($logged_in_parent_user->user_email);
+}
+
+$password_required_for_registration = !$logged_in_parent_can_register;
 
 if (isset($_POST['jgk_register_member'])) {
     // Verify nonce
@@ -101,14 +113,16 @@ if (isset($_POST['jgk_register_member'])) {
             $registration_errors[] = 'Address is required.';
         }
 
-        if (empty($password)) {
-            $registration_errors[] = 'Password is required.';
-        }
-        if (strlen($password) < 8) {
-            $registration_errors[] = 'Password must be at least 8 characters long.';
-        }
-        if ($password !== $confirm_password) {
-            $registration_errors[] = 'Passwords do not match.';
+        if ($password_required_for_registration) {
+            if (empty($password)) {
+                $registration_errors[] = 'Password is required.';
+            }
+            if (strlen($password) < 8) {
+                $registration_errors[] = 'Password must be at least 8 characters long.';
+            }
+            if ($password !== $confirm_password) {
+                $registration_errors[] = 'Passwords do not match.';
+            }
         }
         
         // Age validation - REQUIRED for juniors
@@ -162,15 +176,41 @@ if (isset($_POST['jgk_register_member'])) {
         if (empty($parent_relationship)) {
             $registration_errors[] = 'Please indicate your relationship with the child (mother, father, guardian...).';
         }
+
+        if ($logged_in_parent_can_register && $logged_in_parent_user && strcasecmp($parent_email, $logged_in_parent_user->user_email) !== 0) {
+            $registration_errors[] = 'While logged in, the parent email must match your account email.';
+        }
         
         // If no errors, proceed with registration
         if (empty($registration_errors)) {
             global $wpdb;
+            $parent_account = JuniorGolfKenya_Parents::create_or_get_parent_account(
+                array(
+                    'first_name' => $parent_first_name,
+                    'last_name' => $parent_last_name,
+                    'email' => $parent_email,
+                ),
+                $password_required_for_registration ? $password : ''
+            );
+
+            if (empty($parent_account['success'])) {
+                $registration_errors[] = 'Failed to create parent account: ' . ($parent_account['message'] ?? 'Unknown error');
+            }
+        }
+
+        if (empty($registration_errors)) {
+            global $wpdb;
             
             // Create WordPress user account
-            $username = sanitize_user($first_name . '.' . $last_name . rand(100, 999));
+            do {
+                $username = sanitize_user($first_name . '.' . $last_name . rand(100, 999), true);
+                if (empty($username)) {
+                    $username = 'jgk-member-' . wp_rand(1000, 9999);
+                }
+            } while (username_exists($username));
             
-            $user_id = wp_create_user($username, $password, $wp_email);
+            $child_password = wp_generate_password(24, true, true);
+            $user_id = wp_create_user($username, $child_password, $wp_email);
             
             if (is_wp_error($user_id)) {
                 $registration_errors[] = 'Failed to create user account: ' . $user_id->get_error_message();
@@ -313,100 +353,105 @@ if (isset($_POST['jgk_register_member'])) {
                     } else {
                         $member_id = $wpdb->insert_id;
 
-                        // Insert parent/guardian information if provided
-                        if (!empty($parent_first_name) && !empty($parent_last_name)) {
-                            $parents_table = $wpdb->prefix . 'jgk_parents_guardians';
-                            $wpdb->insert(
-                                $parents_table,
-                                array(
-                                    'member_id' => $member_id,
-                                    'relationship' => !empty($parent_relationship) ? $parent_relationship : 'parent',
-                                    'first_name' => $parent_first_name,
-                                    'last_name' => $parent_last_name,
-                                    'email' => $parent_email,
-                                    'phone' => $parent_phone,
-                                    'is_primary_contact' => 1,
-                                    'emergency_contact' => 1,
-                                    'created_at' => current_time('mysql'),
-                                ),
-                                array('%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s')
-                            );
-                        }
+                        $parent_record_id = JuniorGolfKenya_Parents::add_parent(
+                            $member_id,
+                            array(
+                                'relationship' => !empty($parent_relationship) ? $parent_relationship : 'parent',
+                                'first_name' => $parent_first_name,
+                                'last_name' => $parent_last_name,
+                                'email' => $parent_email,
+                                'phone' => $parent_phone,
+                                'is_primary_contact' => 1,
+                                'emergency_contact' => 1,
+                            )
+                        );
 
-                        // Send notification email to user
-                        $to = $member_email;
-                        $subject = 'Welcome to Junior Golf Kenya - Account Created Successfully';
-
-                        // Get dashboard URL from saved page ID
-                        $dashboard_page_id = get_option('jgk_page_member_dashboard');
-                        $dashboard_url = $dashboard_page_id ? get_permalink($dashboard_page_id) : home_url('/member-dashboard');
-
-                        $message = "Dear {$first_name} {$last_name},\n\n";
-                        $message .= "Welcome to Junior Golf Kenya! Your account has been created successfully.\n\n";
-                        $message .= "Membership Details:\n";
-                        $message .= "- Membership Number: {$membership_number}\n";
-                        $message .= "- Username: {$username}\n";
-                        $message .= "- Email: {$member_email}\n\n";
-                        $message .= "Next Step: Complete Your Payment\n";
-                        $message .= "Membership Fee: {$membership_fee_display}\n";
-                        $message .= "To activate your membership, please complete the payment process. You will be redirected to our secure payment page.\n\n";
-                        $message .= "After completing payment, you can log in and access your member dashboard:\n";
-                        $message .= "Login URL: " . wp_login_url() . "\n\n";
-                        $message .= "Dashboard URL: " . $dashboard_url . "\n\n";
-                        $message .= "If you have any questions, please don't hesitate to contact us.\n\n";
-                        $message .= "Best regards,\n";
-                        $message .= "Junior Golf Kenya Team";
-
-                        wp_mail($to, $subject, $message);
-
-                        // Send notification to admin
-                        $admin_email = get_option('admin_email');
-                        $admin_subject = 'New Member Registration - Junior Golf Kenya';
-                        $admin_message = "A new member has registered:\n\n";
-                        $admin_message .= "Name: {$first_name} {$last_name}\n";
-                        $admin_message .= "Email: {$member_email}\n";
-                        $admin_message .= "Membership Number: {$membership_number}\n";
-                        $admin_message .= "Membership Type: " . ucfirst($membership_type) . "\n";
-                        $admin_message .= "Membership Fee: {$membership_fee_display}\n";
-                        $admin_message .= "Status: Approved - Pending payment\n\n";
-                        $admin_message .= "The member has been redirected to complete payment.\n\n";
-                        $admin_message .= "View member details in the admin panel:\n";
-                        $admin_message .= admin_url('admin.php?page=juniorgolfkenya-members&action=edit&id=' . $member_id);
-
-                        wp_mail($admin_email, $admin_subject, $admin_message);
-
-                        // Set registration success flag
-                        $registration_success = true;
-                        
-                        // Auto-login the user after successful registration  
-                        wp_set_current_user($user_id);
-                        wp_set_auth_cookie($user_id);
-
-                        // Get membership product ID for payment
-                        $membership_product_id = get_option('jgk_membership_product_id', 0);
-                        
-                        if ($membership_product_id && class_exists('WooCommerce')) {
-                            JuniorGolfKenya_WooCommerce::ensure_membership_product_price($membership_product_id);
-                            // Clear cart first
-                            WC()->cart->empty_cart();
-                            
-                            // Add membership product to cart
-                            WC()->cart->add_to_cart($membership_product_id, 1);
-                            
-                            // Store member ID in session for payment tracking
-                            WC()->session->set('jgk_member_id', $member_id);
-                            
-                            // Redirect to checkout page
-                            $redirect_url = wc_get_checkout_url();
+                        if (!$parent_record_id) {
+                            $registration_errors[] = 'Failed to save parent/guardian information.';
+                            if ($profile_image_id) {
+                                wp_delete_attachment($profile_image_id, true);
+                            }
+                            if ($birth_certificate_id) {
+                                wp_delete_attachment($birth_certificate_id, true);
+                            }
+                            $wpdb->delete($members_table, array('id' => $member_id), array('%d'));
+                            wp_delete_user($user_id);
                         } else {
-                            // Fallback: redirect to member dashboard if WooCommerce not configured
-                            $dashboard_page_id = get_option('jgk_page_member_dashboard');
-                            $redirect_url = $dashboard_page_id ? get_permalink($dashboard_page_id) : home_url('/member-dashboard');
-                        }
+                            // Send notification email to parent account owner.
+                            $to = $parent_email;
+                            $subject = 'Junior Golf Kenya Registration Completed';
 
-                        // Perform redirect
-                        wp_redirect($redirect_url);
-                        exit;
+                            $parent_dashboard_page_id = get_option('jgk_page_parent_dashboard');
+                            $parent_dashboard_url = $parent_dashboard_page_id ? get_permalink($parent_dashboard_page_id) : home_url('/parent-dashboard');
+
+                            $message = "Dear {$parent_first_name} {$parent_last_name},\n\n";
+                            $message .= "{$first_name} {$last_name} has been registered successfully with Junior Golf Kenya.\n\n";
+                            $message .= "Membership Details:\n";
+                            $message .= "- Membership Number: {$membership_number}\n";
+                            $message .= "- Child Login Username: {$username}\n";
+                            $message .= "- Child Contact Email: {$member_email}\n\n";
+                            if (!empty($parent_account['is_new'])) {
+                                $message .= "We created a parent account for you.\n";
+                                $message .= "- Parent Username: {$parent_account['username']}\n";
+                                $message .= "- Parent Email: {$parent_email}\n";
+                                $message .= "Use the password you set during registration to sign in.\n\n";
+                            } else {
+                                $message .= "This registration has been linked to your existing parent account.\n";
+                                $message .= "Use your existing password to sign in.\n\n";
+                            }
+                            $message .= "Next Step: Complete payment of {$membership_fee_display}.\n";
+                            $message .= "Parent Dashboard: {$parent_dashboard_url}\n";
+                            $message .= "Login URL: " . wp_login_url($parent_dashboard_url) . "\n\n";
+                            $message .= "Best regards,\n";
+                            $message .= "Junior Golf Kenya Team";
+
+                            wp_mail($to, $subject, $message);
+
+                            // Send notification to admin
+                            $admin_email = get_option('admin_email');
+                            $admin_subject = 'New Member Registration - Junior Golf Kenya';
+                            $admin_message = "A new member has registered:\n\n";
+                            $admin_message .= "Child: {$first_name} {$last_name}\n";
+                            $admin_message .= "Parent: {$parent_first_name} {$parent_last_name}\n";
+                            $admin_message .= "Parent Email: {$parent_email}\n";
+                            $admin_message .= "Membership Number: {$membership_number}\n";
+                            $admin_message .= "Membership Type: " . ucfirst($membership_type) . "\n";
+                            $admin_message .= "Membership Fee: {$membership_fee_display}\n";
+                            $admin_message .= "Status: Approved - Pending payment\n\n";
+                            $admin_message .= "View member details in the admin panel:\n";
+                            $admin_message .= admin_url('admin.php?page=juniorgolfkenya-members&action=edit&id=' . $member_id);
+
+                            wp_mail($admin_email, $admin_subject, $admin_message);
+
+                            // Set registration success flag
+                            $registration_success = true;
+
+                            $has_authenticated_parent_session = is_user_logged_in();
+                            if (!$has_authenticated_parent_session && !empty($parent_account['is_new'])) {
+                                wp_set_current_user($parent_account['user_id']);
+                                wp_set_auth_cookie($parent_account['user_id']);
+                                $has_authenticated_parent_session = true;
+                            }
+
+                            // Get membership product ID for payment
+                            $membership_product_id = get_option('jgk_membership_product_id', 0);
+
+                            if ($membership_product_id && class_exists('WooCommerce')) {
+                                JuniorGolfKenya_WooCommerce::ensure_membership_product_price($membership_product_id);
+                                WC()->cart->empty_cart();
+                                WC()->cart->add_to_cart($membership_product_id, 1);
+                                WC()->session->set('jgk_member_id', $member_id);
+                                WC()->session->set('jgk_member_ids', array($member_id));
+                                $target_url = wc_get_checkout_url();
+                            } else {
+                                $target_url = $parent_dashboard_url;
+                            }
+
+                            $redirect_url = $has_authenticated_parent_session ? $target_url : wp_login_url($target_url);
+
+                            wp_redirect($redirect_url);
+                            exit;
+                        }
                     }
                 }
             }
@@ -418,7 +463,7 @@ if (isset($_POST['jgk_register_member'])) {
 <div class="jgk-registration-form">
     <?php 
     // Check if user is already logged in
-    if (is_user_logged_in() && !$registration_success): 
+    if (is_user_logged_in() && !$registration_success && !$logged_in_parent_can_register): 
         $current_user = wp_get_current_user();
         $dashboard_page_id = get_option('jgk_page_member_dashboard');
         $dashboard_url = $dashboard_page_id ? get_permalink($dashboard_page_id) : home_url('/member-dashboard');
@@ -432,7 +477,7 @@ if (isset($_POST['jgk_register_member'])) {
             <p>Welcome back, <strong><?php echo esc_html($current_user->display_name); ?></strong>!</p>
             <div class="jgk-success-details">
                 <p>You are currently logged in to your account. If you're already a member, you can access your dashboard directly.</p>
-                <p><strong>Looking to register another junior member?</strong> Please log out first, or contact us to add multiple children to your parent account.</p>
+                <p><strong>Looking to register another junior member?</strong> Please sign in with a parent account to add more children under the same family.</p>
             </div>
             <div class="jgk-success-actions">
                 <a href="<?php echo esc_url($dashboard_url); ?>" class="jgk-btn jgk-btn-primary jgk-btn-large">
@@ -733,14 +778,14 @@ if (isset($_POST['jgk_register_member'])) {
 
                 <div class="jgk-form-grid">
                     <div class="jgk-form-group full-width">
-                        <label for="password">Create Password *</label>
-                        <input type="password" id="password" name="password" required minlength="8">
-                        <small>Minimum 8 characters</small>
+                        <label for="password"><?php echo $password_required_for_registration ? 'Create Parent Password *' : 'Parent Password'; ?></label>
+                        <input type="password" id="password" name="password" <?php echo $password_required_for_registration ? 'required' : ''; ?> minlength="8">
+                        <small><?php echo $password_required_for_registration ? 'Minimum 8 characters for the parent account' : 'Not required while you are already logged in as the parent'; ?></small>
                     </div>
                     <div class="jgk-form-group full-width">
-                        <label for="confirm_password">Confirm Password *</label>
-                        <input type="password" id="confirm_password" name="confirm_password" required minlength="8">
-                        <small>Re-enter your password</small>
+                        <label for="confirm_password"><?php echo $password_required_for_registration ? 'Confirm Password *' : 'Confirm Password'; ?></label>
+                        <input type="password" id="confirm_password" name="confirm_password" <?php echo $password_required_for_registration ? 'required' : ''; ?> minlength="8">
+                        <small><?php echo $password_required_for_registration ? 'Re-enter your password' : 'Leave blank when adding another child from your logged-in parent account'; ?></small>
                     </div>
                 </div>
 

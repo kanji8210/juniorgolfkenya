@@ -21,10 +21,12 @@ if (!current_user_can('manage_options')) {
 
 // Load test data class
 require_once plugin_dir_path(dirname(__FILE__)) . '../includes/class-juniorgolfkenya-test-data.php';
+require_once plugin_dir_path(dirname(__FILE__)) . '../includes/class-juniorgolfkenya-parents.php';
 
 // Handle form submissions
 $message = '';
 $message_type = '';
+$parent_sync_results = null;
 
 // Handle test data generation
 if (isset($_POST['generate_test_data']) && check_admin_referer('jgk_test_data', 'jgk_test_nonce')) {
@@ -55,6 +57,31 @@ if (isset($_POST['delete_test_data']) && check_admin_referer('jgk_delete_test', 
     } else {
         $message = 'Please type "DELETE" to confirm deletion of all test data.';
         $message_type = 'error';
+    }
+}
+
+// Handle parent account sync
+if (isset($_POST['sync_parent_accounts']) && check_admin_referer('jgk_sync_parent_accounts', 'jgk_parent_sync_nonce')) {
+    $sync_limit = isset($_POST['parent_sync_limit']) ? max(0, intval($_POST['parent_sync_limit'])) : 0;
+    $parent_sync_results = JuniorGolfKenya_Parents::sync_parent_accounts_from_existing_data($sync_limit);
+
+    if ($parent_sync_results['failed'] > 0) {
+        $message = sprintf(
+            'Parent account sync completed. Processed: %d, Created: %d, Updated existing: %d, Failed: %d.',
+            $parent_sync_results['processed'],
+            $parent_sync_results['created'],
+            $parent_sync_results['updated_existing'],
+            $parent_sync_results['failed']
+        );
+        $message_type = 'warning';
+    } else {
+        $message = sprintf(
+            'Parent account sync completed. Processed: %d, Created: %d, Updated existing: %d.',
+            $parent_sync_results['processed'],
+            $parent_sync_results['created'],
+            $parent_sync_results['updated_existing']
+        );
+        $message_type = 'success';
     }
 }
 
@@ -134,6 +161,7 @@ if (class_exists('WooCommerce')) {
 // Check for test data
 $has_test_data = JuniorGolfKenya_Test_Data::has_test_data();
 $test_counts = JuniorGolfKenya_Test_Data::count_test_data();
+$parent_account_summary = JuniorGolfKenya_Parents::get_parent_account_summary(8);
 ?>
 
 <div class="wrap jgk-admin-container">
@@ -172,6 +200,9 @@ $test_counts = JuniorGolfKenya_Test_Data::count_test_data();
                 <?php if ($has_test_data): ?>
                     <span class="test-data-badge"><?php echo $test_counts['members']; ?></span>
                 <?php endif; ?>
+            </a>
+            <a href="#tab-parent-accounts" class="nav-tab" data-tab="parent-accounts">
+                <span class="dashicons dashicons-admin-users"></span> Parent Accounts
             </a>
         </nav>
     </div>
@@ -235,6 +266,27 @@ $test_counts = JuniorGolfKenya_Test_Data::count_test_data();
             padding: 10px;
             background: #f0f0f1;
             border-radius: 4px;
+        }
+        .jgk-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin: 20px 0;
+        }
+        .jgk-summary-card {
+            background: #f6f7f7;
+            border: 1px solid #dcdcde;
+            border-radius: 8px;
+            padding: 16px;
+        }
+        .jgk-summary-card strong {
+            display: block;
+            font-size: 24px;
+            margin-top: 8px;
+        }
+        .jgk-parent-account-table td,
+        .jgk-parent-account-table th {
+            vertical-align: top;
         }
     </style>
 
@@ -586,6 +638,185 @@ $test_counts = JuniorGolfKenya_Test_Data::count_test_data();
                 </form>
             </div>
             <?php endif; ?>
+        </div>
+    </div>
+
+    <!-- Tab: Parent Account Maintenance -->
+    <div id="tab-parent-accounts" class="jgk-tab-content">
+        <div class="jgk-settings-section">
+            <h2><span class="dashicons dashicons-admin-users"></span> Parent Account Visibility</h2>
+            <p>Review how many parent or guardian contacts already have usable WordPress accounts, and generate missing parent accounts from existing parent/guardian records.</p>
+
+            <div class="jgk-summary-grid">
+                <div class="jgk-summary-card">
+                    Parent Records
+                    <strong><?php echo number_format($parent_account_summary['total_parent_records']); ?></strong>
+                </div>
+                <div class="jgk-summary-card">
+                    Unique Parent Emails
+                    <strong><?php echo number_format($parent_account_summary['unique_parent_emails']); ?></strong>
+                </div>
+                <div class="jgk-summary-card">
+                    Emails With WP Accounts
+                    <strong><?php echo number_format($parent_account_summary['emails_with_accounts']); ?></strong>
+                </div>
+                <div class="jgk-summary-card">
+                    Missing Parent Accounts
+                    <strong><?php echo number_format($parent_account_summary['emails_missing_accounts']); ?></strong>
+                </div>
+                <div class="jgk-summary-card">
+                    Tagged As Parent Accounts
+                    <strong><?php echo number_format($parent_account_summary['emails_with_parent_role']); ?></strong>
+                </div>
+                <div class="jgk-summary-card">
+                    Missing/Invalid Emails
+                    <strong><?php echo number_format($parent_account_summary['invalid_or_missing_email_records']); ?></strong>
+                </div>
+            </div>
+
+            <div class="warning-box">
+                <strong>What this tool does:</strong>
+                <ul>
+                    <li>Creates a WordPress user for each unique parent email that does not already have one.</li>
+                    <li>Adds the <code>JGK Parent</code> role to existing users whose email matches a parent record.</li>
+                    <li>Uses the primary parent/guardian name already stored in the database.</li>
+                    <li>Sends the normal WordPress new-user email only when a brand-new parent account is created.</li>
+                </ul>
+            </div>
+
+            <form method="post" action="" style="margin-top: 20px;">
+                <?php wp_nonce_field('jgk_sync_parent_accounts', 'jgk_parent_sync_nonce'); ?>
+
+                <table class="form-table">
+                    <tr>
+                        <th scope="row"><label for="parent_sync_limit">Max Parent Emails To Process</label></th>
+                        <td>
+                            <input type="number" id="parent_sync_limit" name="parent_sync_limit" value="0" min="0" style="width: 120px;">
+                            <p class="description">Use <strong>0</strong> to process all parent emails found in existing data.</p>
+                        </td>
+                    </tr>
+                </table>
+
+                <p class="submit">
+                    <button type="submit" name="sync_parent_accounts" class="button button-primary">
+                        <span class="dashicons dashicons-update"></span> Generate / Sync Parent Accounts
+                    </button>
+                </p>
+            </form>
+
+            <?php if ($parent_sync_results): ?>
+                <div class="success-box" style="margin-top: 24px;">
+                    <strong>Last Sync Result</strong><br>
+                    Processed <?php echo number_format($parent_sync_results['processed']); ?> parent email(s),
+                    created <?php echo number_format($parent_sync_results['created']); ?>,
+                    updated <?php echo number_format($parent_sync_results['updated_existing']); ?> existing account(s),
+                    failed <?php echo number_format($parent_sync_results['failed']); ?>.
+                </div>
+
+                <?php if (!empty($parent_sync_results['details'])): ?>
+                    <details style="margin-top: 20px;">
+                        <summary>View sync details (<?php echo count($parent_sync_results['details']); ?>)</summary>
+                        <table class="widefat striped jgk-parent-account-table" style="margin-top: 12px;">
+                            <thead>
+                                <tr>
+                                    <th>Email</th>
+                                    <th>Status</th>
+                                    <th>Children</th>
+                                    <th>WP User</th>
+                                    <th>Message</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($parent_sync_results['details'] as $detail): ?>
+                                    <tr>
+                                        <td><?php echo esc_html($detail['email']); ?></td>
+                                        <td><?php echo esc_html(ucfirst($detail['status'])); ?></td>
+                                        <td><?php echo intval($detail['children_count'] ?? 0); ?></td>
+                                        <td>
+                                            <?php
+                                            $detail_user_id = intval($detail['user_id'] ?? 0);
+                                            if ($detail_user_id > 0) {
+                                                echo '#' . esc_html($detail_user_id);
+                                                if (!empty($detail['username'])) {
+                                                    echo ' (' . esc_html($detail['username']) . ')';
+                                                }
+                                            } else {
+                                                echo 'N/A';
+                                            }
+                                            ?>
+                                        </td>
+                                        <td><?php echo esc_html($detail['message'] ?? ''); ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </details>
+                <?php endif; ?>
+            <?php endif; ?>
+
+            <div style="margin-top: 32px;">
+                <h3><span class="dashicons dashicons-search"></span> Sample Parents Missing Accounts</h3>
+                <?php if (!empty($parent_account_summary['sample_missing_accounts'])): ?>
+                    <table class="widefat striped jgk-parent-account-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Relationship</th>
+                                <th>Children</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($parent_account_summary['sample_missing_accounts'] as $parent_row): ?>
+                                <tr>
+                                    <td><?php echo esc_html($parent_row['name']); ?></td>
+                                    <td><?php echo esc_html($parent_row['email']); ?></td>
+                                    <td><?php echo esc_html(ucfirst($parent_row['relationship'])); ?></td>
+                                    <td><?php echo intval($parent_row['children_count']); ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                <?php else: ?>
+                    <div class="success-box">
+                        <strong>✓ No missing parent accounts found</strong><br>
+                        Every unique parent email currently maps to a WordPress account.
+                    </div>
+                <?php endif; ?>
+            </div>
+
+            <div style="margin-top: 32px;">
+                <h3><span class="dashicons dashicons-yes-alt"></span> Sample Existing Parent Accounts</h3>
+                <?php if (!empty($parent_account_summary['sample_existing_accounts'])): ?>
+                    <table class="widefat striped jgk-parent-account-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Children</th>
+                                <th>WP User</th>
+                                <th>Parent Role</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($parent_account_summary['sample_existing_accounts'] as $parent_row): ?>
+                                <tr>
+                                    <td><?php echo esc_html($parent_row['name']); ?></td>
+                                    <td><?php echo esc_html($parent_row['email']); ?></td>
+                                    <td><?php echo intval($parent_row['children_count']); ?></td>
+                                    <td>#<?php echo intval($parent_row['wp_user_id']); ?></td>
+                                    <td><?php echo !empty($parent_row['has_parent_role']) ? 'Yes' : 'No'; ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                <?php else: ?>
+                    <div class="warning-box">
+                        <strong>No existing parent-linked accounts found yet.</strong><br>
+                        Run the sync action above to create them from the stored parent email data.
+                    </div>
+                <?php endif; ?>
+            </div>
         </div>
     </div>
 

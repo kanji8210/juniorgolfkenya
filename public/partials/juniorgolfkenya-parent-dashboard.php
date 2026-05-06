@@ -36,6 +36,8 @@ $parent_info = JuniorGolfKenya_Parent_Dashboard::get_parent_info($parent_email);
 $membership_fee = JuniorGolfKenya_Settings_Helper::get_default_membership_fee();
 $membership_currency = JuniorGolfKenya_Settings_Helper::get_general_currency();
 $membership_fee_display = $membership_currency . ' ' . number_format($membership_fee, 0);
+$membership_product_id = class_exists('WooCommerce') ? intval(get_option('jgk_membership_product_id')) : 0;
+$payment_selection_nonce = wp_create_nonce('jgk_select_membership_payment');
 ?>
 
 <link rel="stylesheet" href="<?php echo JUNIORGOLFKENYA_PLUGIN_URL; ?>public/partials/css/juniorgolfkenya-member-dashboard.css">
@@ -223,7 +225,20 @@ $membership_fee_display = $membership_currency . ' ' . number_format($membership
 
                         <div class="jgk-child-actions">
                             <?php if ($child->status === 'approved'): ?>
-                                <a href="#pay-<?php echo $child->id; ?>" class="jgk-button jgk-button-pay" data-member-id="<?php echo $child->id; ?>">
+                                <?php
+                                $single_payment_url = '#pay-' . $child->id;
+                                if ($membership_product_id) {
+                                    $single_payment_url = add_query_arg(
+                                        array(
+                                            'add-to-cart' => $membership_product_id,
+                                            'jgk_pay_member' => $child->id,
+                                            'jgk_pay_nonce' => $payment_selection_nonce,
+                                        ),
+                                        wc_get_cart_url()
+                                    );
+                                }
+                                ?>
+                                <a href="<?php echo esc_url($single_payment_url); ?>" class="jgk-button jgk-button-pay" data-member-id="<?php echo $child->id; ?>">
                                     <span class="dashicons dashicons-money-alt"></span>
                                     Pay Now (<?php echo esc_html($membership_fee_display); ?>)
                                 </a>
@@ -295,10 +310,18 @@ $membership_fee_display = $membership_currency . ' ' . number_format($membership
                         <h4>Choose Payment Method</h4>
                         <div class="jgk-payment-buttons">
                             <?php if (class_exists('WooCommerce')): 
-                                $membership_product_id = get_option('jgk_membership_product_id');
                                 if ($membership_product_id):
                                     JuniorGolfKenya_WooCommerce::ensure_membership_product_price($membership_product_id);
-                                    $add_to_cart_url = wc_get_cart_url() . '?add-to-cart=' . $membership_product_id;
+                                    $pending_child_ids = array_map('intval', wp_list_pluck($payment_summary['children_needing_payment'], 'id'));
+                                    $add_to_cart_url = add_query_arg(
+                                        array(
+                                            'add-to-cart' => $membership_product_id,
+                                            'quantity' => count($pending_child_ids),
+                                            'jgk_pay_members' => implode(',', $pending_child_ids),
+                                            'jgk_pay_nonce' => $payment_selection_nonce,
+                                        ),
+                                        wc_get_cart_url()
+                                    );
                             ?>
                                 <a href="<?php echo esc_url($add_to_cart_url); ?>" class="jgk-payment-btn jgk-payment-mpesa">
                                     <span class="dashicons dashicons-smartphone"></span>

@@ -12,6 +12,289 @@
 class JuniorGolfKenya_Parents {
 
     /**
+     * Create or reuse a parent WordPress account.
+     *
+     * @since    1.0.0
+     * @param    array   $data        Parent account data.
+     * @param    string  $password    Optional password for new accounts.
+     * @return   array
+     */
+    public static function create_or_get_parent_account($data, $password = '') {
+        $email = sanitize_email($data['email'] ?? '');
+        $first_name = sanitize_text_field($data['first_name'] ?? '');
+        $last_name = sanitize_text_field($data['last_name'] ?? '');
+
+        if (empty($email) || !is_email($email)) {
+            return array(
+                'success' => false,
+                'message' => 'Valid parent email is required.'
+            );
+        }
+
+        if (empty($first_name) || empty($last_name)) {
+            return array(
+                'success' => false,
+                'message' => 'Parent first name and last name are required.'
+            );
+        }
+
+        $existing_user = get_user_by('email', $email);
+        $is_new = false;
+
+        if ($existing_user) {
+            $user_id = (int) $existing_user->ID;
+            $username = $existing_user->user_login;
+        } else {
+            $username = self::generate_parent_username($first_name, $last_name, $email);
+            $parent_password = !empty($password) ? $password : wp_generate_password(20, true, true);
+            $user_id = wp_create_user($username, $parent_password, $email);
+
+            if (is_wp_error($user_id)) {
+                return array(
+                    'success' => false,
+                    'message' => $user_id->get_error_message()
+                );
+            }
+
+            $is_new = true;
+        }
+
+        wp_update_user(array(
+            'ID' => $user_id,
+            'first_name' => $first_name,
+            'last_name' => $last_name,
+            'display_name' => trim($first_name . ' ' . $last_name),
+        ));
+
+        $user = new WP_User($user_id);
+        if (!in_array('jgk_parent', $user->roles, true)) {
+            $user->add_role('jgk_parent');
+        }
+
+        update_user_meta($user_id, 'jgk_is_parent_account', 1);
+
+        if ($is_new) {
+            if (function_exists('wp_send_new_user_notifications')) {
+                wp_send_new_user_notifications($user_id, 'user');
+            } elseif (function_exists('wp_new_user_notification')) {
+                wp_new_user_notification($user_id, null, 'user');
+            }
+        }
+
+        return array(
+            'success' => true,
+            'user_id' => $user_id,
+            'username' => $username,
+            'email' => $email,
+            'is_new' => $is_new,
+        );
+    }
+
+    /**
+     * Generate a unique username for a parent account.
+     *
+     * @since    1.0.0
+     * @param    string $first_name Parent first name.
+     * @param    string $last_name  Parent last name.
+     * @param    string $email      Parent email.
+     * @return   string
+     */
+    private static function generate_parent_username($first_name, $last_name, $email) {
+        $base_username = sanitize_user(strtolower($first_name . '.' . $last_name), true);
+
+        if (empty($base_username)) {
+            $email_parts = explode('@', $email);
+            $base_username = sanitize_user($email_parts[0], true);
+        }
+
+        if (empty($base_username)) {
+            $base_username = 'jgk-parent';
+        }
+
+        $username = $base_username;
+        $suffix = 1;
+
+        while (username_exists($username)) {
+            $username = $base_username . $suffix;
+            $suffix++;
+        }
+
+        return $username;
+    }
+
+    /**
+     * Get grouped parent contacts from existing member data.
+     *
+     * @since    1.0.0
+     * @return   array
+     */
+    public static function get_parent_contacts_grouped_by_email() {
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'jgk_parents_guardians';
+
+        $rows = $wpdb->get_results("SELECT * FROM {$table} ORDER BY is_primary_contact DESC, created_at ASC, id ASC");
+        $grouped = array();
+
+        foreach ($rows as $row) {
+            $email = sanitize_email($row->email ?? '');
+            if (empty($email)) {
+                continue;
+            }
+
+            if (!isset($grouped[$email])) {
+                $grouped[$email] = array(
+                    'email' => $email,
+                    'first_name' => $row->first_name,
+                    'last_name' => $row->last_name,
+                    'relationship' => $row->relationship,
+                    'member_ids' => array(),
+                    'rows' => array(),
+                );
+            }
+
+            $grouped[$email]['member_ids'][] = (int) $row->member_id;
+            $grouped[$email]['rows'][] = $row;
+
+            if (!empty($row->is_primary_contact)) {
+                $grouped[$email]['first_name'] = $row->first_name;
+                $grouped[$email]['last_name'] = $row->last_name;
+                $grouped[$email]['relationship'] = $row->relationship;
+            }
+        }
+
+        foreach ($grouped as &$entry) {
+            $entry['member_ids'] = array_values(array_unique(array_filter(array_map('intval', $entry['member_ids']))));
+            $entry['children_count'] = count($entry['member_ids']);
+        }
+        unset($entry);
+
+        return array_values($grouped);
+    }
+
+    /**
+     * Build a summary of parent-account coverage from existing data.
+     *
+     * @since    1.0.0
+     * @param    int $sample_limit Number of sample rows to include.
+     * @return   array
+     */
+    public static function get_parent_account_summary($sample_limit = 10) {
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'jgk_parents_guardians';
+        $total_records = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$table}");
+        $grouped = self::get_parent_contacts_grouped_by_email();
+
+        $summary = array(
+            'total_parent_records' => $total_records,
+            'unique_parent_emails' => count($grouped),
+            'emails_with_accounts' => 0,
+            'emails_with_parent_role' => 0,
+            'emails_missing_accounts' => 0,
+            'invalid_or_missing_email_records' => max(0, $total_records - count($grouped)),
+            'sample_missing_accounts' => array(),
+            'sample_existing_accounts' => array(),
+        );
+
+        foreach ($grouped as $entry) {
+            $user = get_user_by('email', $entry['email']);
+            if ($user) {
+                $summary['emails_with_accounts']++;
+                if (in_array('jgk_parent', (array) $user->roles, true) || get_user_meta($user->ID, 'jgk_is_parent_account', true)) {
+                    $summary['emails_with_parent_role']++;
+                }
+
+                if (count($summary['sample_existing_accounts']) < $sample_limit) {
+                    $summary['sample_existing_accounts'][] = array(
+                        'email' => $entry['email'],
+                        'name' => trim($entry['first_name'] . ' ' . $entry['last_name']),
+                        'children_count' => $entry['children_count'],
+                        'wp_user_id' => (int) $user->ID,
+                        'has_parent_role' => in_array('jgk_parent', (array) $user->roles, true) || (bool) get_user_meta($user->ID, 'jgk_is_parent_account', true),
+                    );
+                }
+            } else {
+                $summary['emails_missing_accounts']++;
+                if (count($summary['sample_missing_accounts']) < $sample_limit) {
+                    $summary['sample_missing_accounts'][] = array(
+                        'email' => $entry['email'],
+                        'name' => trim($entry['first_name'] . ' ' . $entry['last_name']),
+                        'relationship' => $entry['relationship'],
+                        'children_count' => $entry['children_count'],
+                    );
+                }
+            }
+        }
+
+        return $summary;
+    }
+
+    /**
+     * Create or sync parent WordPress accounts from existing parent records.
+     *
+     * @since    1.0.0
+     * @param    int $limit Maximum number of parent emails to process. 0 means all.
+     * @return   array
+     */
+    public static function sync_parent_accounts_from_existing_data($limit = 0) {
+        $grouped = self::get_parent_contacts_grouped_by_email();
+        $results = array(
+            'processed' => 0,
+            'created' => 0,
+            'updated_existing' => 0,
+            'failed' => 0,
+            'details' => array(),
+        );
+
+        foreach ($grouped as $entry) {
+            if ($limit > 0 && $results['processed'] >= $limit) {
+                break;
+            }
+
+            $account = self::create_or_get_parent_account(array(
+                'email' => $entry['email'],
+                'first_name' => $entry['first_name'],
+                'last_name' => $entry['last_name'],
+            ));
+
+            $results['processed']++;
+
+            if (empty($account['success'])) {
+                $results['failed']++;
+                $results['details'][] = array(
+                    'email' => $entry['email'],
+                    'status' => 'failed',
+                    'message' => $account['message'] ?? 'Unknown error',
+                    'children_count' => $entry['children_count'],
+                );
+                continue;
+            }
+
+            if (!empty($account['is_new'])) {
+                $results['created']++;
+                $status = 'created';
+                $message = 'Created new parent account.';
+            } else {
+                $results['updated_existing']++;
+                $status = 'updated';
+                $message = 'Existing WordPress user confirmed as parent account.';
+            }
+
+            $results['details'][] = array(
+                'email' => $entry['email'],
+                'status' => $status,
+                'message' => $message,
+                'username' => $account['username'] ?? '',
+                'user_id' => (int) ($account['user_id'] ?? 0),
+                'children_count' => $entry['children_count'],
+            );
+        }
+
+        return $results;
+    }
+
+    /**
      * Add a parent/guardian to a member
      *
      * @since    1.0.0

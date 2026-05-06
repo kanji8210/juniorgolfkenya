@@ -56,6 +56,9 @@ if (isset($_POST['jgk_login'])) {
                 } elseif (in_array('jgk_coach', $user->roles)) {
                     $coach_dashboard_id = get_option('jgk_page_coach_dashboard');
                     $redirect_url = $coach_dashboard_id ? get_permalink($coach_dashboard_id) : home_url('/coach-dashboard');
+                } elseif (in_array('jgk_parent', $user->roles)) {
+                    $parent_dashboard_id = get_option('jgk_page_parent_dashboard');
+                    $redirect_url = $parent_dashboard_id ? get_permalink($parent_dashboard_id) : home_url('/parent-dashboard');
                 } elseif (in_array('jgk_member', $user->roles) || in_array('jgk_junior', $user->roles)) {
                     // Check if user is a parent
                     require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-parent-dashboard.php';
