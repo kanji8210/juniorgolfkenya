@@ -25,6 +25,7 @@ require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-datab
 require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-user-manager.php';
 require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-media.php';
 require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-settings-helper.php';
+require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-parents.php';
 
 $min_age = JuniorGolfKenya_Settings_Helper::get_min_age();
 $max_age = JuniorGolfKenya_Settings_Helper::get_max_age();
@@ -816,6 +817,7 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
                     <th>Member #</th>
                     <th>Name</th>
                     <th>Email</th>
+                    <th>Parent Account</th>
                     <th>Type</th>
                     <th>Status</th>
                     <th>Visibility</th>
@@ -831,6 +833,7 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
                 </tr>
                 <?php else: ?>
                 <?php foreach ($members as $member): ?>
+                <?php $parent_account_summary = JuniorGolfKenya_Parents::get_member_parent_account_summary($member->id); ?>
                 <tr>
                     <td>
                         <?php echo JuniorGolfKenya_Media::get_profile_image_html($member->id, 'thumbnail', array('style' => 'width: 50px; height: 50px; border-radius: 50%; object-fit: cover;')); ?>
@@ -846,6 +849,25 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
                         <?php echo esc_html($member->user_email); ?>
                         <?php if ($member->phone): ?>
                         <br><small><?php echo esc_html($member->phone); ?></small>
+                        <?php endif; ?>
+                    </td>
+                    <td>
+                        <?php if (!$parent_account_summary['has_any_parent']): ?>
+                            <span style="background: #b32d2e; color: white; padding: 3px 8px; border-radius: 3px; font-size: 11px; font-weight: bold;">
+                                No Parent Data
+                            </span>
+                        <?php elseif ($parent_account_summary['has_missing_accounts']): ?>
+                            <span style="background: #dba617; color: #1d2327; padding: 3px 8px; border-radius: 3px; font-size: 11px; font-weight: bold;">
+                                Missing <?php echo intval($parent_account_summary['missing_accounts']); ?>/<?php echo intval($parent_account_summary['total_parents']); ?>
+                            </span>
+                            <br><small><?php echo intval($parent_account_summary['parents_with_accounts']); ?> linked</small>
+                        <?php else: ?>
+                            <span style="background: #46b450; color: white; padding: 3px 8px; border-radius: 3px; font-size: 11px; font-weight: bold;">
+                                Linked <?php echo intval($parent_account_summary['parents_with_accounts']); ?>/<?php echo intval($parent_account_summary['total_parents']); ?>
+                            </span>
+                            <?php if ($parent_account_summary['parents_with_parent_role'] < $parent_account_summary['parents_with_accounts']): ?>
+                                <br><small><?php echo intval($parent_account_summary['parents_with_parent_role']); ?> tagged as parent</small>
+                            <?php endif; ?>
                         <?php endif; ?>
                     </td>
                     <td><?php echo ucfirst($member->membership_type ?: 'standard'); ?></td>
@@ -923,7 +945,7 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
                 </tr>
                 <!-- Expandable Member Details Row -->
                 <tr class="member-details-row" id="member-details-<?php echo $member->id; ?>" style="display: none;">
-                    <td colspan="10" class="member-details-cell">
+                    <td colspan="11" class="member-details-cell">
                         <div class="member-details-content">
                             <?php
                             // Get member details data
@@ -1014,12 +1036,29 @@ $stats = JuniorGolfKenya_Database::get_membership_stats();
                                     <h4>Parent/Guardian Information</h4>
                                     <div class="parents-list">
                                         <?php foreach ($member_parents as $parent): ?>
+                                        <?php $parent_account_status = JuniorGolfKenya_Parents::get_parent_account_status($parent->email ?? ''); ?>
                                         <div class="parent-item">
                                             <div class="parent-details">
                                                 <strong><?php echo esc_html($parent->first_name . ' ' . $parent->last_name); ?></strong>
                                                 <br><small>Email: <?php echo esc_html($parent->email); ?></small>
                                                 <br><small>Phone: <?php echo esc_html($parent->phone ?: 'Not provided'); ?></small>
                                                 <br><small>Relationship: <?php echo esc_html($parent->relationship ?: 'Not specified'); ?></small>
+                                                <br>
+                                                <?php if (empty($parent->email)): ?>
+                                                    <small style="color: #b32d2e; font-weight: 600;">No email available for account creation</small>
+                                                <?php elseif ($parent_account_status['exists']): ?>
+                                                    <small style="color: #46b450; font-weight: 600;">
+                                                        WP account #<?php echo intval($parent_account_status['user_id']); ?>
+                                                        <?php if (!empty($parent_account_status['username'])): ?>
+                                                            (<?php echo esc_html($parent_account_status['username']); ?>)
+                                                        <?php endif; ?>
+                                                    </small>
+                                                    <?php if (!$parent_account_status['has_parent_role']): ?>
+                                                        <br><small style="color: #996800; font-weight: 600;">Account exists but is not tagged with the parent role/meta.</small>
+                                                    <?php endif; ?>
+                                                <?php else: ?>
+                                                    <small style="color: #996800; font-weight: 600;">No WordPress account found for this parent email.</small>
+                                                <?php endif; ?>
                                             </div>
                                         </div>
                                         <?php endforeach; ?>

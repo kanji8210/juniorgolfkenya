@@ -346,6 +346,7 @@ if (!defined('ABSPATH')) {
             <h2>Parents/Guardians</h2>
             <div class="parents-list">
                 <?php foreach ($member_parents as $parent): ?>
+                <?php $parent_account_status = JuniorGolfKenya_Parents::get_parent_account_status($parent->email ?? ''); ?>
                 <div class="parent-entry" style="background: #f9f9f9; padding: 15px; margin-bottom: 15px; border-radius: 5px;">
                     <h4 style="margin: 0 0 10px 0; color: #0073aa;">
                         <?php echo esc_html($parent->first_name . ' ' . $parent->last_name); ?>
@@ -358,6 +359,23 @@ if (!defined('ABSPATH')) {
                         <strong>Email:</strong> <?php echo esc_html($parent->email ?: 'N/A'); ?><br>
                         <?php if ($parent->occupation): ?>
                         <strong>Occupation:</strong> <?php echo esc_html($parent->occupation); ?><br>
+                        <?php endif; ?>
+                        <strong>Parent Account:</strong>
+                        <?php if (empty($parent->email)): ?>
+                            <span style="color: #b32d2e; font-weight: bold;">No email available</span><br>
+                        <?php elseif ($parent_account_status['exists']): ?>
+                            <span style="color: #46b450; font-weight: bold;">WP account exists</span>
+                            <small>
+                                (#<?php echo intval($parent_account_status['user_id']); ?>
+                                <?php if (!empty($parent_account_status['username'])): ?>
+                                    , <?php echo esc_html($parent_account_status['username']); ?>
+                                <?php endif; ?>)
+                            </small><br>
+                            <?php if (!$parent_account_status['has_parent_role']): ?>
+                            <span style="color: #996800; font-weight: bold;">Account not tagged as JGK Parent</span><br>
+                            <?php endif; ?>
+                        <?php else: ?>
+                            <span style="color: #996800; font-weight: bold;">No WordPress account found</span><br>
                         <?php endif; ?>
                         <?php if ($parent->is_primary_contact): ?>
                         <span style="color: #46b450; font-weight: bold;">✓ Primary Contact</span>

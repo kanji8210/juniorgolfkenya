@@ -295,6 +295,84 @@ class JuniorGolfKenya_Parents {
     }
 
     /**
+     * Get WordPress account status for a parent email.
+     *
+     * @since    1.0.0
+     * @param    string $email Parent email address.
+     * @return   array
+     */
+    public static function get_parent_account_status($email) {
+        $email = sanitize_email($email);
+
+        $status = array(
+            'email' => $email,
+            'exists' => false,
+            'user_id' => 0,
+            'username' => '',
+            'has_parent_role' => false,
+        );
+
+        if (empty($email)) {
+            return $status;
+        }
+
+        $user = get_user_by('email', $email);
+        if (!$user) {
+            return $status;
+        }
+
+        $status['exists'] = true;
+        $status['user_id'] = (int) $user->ID;
+        $status['username'] = $user->user_login;
+        $status['has_parent_role'] = in_array('jgk_parent', (array) $user->roles, true)
+            || (bool) get_user_meta($user->ID, 'jgk_is_parent_account', true);
+
+        return $status;
+    }
+
+    /**
+     * Summarize parent-account coverage for a member.
+     *
+     * @since    1.0.0
+     * @param    int $member_id Member ID.
+     * @return   array
+     */
+    public static function get_member_parent_account_summary($member_id) {
+        $parents = self::get_member_parents($member_id);
+        $summary = array(
+            'total_parents' => count($parents),
+            'parents_with_accounts' => 0,
+            'parents_with_parent_role' => 0,
+            'missing_accounts' => 0,
+            'has_any_parent' => !empty($parents),
+            'has_missing_accounts' => false,
+            'statuses' => array(),
+        );
+
+        foreach ($parents as $parent) {
+            $status = self::get_parent_account_status($parent->email ?? '');
+            $status['name'] = trim(($parent->first_name ?? '') . ' ' . ($parent->last_name ?? ''));
+            $status['relationship'] = $parent->relationship ?? '';
+            $status['is_primary_contact'] = !empty($parent->is_primary_contact);
+            $summary['statuses'][] = $status;
+
+            if ($status['exists']) {
+                $summary['parents_with_accounts']++;
+            } else {
+                $summary['missing_accounts']++;
+            }
+
+            if ($status['has_parent_role']) {
+                $summary['parents_with_parent_role']++;
+            }
+        }
+
+        $summary['has_missing_accounts'] = $summary['missing_accounts'] > 0;
+
+        return $summary;
+    }
+
+    /**
      * Add a parent/guardian to a member
      *
      * @since    1.0.0
