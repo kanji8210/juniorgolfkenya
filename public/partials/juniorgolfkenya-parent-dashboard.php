@@ -40,9 +40,10 @@ $membership_product_id = class_exists('WooCommerce') ? intval(get_option('jgk_me
 $payment_selection_nonce = wp_create_nonce('jgk_select_membership_payment');
 ?>
 
-<link rel="stylesheet" href="<?php echo JUNIORGOLFKENYA_PLUGIN_URL; ?>public/partials/css/juniorgolfkenya-member-dashboard.css">
+<link rel="stylesheet" href="<?php echo JUNIORGOLFKENYA_PLUGIN_URL; ?>public/partials/css/juniorgolfkenya-parent-dashboard.css?ver=<?php echo esc_attr(JUNIORGOLFKENYA_VERSION); ?>">
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
 
-<div class="jgk-member-dashboard jgk-parent-dashboard">
+<div class="jgk-parent-dashboard">
     <!-- Parent Header -->
     <div class="jgk-dashboard-header">
         <div class="jgk-member-info">
