@@ -380,6 +380,15 @@ class JuniorGolfKenya_Admin {
 
         add_submenu_page(
             'juniorgolfkenya',
+            'Parents & Guardians',
+            'Parents',
+            'edit_members',
+            'juniorgolfkenya-parents',
+            array($this, 'display_parents_page')
+        );
+
+        add_submenu_page(
+            'juniorgolfkenya',
             'Coaches',
             'Coaches',
             'approve_role_requests',
@@ -461,6 +470,15 @@ class JuniorGolfKenya_Admin {
     }
 
     /**
+     * Display the parents/guardians page.
+     *
+     * @since    1.0.0
+     */
+    public function display_parents_page() {
+        include_once JUNIORGOLFKENYA_PLUGIN_PATH . 'admin/partials/juniorgolfkenya-admin-parents.php';
+    }
+
+    /**
      * Display the role requests page.
      *
      * @since    1.0.0
@@ -502,7 +520,12 @@ class JuniorGolfKenya_Admin {
      * @since    1.0.0
      */
     public function display_settings_page() {
-        include_once JUNIORGOLFKENYA_PLUGIN_PATH . 'admin/partials/juniorgolfkenya-admin-settings.php';
+        $enhanced = JUNIORGOLFKENYA_PLUGIN_PATH . 'admin/partials/juniorgolfkenya-admin-settings-enhanced.php';
+        if (file_exists($enhanced)) {
+            include_once $enhanced;
+        } else {
+            include_once JUNIORGOLFKENYA_PLUGIN_PATH . 'admin/partials/juniorgolfkenya-admin-settings.php';
+        }
     }
 
     /**
