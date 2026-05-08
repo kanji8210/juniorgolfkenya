@@ -69,6 +69,12 @@ class JuniorGolfKenya_Parents {
         $user = new WP_User($user_id);
         if (!in_array('jgk_parent', $user->roles, true)) {
             $user->add_role('jgk_parent');
+            // Set flag to show dashboard notice on next login
+            update_user_meta($user_id, 'jgk_show_parent_role_notice', 1);
+            // Send email notification
+            $subject = 'Your account is now a Parent on Junior Golf Kenya';
+            $message = "Dear {$first_name},\n\nYour account has been upgraded to Parent. You can now manage your children’s memberships and payments from the Parent Dashboard.\n\nLogin: " . home_url('/parent-dashboard') . "\n\nBest regards,\nJunior Golf Kenya Team";
+            wp_mail($email, $subject, $message);
         }
 
         update_user_meta($user_id, 'jgk_is_parent_account', 1);

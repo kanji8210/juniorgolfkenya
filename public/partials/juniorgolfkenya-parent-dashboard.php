@@ -29,7 +29,23 @@ if (!JuniorGolfKenya_Parent_Dashboard::is_parent($parent_email)) {
     return;
 }
 
+// Show parent role switch notice if needed
+$show_parent_role_notice = false;
+if (is_user_logged_in()) {
+    $user_id = get_current_user_id();
+    if (get_user_meta($user_id, 'jgk_show_parent_role_notice', true)) {
+        $show_parent_role_notice = true;
+        delete_user_meta($user_id, 'jgk_show_parent_role_notice');
+    }
+}
+
 // Get parent's children and payment summary
+<?php if ($show_parent_role_notice): ?>
+    <div class="jgk-notice jgk-notice-success" style="margin-bottom:18px;">
+        <strong>Welcome! Your account is now a Parent.</strong><br>
+        You can now manage your children’s memberships and payments from this dashboard.
+    </div>
+<?php endif; ?>
 $children = JuniorGolfKenya_Parent_Dashboard::get_parent_children($parent_email);
 $payment_summary = JuniorGolfKenya_Parent_Dashboard::get_payment_summary($parent_email);
 $parent_info = JuniorGolfKenya_Parent_Dashboard::get_parent_info($parent_email);
