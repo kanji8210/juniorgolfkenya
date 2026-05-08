@@ -38,7 +38,7 @@ class JuniorGolfKenya_Parent_Dashboard {
                 m.date_of_birth,
                 m.gender,
                 m.phone,
-                m.profile_photo,
+                m.profile_image_id,
                 COALESCE(m.date_joined, m.join_date) as joined_date,
                 m.expiry_date,
                 COALESCE(m.email, u.user_email) as user_email,

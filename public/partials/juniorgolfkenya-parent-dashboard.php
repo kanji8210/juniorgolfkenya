@@ -22,6 +22,8 @@ $parent_email = $current_user->user_email;
 
 // Load parent dashboard class
 require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-parent-dashboard.php';
+// Load member dashboard class (for profile image helpers)
+require_once JUNIORGOLFKENYA_PLUGIN_PATH . 'includes/class-juniorgolfkenya-member-dashboard.php';
 
 // Check if user is a parent
 if (!JuniorGolfKenya_Parent_Dashboard::is_parent($parent_email)) {
@@ -39,13 +41,16 @@ if (is_user_logged_in()) {
     }
 }
 
+
 // Get parent's children and payment summary
+?>
 <?php if ($show_parent_role_notice): ?>
     <div class="jgk-notice jgk-notice-success" style="margin-bottom:18px;">
         <strong>Welcome! Your account is now a Parent.</strong><br>
         You can now manage your children’s memberships and payments from this dashboard.
     </div>
 <?php endif; ?>
+<?php
 $children = JuniorGolfKenya_Parent_Dashboard::get_parent_children($parent_email);
 $payment_summary = JuniorGolfKenya_Parent_Dashboard::get_payment_summary($parent_email);
 $parent_info = JuniorGolfKenya_Parent_Dashboard::get_parent_info($parent_email);

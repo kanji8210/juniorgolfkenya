@@ -20,13 +20,14 @@ foreach ($required_pages as $page) {
     $url = $exists ? get_permalink($page_id) : '';
     echo '<tr>';
     echo '<td>' . esc_html($page['title']) . '</td>';
-    echo '<td>' . ($exists ? '<a href="' . esc_url($url) . '" target="_blank">Exists</a>' : '<span style="color:red;">Missing</span>') . '</td>';
+    echo '<td>' . ($exists ? '<span style="color:green;">Exists</span>' : '<span style="color:red;">Missing</span>') . '</td>';
     echo '<td><code>' . esc_html($page['shortcode']) . '</code></td>';
     echo '<td>';
     if (!$exists) {
         $create_url = wp_nonce_url(admin_url('admin-post.php?action=jgk_create_page&option=' . urlencode($page['option']) . '&title=' . urlencode($page['title']) . '&shortcode=' . urlencode($page['shortcode'])), 'jgk_create_page');
         echo '<a class="button button-primary" href="' . esc_url($create_url) . '">Create Page</a>';
     } else {
+        echo '<a class="button" href="' . esc_url($url) . '" target="_blank">View Page</a> ';
         echo '<span style="color:green;">OK</span>';
     }
     echo '</td>';
