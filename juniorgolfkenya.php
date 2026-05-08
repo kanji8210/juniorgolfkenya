@@ -1,3 +1,37 @@
+// Handle admin-post for creating required plugin pages from Pages Manager
+add_action('admin_post_jgk_create_page', function() {
+    if (!current_user_can('manage_options')) {
+        wp_die('Insufficient permissions');
+    }
+    check_admin_referer('jgk_create_page');
+    $option = isset($_GET['option']) ? sanitize_text_field($_GET['option']) : '';
+    $title = isset($_GET['title']) ? sanitize_text_field($_GET['title']) : '';
+    $shortcode = isset($_GET['shortcode']) ? sanitize_text_field($_GET['shortcode']) : '';
+    if (!$option || !$title || !$shortcode) {
+        wp_die('Missing parameters');
+    }
+    // Check if page already exists
+    $existing_id = get_option($option);
+    if ($existing_id && get_post_status($existing_id)) {
+        wp_redirect(admin_url('admin.php?page=juniorgolfkenya-pages-manager&jgk_notice=exists'));
+        exit;
+    }
+    // Create the page
+    $page_id = wp_insert_post(array(
+        'post_title' => $title,
+        'post_content' => $shortcode,
+        'post_status' => 'publish',
+        'post_type' => 'page',
+    ));
+    if (is_wp_error($page_id) || !$page_id) {
+        wp_redirect(admin_url('admin.php?page=juniorgolfkenya-pages-manager&jgk_notice=error'));
+        exit;
+    }
+    // Save page ID in option
+    update_option($option, $page_id);
+    wp_redirect(admin_url('admin.php?page=juniorgolfkenya-pages-manager&jgk_notice=created'));
+    exit;
+});
 <?php
 /**
  * Plugin Name: Junior Golf Kenya - Membership Management

@@ -352,6 +352,23 @@ class JuniorGolfKenya_Admin {
      * @since    1.0.0
      */
     public function add_admin_menu() {
+                // Add Pages Manager submenu
+                add_submenu_page(
+                    'juniorgolfkenya',
+                    'Pages Manager',
+                    'Pages Manager',
+                    'manage_options',
+                    'juniorgolfkenya-pages-manager',
+                    array($this, 'display_pages_manager')
+                );
+            /**
+             * Display the Pages Manager admin page.
+             *
+             * @since    1.0.0
+             */
+            public function display_pages_manager() {
+                include_once JUNIORGOLFKENYA_PLUGIN_PATH . 'admin/partials/juniorgolfkenya-admin-pages-manager.php';
+            }
         // Main menu with golf icon
         $golf_icon = 'data:image/svg+xml;base64,' . base64_encode('
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="#a7aaad">
