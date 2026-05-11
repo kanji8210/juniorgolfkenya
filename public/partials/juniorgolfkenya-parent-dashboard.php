@@ -194,7 +194,20 @@ $payment_selection_nonce = wp_create_nonce('jgk_select_membership_payment');
                                 <span class="jgk-status-badge jgk-status-<?php echo esc_attr($child->status); ?>">
                                     <?php echo ucfirst($child->status); ?>
                                 </span>
+                                <button class="jgk-btn jgk-btn-view-profile" data-member-id="<?php echo $child->id; ?>" type="button" style="margin-top:8px;">
+                                    <span class="dashicons dashicons-visibility"></span> View Profile
+                                </button>
                             </div>
+                        <!-- Modal for child profile -->
+                        <div id="jgk-child-profile-modal" class="jgk-modal" style="display:none;">
+                            <div class="jgk-modal-backdrop"></div>
+                            <div class="jgk-modal-content">
+                                <button class="jgk-modal-close" type="button" aria-label="Close">&times;</button>
+                                <div id="jgk-modal-profile-content">
+                                    <!-- Profile details will be loaded here -->
+                                </div>
+                            </div>
+                        </div>
                         </div>
                         
                         <div class="jgk-child-details">

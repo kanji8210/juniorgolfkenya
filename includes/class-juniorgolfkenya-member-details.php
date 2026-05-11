@@ -50,14 +50,52 @@ class JuniorGolfKenya_Member_Details {
      *
      * @since    1.0.0
      */
+
     public function init() {
-        // AJAX functionality removed - now using inline expansion
-        // add_action('wp_ajax_jgk_get_member_details', array($this, 'ajax_get_member_details'));
+        // AJAX handler for parent/child profile modal
+        add_action('wp_ajax_jgk_get_member_details', array($this, 'ajax_get_member_details'));
+        add_action('wp_ajax_nopriv_jgk_get_member_details', array($this, 'ajax_get_member_details'));
 
         // Add debug hook if enabled
         if ($this->debug_mode) {
             add_action('wp_ajax_jgk_debug_member_details', array($this, 'debug_member_details'));
         }
+    }
+
+    /**
+     * AJAX: Return member profile HTML for modal
+     */
+    public function ajax_get_member_details() {
+        // Validate nonce
+        $nonce = isset($_POST['nonce']) ? sanitize_text_field($_POST['nonce']) : '';
+        if (!wp_verify_nonce($nonce, 'jgk_members_action')) {
+            wp_send_json_error(['message' => 'Security check failed.']);
+        }
+        $member_id = isset($_POST['member_id']) ? absint($_POST['member_id']) : 0;
+        if (!$member_id) {
+            wp_send_json_error(['message' => 'Missing member ID.']);
+        }
+
+        // Only allow parent of child or admin
+        $current_user = wp_get_current_user();
+        $is_admin = current_user_can('manage_options');
+        $is_parent = false;
+        if ($current_user && $current_user->exists()) {
+            global $wpdb;
+            $parents_table = $wpdb->prefix . 'jgk_parents_guardians';
+            $parent_email = $current_user->user_email;
+            $is_parent = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM $parents_table WHERE member_id = %d AND email = %s", $member_id, $parent_email));
+        }
+        if (!$is_admin && !$is_parent) {
+            wp_send_json_error(['message' => 'You do not have permission to view this profile.']);
+        }
+
+        $member_data = $this->get_member_data($member_id);
+        if (is_wp_error($member_data)) {
+            wp_send_json_error(['message' => $member_data->get_error_message()]);
+        }
+        $html = $this->generate_member_details_html($member_data);
+        wp_send_json_success(['html' => $html]);
     }
 
     /**

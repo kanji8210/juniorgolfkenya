@@ -15,6 +15,48 @@
      * Initialize when document is ready
      */
     $(document).ready(function() {
+
+            // --- Parent Dashboard: Child Profile Modal ---
+            $(document).on('click', '.jgk-btn-view-profile', function() {
+                var memberId = $(this).data('member-id');
+                var $modal = $('#jgk-child-profile-modal');
+                var $content = $('#jgk-modal-profile-content');
+                $content.html('<div style="text-align:center;padding:40px 0;">Loading...</div>');
+                $modal.fadeIn(120);
+
+                // AJAX: Fetch profile HTML
+                $.ajax({
+                    url: window.ajaxurl || '/wp-admin/admin-ajax.php',
+                    method: 'POST',
+                    data: {
+                        action: 'jgk_get_member_details',
+                        member_id: memberId,
+                        nonce: (typeof jgkAjax !== 'undefined' ? jgkAjax.members_nonce : '')
+                    },
+                    success: function(res) {
+                        if (res.success && res.data && res.data.html) {
+                            $content.html(res.data.html);
+                        } else {
+                            $content.html('<div style="color:#f87171;">Failed to load profile.</div>');
+                        }
+                    },
+                    error: function() {
+                        $content.html('<div style="color:#f87171;">AJAX error. Please try again.</div>');
+                    }
+                });
+            });
+
+            // Close modal on close button or backdrop click
+            $(document).on('click', '.jgk-modal-close, .jgk-modal-backdrop', function() {
+                $('#jgk-child-profile-modal').fadeOut(120);
+            });
+
+            // ESC key closes modal
+            $(document).on('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    $('#jgk-child-profile-modal').fadeOut(120);
+                }
+            });
         
         // Form validation for member portal and registration flow
         $('.jgk-form, .jgk-member-form').on('submit', function(e) {
