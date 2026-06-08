@@ -1828,6 +1828,66 @@ html, body {
     overflow-x: hidden;
 }
 
+/* Typography and spacing consistency pass */
+.jgk-member-details h1 {
+    font-size: clamp(1.6rem, 2.5vw, 2.1rem);
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+}
+
+.jgk-section-header h2,
+.jgk-activity-header h3,
+.jgk-coaches-header h3,
+.jgk-payment-banner-text h3,
+.jgk-success-banner-text h3 {
+    font-size: clamp(1.05rem, 1.9vw, 1.35rem);
+    line-height: 1.28;
+    letter-spacing: -0.01em;
+}
+
+.jgk-stat-content h3,
+.jgk-amount,
+.jgk-amount-highlight {
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+}
+
+.jgk-member-email,
+.jgk-stat-content p,
+.jgk-info-value,
+.jgk-activity-text p,
+.jgk-coach-details p,
+.jgk-payment-description,
+.jgk-payment-banner-text p,
+.jgk-success-banner-text p {
+    line-height: 1.5;
+}
+
+.jgk-dashboard-main,
+.jgk-dashboard-sidebar {
+    gap: 20px;
+}
+
+.jgk-dashboard-section,
+.jgk-activity-feed,
+.jgk-coaches-list {
+    margin: 0;
+}
+
+.jgk-info-grid,
+.jgk-payment-card,
+.jgk-activity-item,
+.jgk-coach-item {
+    padding-top: 20px;
+    padding-bottom: 20px;
+}
+
+.jgk-member-badges,
+.jgk-success-features,
+.jgk-payment-buttons {
+    gap: 10px;
+}
+
 @media (max-width: 768px) {
     .jgk-dashboard-header,
     .jgk-payment-banner,
@@ -1843,6 +1903,19 @@ html, body {
     .jgk-activity-header,
     .jgk-coaches-header {
         padding: 16px;
+    }
+
+    .jgk-dashboard-main,
+    .jgk-dashboard-sidebar {
+        gap: 16px;
+    }
+
+    .jgk-info-grid,
+    .jgk-payment-card,
+    .jgk-activity-item,
+    .jgk-coach-item {
+        padding-top: 16px;
+        padding-bottom: 16px;
     }
 }
 
