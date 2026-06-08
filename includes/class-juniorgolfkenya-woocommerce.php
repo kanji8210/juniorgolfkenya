@@ -44,8 +44,55 @@ class JuniorGolfKenya_WooCommerce {
         // Ensure membership fee is authoritative at checkout
         add_action('woocommerce_before_calculate_totals', array(__CLASS__, 'sync_cart_membership_price'), 10, 1);
 
+        // Render a compact trust block above order review on checkout.
+        add_action('woocommerce_checkout_before_order_review_heading', array(__CLASS__, 'render_checkout_brand_block'), 5);
+
         // Hide WooCommerce placeholder thumbnail for membership product in cart/checkout.
         add_filter('woocommerce_cart_item_thumbnail', array(__CLASS__, 'filter_membership_cart_item_thumbnail'), 10, 3);
+    }
+
+    /**
+     * Render checkout brand and trust context above order review.
+     *
+     * @since    1.0.0
+     */
+    public static function render_checkout_brand_block() {
+        if (is_admin()) {
+            return;
+        }
+
+        $site_name = get_bloginfo('name');
+        $organization = get_option('jgk_general_settings', array());
+        $organization_name = !empty($organization['organization_name']) ? $organization['organization_name'] : $site_name;
+
+        $logo_html = '';
+        $custom_logo_id = get_theme_mod('custom_logo');
+        if ($custom_logo_id) {
+            $logo_html = wp_get_attachment_image($custom_logo_id, 'thumbnail', false, array(
+                'class' => 'jgk-checkout-brand-logo',
+                'alt' => $organization_name,
+            ));
+        }
+
+        echo '<div class="jgk-checkout-brand" aria-label="Checkout trust information">';
+        echo '<div class="jgk-checkout-brand-main">';
+        if (!empty($logo_html)) {
+            echo '<span class="jgk-checkout-brand-media">' . $logo_html . '</span>';
+        } else {
+            echo '<span class="jgk-checkout-brand-media jgk-checkout-brand-fallback" aria-hidden="true">JGK</span>';
+        }
+        echo '<div class="jgk-checkout-brand-copy">';
+        echo '<p class="jgk-checkout-brand-eyebrow">Secure Membership Checkout</p>';
+        echo '<h3>' . esc_html($organization_name) . '</h3>';
+        echo '<p>Protected checkout with membership verification and payment confirmation.</p>';
+        echo '</div>';
+        echo '</div>';
+        echo '<div class="jgk-checkout-trust">';
+        echo '<span class="jgk-checkout-trust-item">SSL secured</span>';
+        echo '<span class="jgk-checkout-trust-item">Instant receipt</span>';
+        echo '<span class="jgk-checkout-trust-item">Support on standby</span>';
+        echo '</div>';
+        echo '</div>';
     }
 
     /**
