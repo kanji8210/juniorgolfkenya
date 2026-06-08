@@ -1937,6 +1937,11 @@ html, body {
     .jgk-form-section,
     .jgk-card,
     .jgk-table-container,
+    .jgk-dashboard-section,
+    .jgk-activity-feed,
+    .jgk-coaches-list,
+    .jgk-stat-card,
+    .jgk-payment-card,
     .jgk-member-portal,
     .jgk-member-card,
     .jgk-verification-form,
@@ -1953,6 +1958,12 @@ html, body {
 
     .jgk-table-container thead th,
     .jgk-table-container tbody td,
+    .jgk-section-header,
+    .jgk-activity-header,
+    .jgk-coaches-header,
+    .jgk-activity-item,
+    .jgk-coach-item,
+    .jgk-member-meta,
     .jgk-member-meta,
     .jgk-member-header,
     .jgk-form-header,
@@ -1969,6 +1980,15 @@ html, body {
     .jgk-login-box h2,
     .jgk-modal-header h2,
     .jgk-table-container h2,
+    .jgk-section-header h2,
+    .jgk-activity-header h3,
+    .jgk-coaches-header h3,
+    .jgk-info-value,
+    .jgk-payment-info h3,
+    .jgk-payment-banner-text h3,
+    .jgk-success-banner-text h3,
+    .jgk-coach-details h4,
+    .jgk-activity-text strong,
     .jgk-stat-number,
     .jgk-form-section h2,
     .jgk-form-section h3 {
@@ -1982,11 +2002,24 @@ html, body {
     .jgk-help-text,
     .jgk-login-box > p,
     .jgk-stat-label,
+    .jgk-info-label,
+    .jgk-payment-info p,
+    .jgk-payment-description,
+    .jgk-activity-text p,
+    .jgk-activity-time,
+    .jgk-coach-details p,
     .jgk-member-email,
     .jgk-form-header p,
     .jgk-info-card p,
     .jgk-modal-close {
         color: #cbd5e1 !important;
+    }
+
+    .jgk-payment-card,
+    .jgk-payment-banner,
+    .jgk-success-banner {
+        border-color: #334155 !important;
+        box-shadow: 0 10px 24px rgba(2, 6, 23, 0.45) !important;
     }
 
     .jgk-form-group input,
