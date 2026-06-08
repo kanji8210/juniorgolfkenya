@@ -419,3 +419,161 @@
 .jgk-login-card {
     animation: fadeInUp 0.5s ease-out;
 }
+
+/* Dark contrast accessibility overrides */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --jgk-bg: #0f172a;
+        --jgk-surface: #111827;
+        --jgk-text: #f9fafb;
+        --jgk-muted: #cbd5e1;
+        --jgk-border: #334155;
+    }
+
+    [class*="jgk-"] {
+        color: #f1f5f9;
+    }
+
+    .jgk-form,
+    .jgk-form-section,
+    .jgk-card,
+    .jgk-table-container,
+    .jgk-member-portal,
+    .jgk-member-card,
+    .jgk-verification-form,
+    .jgk-login-card,
+    .jgk-login-box,
+    .jgk-modal-content,
+    .jgk-no-members,
+    .jgk-info-card,
+    .jgk-widget-header + .jgk-verification-form {
+        background: #111827 !important;
+        color: #f9fafb !important;
+        border-color: #334155 !important;
+    }
+
+    .jgk-table-container thead th,
+    .jgk-table-container tbody td,
+    .jgk-member-meta,
+    .jgk-member-header,
+    .jgk-form-header,
+    .jgk-form-section h3,
+    .jgk-form-header,
+    .jgk-or-divider::before,
+    .jgk-or-divider::after {
+        border-color: #334155 !important;
+    }
+
+    .jgk-form-group label,
+    .jgk-member-name,
+    .jgk-info-card h4,
+    .jgk-login-box h2,
+    .jgk-modal-header h2,
+    .jgk-table-container h2,
+    .jgk-stat-number,
+    .jgk-form-section h2,
+    .jgk-form-section h3 {
+        color: #f8fafc !important;
+    }
+
+    .jgk-form-group p,
+    .jgk-member-bio,
+    .jgk-member-handicap,
+    .jgk-member-club,
+    .jgk-help-text,
+    .jgk-login-box > p,
+    .jgk-stat-label,
+    .jgk-member-email,
+    .jgk-form-header p,
+    .jgk-info-card p,
+    .jgk-modal-close {
+        color: #cbd5e1 !important;
+    }
+
+    .jgk-form-group input,
+    .jgk-form-group select,
+    .jgk-form-group textarea,
+    .jgk-form-field input,
+    .jgk-form-field select,
+    .jgk-form-field textarea,
+    .jgk-search-input-group input[type="text"],
+    .jgk-modal .jgk-form-field input,
+    .jgk-modal .jgk-form-field select,
+    .jgk-modal .jgk-form-field textarea {
+        background: #0b1220 !important;
+        color: #f8fafc !important;
+        border-color: #475569 !important;
+    }
+
+    .jgk-form-group input:focus,
+    .jgk-form-group select:focus,
+    .jgk-form-group textarea:focus,
+    .jgk-search-input-group input[type="text"]:focus {
+        border-color: #60a5fa !important;
+        box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.25) !important;
+    }
+
+    .jgk-btn,
+    .jgk-button,
+    .jgk-payment-cta-btn,
+    .jgk-logout-btn {
+        color: #ffffff !important;
+    }
+
+    .jgk-btn-secondary {
+        background: #334155 !important;
+        border-color: #475569 !important;
+    }
+
+    .jgk-alert,
+    .jgk-message,
+    .jgk-notice {
+        color: #e2e8f0 !important;
+    }
+
+    .jgk-alert-warning,
+    .jgk-message-warning {
+        background: #3f3208 !important;
+        border-color: #f59e0b !important;
+        color: #fde68a !important;
+    }
+
+    .jgk-alert-success,
+    .jgk-message-success {
+        background: #052e1f !important;
+        border-color: #10b981 !important;
+        color: #bbf7d0 !important;
+    }
+
+    .jgk-alert-error,
+    .jgk-message-error,
+    .jgk-verification-error {
+        background: #3f0d17 !important;
+        border-color: #ef4444 !important;
+        color: #fecdd3 !important;
+    }
+
+    .jgk-widget-header,
+    .jgk-dashboard-header,
+    .jgk-admin-header,
+    .jgk-membership-card {
+        color: #ffffff !important;
+    }
+
+    .jgk-login-actions,
+    .jgk-table-container tbody tr:hover {
+        background: #0b1220 !important;
+    }
+
+    .jgk-help-text a,
+    .jgk-value,
+    .jgk-table-container a,
+    .jgk-form-field-info label {
+        color: #93c5fd !important;
+    }
+
+    .jgk-spinner {
+        border-color: #334155 !important;
+        border-top-color: #60a5fa !important;
+    }
+}
