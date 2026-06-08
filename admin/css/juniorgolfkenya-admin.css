@@ -834,8 +834,112 @@
         color: #93c5fd !important;
     }
 
+
+/* Admin UI polish */
+.jgk-admin-container .notice {
+    border-radius: 10px;
+}
+
+.jgk-admin-container .nav-tab-wrapper {
+    border-bottom-color: var(--jgk-border);
+}
+
+.jgk-admin-container .nav-tab {
+    border: 1px solid transparent;
+    border-radius: 10px 10px 0 0;
+    margin-right: 6px;
+    transition: all .2s var(--jgk-ease);
+}
+
+.jgk-admin-container .nav-tab-active,
+.jgk-admin-container .nav-tab:hover {
+    border-color: var(--jgk-border);
+    background: var(--jgk-bg);
+    color: var(--jgk-text);
+}
+
+.jgk-admin-container .form-table th {
+    color: var(--jgk-text);
+    font-weight: 600;
+}
+
+.jgk-admin-container input[type="text"],
+.jgk-admin-container input[type="email"],
+.jgk-admin-container input[type="number"],
+.jgk-admin-container input[type="tel"],
+.jgk-admin-container input[type="url"],
+.jgk-admin-container input[type="password"],
+.jgk-admin-container select,
+.jgk-admin-container textarea {
+    border: 1px solid var(--jgk-border);
+    border-radius: 10px;
+    min-height: 42px;
+    padding: 8px 12px;
+}
+
+.jgk-admin-container textarea {
+    min-height: 110px;
+}
+
+.jgk-admin-container input:focus,
+.jgk-admin-container select:focus,
+.jgk-admin-container textarea:focus {
+    border-color: var(--jgk-accent);
+    box-shadow: 0 0 0 3px rgba(14, 165, 122, 0.14);
+    outline: none;
+}
+
+.jgk-table-container table tbody tr:nth-child(even) {
+    background: #fbfcfd;
+}
+
+.jgk-table-container table tbody tr:hover {
+    background: #f2f7f4;
+}
+
+.jgk-button,
+.jgk-btn,
+.jgk-admin-container .button,
+.jgk-admin-container .button-primary {
+    min-height: 42px;
+}
+
+.jgk-button:focus-visible,
+.jgk-btn:focus-visible,
+.jgk-admin-container .button:focus-visible,
+.jgk-admin-container .button-primary:focus-visible {
+    outline: 3px solid rgba(14, 165, 122, 0.2);
+    outline-offset: 2px;
+}
+
     .jgk-spinner {
         border-color: #334155 !important;
         border-top-color: #60a5fa !important;
+    }
+
+    .jgk-admin-container .nav-tab,
+    .jgk-admin-container .nav-tab-active,
+    .jgk-admin-container .form-table th,
+    .jgk-admin-container .form-table td,
+    .jgk-admin-container .description {
+        color: #e2e8f0 !important;
+    }
+
+    .jgk-admin-container .nav-tab-active,
+    .jgk-admin-container .nav-tab:hover {
+        background: #0b1220 !important;
+    }
+
+    .jgk-admin-container input[type="text"],
+    .jgk-admin-container input[type="email"],
+    .jgk-admin-container input[type="number"],
+    .jgk-admin-container input[type="tel"],
+    .jgk-admin-container input[type="url"],
+    .jgk-admin-container input[type="password"],
+    .jgk-admin-container select,
+    .jgk-admin-container textarea {
+        background: #0b1220 !important;
+        border-color: #475569 !important;
+        color: #f8fafc !important;
     }
 }
