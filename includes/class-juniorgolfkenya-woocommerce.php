@@ -43,6 +43,9 @@ class JuniorGolfKenya_WooCommerce {
 
         // Ensure membership fee is authoritative at checkout
         add_action('woocommerce_before_calculate_totals', array(__CLASS__, 'sync_cart_membership_price'), 10, 1);
+
+        // Hide WooCommerce placeholder thumbnail for membership product in cart/checkout.
+        add_filter('woocommerce_cart_item_thumbnail', array(__CLASS__, 'filter_membership_cart_item_thumbnail'), 10, 3);
     }
 
     /**
@@ -116,6 +119,44 @@ class JuniorGolfKenya_WooCommerce {
 
             $product->set_price($fee);
         }
+    }
+
+    /**
+     * Hide placeholder thumbnail for membership product in cart and checkout review.
+     *
+     * @since    1.0.0
+     * @param    string $thumbnail Existing thumbnail HTML.
+     * @param    array  $cart_item WooCommerce cart item.
+     * @param    string $cart_item_key Cart item key.
+     * @return   string
+     */
+    public static function filter_membership_cart_item_thumbnail($thumbnail, $cart_item, $cart_item_key) {
+        unset($cart_item_key);
+
+        if (empty($cart_item['data']) || !is_a($cart_item['data'], 'WC_Product')) {
+            return $thumbnail;
+        }
+
+        $membership_product_id = (int) get_option('jgk_membership_product_id', 0);
+        if ($membership_product_id <= 0) {
+            return $thumbnail;
+        }
+
+        /** @var WC_Product $product */
+        $product = $cart_item['data'];
+        $product_id = (int) $product->get_id();
+        $parent_id = (int) $product->get_parent_id();
+        $is_membership_product = ($product_id === $membership_product_id || $parent_id === $membership_product_id);
+
+        if (!$is_membership_product) {
+            return $thumbnail;
+        }
+
+        if ((int) $product->get_image_id() > 0) {
+            return $thumbnail;
+        }
+
+        return '';
     }
 
     /**
