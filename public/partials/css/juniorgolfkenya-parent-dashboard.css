@@ -545,7 +545,7 @@
     }
 
     [class*="jgk-"] {
-        color: #f1f5f9;
+        color: #f8fafc;
     }
 
     .jgk-form,
@@ -584,10 +584,18 @@
     .jgk-login-box h2,
     .jgk-modal-header h2,
     .jgk-table-container h2,
+    .jgk-parent-dashboard .jgk-member-details h1,
+    .jgk-parent-dashboard .jgk-section-header h2,
+    .jgk-parent-dashboard .jgk-child-info h3,
+    .jgk-parent-dashboard .jgk-stat-content h3,
+    .jgk-parent-dashboard .jgk-payment-info h3,
+    .jgk-parent-dashboard .jgk-pending-info strong,
+    .jgk-parent-dashboard .jgk-info-value,
+    .jgk-parent-dashboard .jgk-detail-value,
     .jgk-stat-number,
     .jgk-form-section h2,
     .jgk-form-section h3 {
-        color: #f8fafc !important;
+        color: #ffffff !important;
     }
 
     .jgk-form-group p,
@@ -597,11 +605,21 @@
     .jgk-help-text,
     .jgk-login-box > p,
     .jgk-stat-label,
+    .jgk-parent-dashboard .jgk-member-email,
+    .jgk-parent-dashboard .jgk-child-membership,
+    .jgk-parent-dashboard .jgk-payment-info p,
+    .jgk-parent-dashboard .jgk-payment-note,
+    .jgk-parent-dashboard .jgk-expiry-date,
+    .jgk-parent-dashboard .jgk-info-label,
+    .jgk-parent-dashboard .jgk-detail-label,
+    .jgk-parent-dashboard .jgk-membership-number,
+    .jgk-parent-dashboard .jgk-pending-amount .jgk-period,
+    .jgk-parent-dashboard .jgk-child-payment-history,
     .jgk-member-email,
     .jgk-form-header p,
     .jgk-info-card p,
     .jgk-modal-close {
-        color: #cbd5e1 !important;
+        color: #e2e8f0 !important;
     }
 
     .jgk-form-group input,

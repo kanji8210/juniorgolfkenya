@@ -1930,7 +1930,7 @@ html, body {
     }
 
     [class*="jgk-"] {
-        color: #f1f5f9;
+        color: #f8fafc;
     }
 
     .jgk-form,
@@ -1992,7 +1992,7 @@ html, body {
     .jgk-stat-number,
     .jgk-form-section h2,
     .jgk-form-section h3 {
-        color: #f8fafc !important;
+        color: #ffffff !important;
     }
 
     .jgk-form-group p,
@@ -2012,7 +2012,7 @@ html, body {
     .jgk-form-header p,
     .jgk-info-card p,
     .jgk-modal-close {
-        color: #cbd5e1 !important;
+        color: #e2e8f0 !important;
     }
 
     .jgk-payment-card,
