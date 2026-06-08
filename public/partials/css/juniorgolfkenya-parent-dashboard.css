@@ -69,7 +69,7 @@
     --jgk-text: #e8eef7;
     --jgk-text-muted: #a3b3cc;
     --jgk-text-soft: #7d8fab;
-    --jgk-success: #34d399;
+    --jgk-success: #60a5fa;
     --jgk-warning: #fbbf24;
     --jgk-danger: #f87171;
     --jgk-border: rgba(212, 175, 55, 0.18);
@@ -674,7 +674,7 @@
     .jgk-message-success {
         background: #052e1f !important;
         border-color: #10b981 !important;
-        color: #bbf7d0 !important;
+        color: #bfdbfe !important;
     }
 
     .jgk-alert-error,
